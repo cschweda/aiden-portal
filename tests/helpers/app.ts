@@ -31,7 +31,7 @@ const BASE_ENV: Record<string, string> = {
 /** A complete, known environment plus fresh config, logger, and Fellow client singletons. */
 export function useTestEnv(overrides: Record<string, string> = {}): void {
   // Assigning undefined would store the string 'undefined'; the property has to go.
-  for (const key of ['ALLOWED_HOSTS', 'FELLOW_TIMEZONE', 'PORT', 'NODE_ENV']) Reflect.deleteProperty(process.env, key)
+  for (const key of ['ALLOWED_HOSTS', 'FELLOW_TIMEZONE', 'PORT', 'NODE_ENV', 'NITRO_HOST', 'NITRO_PORT', 'LOG_LEVEL']) Reflect.deleteProperty(process.env, key)
   Object.assign(process.env, BASE_ENV, overrides)
   resetConfigForTests()
   resetLoggerForTests()

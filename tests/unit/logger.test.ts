@@ -2,6 +2,7 @@ import { Writable } from 'node:stream'
 import { describe, expect, it } from 'vitest'
 import { parseEnv } from '../../server/utils/config'
 import { buildLoggerOptions, createLogger } from '../../server/utils/logger'
+import { AIDEN } from '../helpers/aiden-fixture'
 
 function capture() {
   const lines: string[] = []
@@ -14,7 +15,7 @@ function capture() {
   return { stream, records: () => lines.filter(l => l.trim()).map(l => JSON.parse(l) as Record<string, unknown>) }
 }
 
-const config = parseEnv({ FELLOW_EMAIL: 'coffee@example.com', FELLOW_PASSWORD: 'hunter2', LOG_LEVEL: 'debug', HOST: '127.0.0.1' })
+const config = parseEnv({ FELLOW_EMAIL: 'coffee@example.com', FELLOW_PASSWORD: 'hunter2', LOG_LEVEL: 'debug' }, AIDEN)
 
 describe('logger', () => {
   it('redacts secrets at the top level and up to two levels down', () => {
@@ -39,7 +40,7 @@ describe('logger', () => {
 
   it('honours the configured level', () => {
     const { stream, records } = capture()
-    const logger = createLogger(parseEnv({ FELLOW_EMAIL: 'a@b.co', FELLOW_PASSWORD: 'x', LOG_LEVEL: 'warn' }), stream)
+    const logger = createLogger(parseEnv({ FELLOW_EMAIL: 'a@b.co', FELLOW_PASSWORD: 'x', LOG_LEVEL: 'warn' }, AIDEN), stream)
     logger.info({}, 'dropped')
     logger.warn({}, 'kept')
     expect(records().map(r => r.msg)).toEqual(['kept'])

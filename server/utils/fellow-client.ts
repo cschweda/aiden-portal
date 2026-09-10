@@ -13,6 +13,11 @@ export function useFellowClient(): FellowClient {
       password: fellow.password,
       timezone: fellow.timezone,
       dryRun: fellow.dryRun,
+      baseUrl: fellow.baseUrl,
+      timeoutMs: fellow.timeoutMs,
+      maxAttempts: fellow.retry.attempts,
+      backoffBaseMs: fellow.retry.backoffBaseMs,
+      cacheTtlMs: fellow.cacheTtlMs,
       logger: useLogger().child({ module: 'fellow' }),
     })
   }
