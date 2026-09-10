@@ -24,6 +24,26 @@ Device, profile, and schedule reads are cached for 30 seconds and de-duplicated 
 mutation clears the cache. Only GET and DELETE are retried (408 and 5xx, three attempts, jittered backoff);
 a retried POST could create a duplicate profile after a 503 Fellow had in fact processed.
 
+## Request pipeline
+
+Every request passes, in order, through `server/middleware/00.request-id.ts` (a UUID on the event, on
+a child logger, and in the `x-request-id` header), `01.host-allowlist.ts` (400 unless the Host header
+names an entry of `ALLOWED_HOSTS`, which closes DNS rebinding), and `02.csrf.ts` (403 for a mutation
+without `Sec-Fetch-Site: same-origin` or an allowed `Origin`). Routes are wrapped in `defineApiRoute`
+from `server/utils/api.ts`, which turns a Zod error into 400 with issues, a `FellowError` into 502 with
+the code only, and anything else into a logged 500. nuxt-security adds the response headers; its rate
+limiter and CORS handler are disabled because nothing legitimately calls this API from another origin.
+
+Route files import from `h3` directly rather than relying on Nitro's auto-imports, so
+`tests/helpers/app.ts` can mount the identical handlers on a plain h3 app and exercise the whole
+pipeline in-process with msw standing in for Fellow.
+
+## Startup
+
+`server/plugins/startup.ts` runs before Nitro listens. It parses the environment, refuses to start
+(exit 1) when `HOST` is unset or not loopback, logs a config summary without secrets, prints one plain
+line to stdout, and probes Fellow once without blocking.
+
 ## Extracting the client to its own package
 
 Copy `server/lib/fellow/` into a package whose only dependency is `zod`, export `index.ts`, and pass a

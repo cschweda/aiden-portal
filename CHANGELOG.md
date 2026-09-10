@@ -7,6 +7,32 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-10
+
+Checkpoint 2 of 4: server routes, request hardening, and logging. Still no UI.
+
+### Added
+
+- API routes over the Fellow client: `/api/status`, `/api/device`, `/api/profiles` (list,
+  create, update, delete, share, import from brew.link), `/api/schedules` (list, create,
+  update, delete), and `/api/brew/start`, which refuses with the list of blockers unless a
+  fresh device read says the brewer is ready.
+- One shared error mapping: validation failures answer 400 with the issue list, Fellow
+  failures answer 502 with the error code only, anything else answers a generic 500.
+- Request pipeline: a request id on every response and log line, a Host allowlist (400),
+  and a CSRF check on every mutation (403) that accepts `Sec-Fetch-Site: same-origin` or an
+  `Origin` naming an allowed host.
+- Startup guard: the server refuses to start when `HOST` is unset or not loopback, or when
+  the Fellow credentials are missing, and probes Fellow once without blocking.
+- Production logging to `logs/aiden.<date>.<n>.log` via pino-roll, rotated daily, 14 files
+  kept, with `logs/current.log` pointing at the active file; secrets redacted.
+- Security headers via nuxt-security; its rate limiter and CORS handler are off.
+
+### Changed
+
+- Route files import from `h3` directly so the same handlers run in-process under Vitest.
+- New dependencies: `h3`, `pino-roll`, `nuxt-security`.
+
 ## [0.1.1] - 2026-09-10
 
 Fixes from the checkpoint 1 code review.

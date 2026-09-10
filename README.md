@@ -3,7 +3,7 @@
 A personal web app for controlling a [Fellow Aiden](https://fellowproducts.com/products/aiden) coffee brewer:
 brew profiles, schedules, brew.link import, share links, and remote Instant Brew, from a browser on your own machine.
 
-> **Status:** checkpoint 1 of 4. The Fellow client, configuration, and validation are complete and tested.
+> **Status:** checkpoint 2 of 4. The Fellow client and the server API are complete and tested.
 > There is no UI yet. See `CHANGELOG.md`.
 
 ## How it works
@@ -60,11 +60,40 @@ Every variable is documented in `.env.example`.
 | `LOG_LEVEL` | `fatal` … `trace`. Defaults to `info` in production, `debug` in dev. |
 | `HOST`, `PORT` | Bind address. Always set `HOST`; unset means every interface. |
 
+## API
+
+Every route lives under `/api` and answers JSON. Mutations are POST, PATCH, or DELETE and must come from
+this site: the browser proves it with `Sec-Fetch-Site: same-origin`; a script or `curl` must send
+`Origin: http://localhost:3000` instead, or it gets a 403.
+
+| Route | Purpose |
+|---|---|
+| `GET /api/health` | liveness, no Fellow call |
+| `GET /api/status` | `{ dryRun, version, fellow }` where `fellow` is the last Fellow outcome |
+| `GET /api/device?fresh=1` | device state plus `canStartBrew` and the list of `blockers` |
+| `GET /api/profiles?fresh=1`, `POST /api/profiles` | list, create |
+| `PATCH /api/profiles/:id`, `DELETE /api/profiles/:id` | update (send the full profile), delete |
+| `POST /api/profiles/:id/share` | `{ link }` |
+| `POST /api/profiles/import` | body `{ link }`; imports a brew.link profile |
+| `GET /api/schedules?fresh=1`, `POST /api/schedules` | list, create |
+| `PATCH /api/schedules/:id`, `DELETE /api/schedules/:id` | update (for example `{ "enabled": false }`), delete |
+| `POST /api/brew/start` | starts the configured Instant Brew, or 409 with the reasons it cannot |
+
+Errors are `{ error, message?, issues? }`: 400 for validation, 502 for a Fellow failure (the code only,
+never Fellow's response), 500 otherwise. Reads are cached for 30 seconds; `?fresh=1` bypasses the cache.
+
+## Logs
+
+In development everything goes to the terminal. In production pino writes JSON lines to
+`logs/aiden.<date>.<n>.log`, rotates daily, keeps 14 files, and points `logs/current.log` at the active
+one, so `tail -f logs/current.log` always works. Passwords, tokens, and cookies are redacted before they
+are written. Every request carries an `x-request-id` header that matches its log lines.
+
 ## Project layout
 
 - `server/lib/fellow/` — the Fellow client. Pure TypeScript, no Nuxt imports, so it can become its own package.
 - `server/utils/config.ts` — the only place `process.env` is read.
-- `server/api/` — thin Nuxt server routes over the client.
+- `server/api/` — thin Nuxt server routes over the client; `server/middleware/` is the request pipeline.
 - `app/` — the Nuxt UI front end (checkpoint 3).
 - `tests/` — Vitest, with msw standing in for Fellow.
 

@@ -233,7 +233,7 @@ Any website the owner visits can send requests to `127.0.0.1:3000`. So:
 Build in this order. Each checkpoint ends with `pnpm test`, `pnpm lint`, and `pnpm typecheck` green. **Stop after each checkpoint, summarize what was built and what is `UNVERIFIED`, and wait for a go-ahead before starting the next.**
 
 1. **Fellow client.** ✅ Done 2026-09-10, tagged `v0.1.0`: `server/lib/fellow/`, Zod schemas, config loader, msw tests, health route, README, ARCHITECTURE, LICENSE, CHANGELOG.
-2. **Server routes and hardening.** §3b routes with the shared error handler, startup guard, Host/CSRF middleware, nuxt-security, full §6 logging with redaction and rotation, route tests.
+2. **Server routes and hardening.** ✅ Done 2026-09-10, tagged `v0.2.0`: §3b routes with the shared error handler, startup guard, Host/CSRF middleware, nuxt-security, full §6 logging with redaction and rotation, route tests.
 3. **UI.** All pages in §7 against the dry-run client.
 4. **Deploy and docs.** launchd, README "Run at home", `docs/PHASE-2.md`, final `ARCHITECTURE.md` and `CHANGELOG.md` entry.
 
