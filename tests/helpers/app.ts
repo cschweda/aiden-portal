@@ -2,6 +2,7 @@ import { createApp, createRouter, toWebHandler } from 'h3'
 import brewStart from '../../server/api/brew/start.post'
 import device from '../../server/api/device.get'
 import health from '../../server/api/health.get'
+import logs from '../../server/api/logs.get'
 import profileDelete from '../../server/api/profiles/[id].delete'
 import profileUpdate from '../../server/api/profiles/[id].patch'
 import profileShare from '../../server/api/profiles/[id]/share.post'
@@ -58,6 +59,7 @@ export function createTestApp() {
   const router = createRouter()
   router.get('/api/health', health)
   router.get('/api/status', status)
+  router.get('/api/logs', logs)
   router.get('/api/device', device)
   router.get('/api/profiles', profilesList)
   router.post('/api/profiles', profileCreate)
