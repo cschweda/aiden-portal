@@ -179,7 +179,7 @@ Then pin `NITRO_HOST`/`NITRO_PORT` to the validated values so Nitro binds exactl
 Any website the owner visits can send requests to `127.0.0.1:3000`. So:
 
 - **Host allowlist.** Reject requests whose `Host` hostname (read directly, port ignored, missing header fails closed) is not in `server.allowedHosts` (default `localhost`, `127.0.0.1`, `[::1]`) with 400. This closes DNS rebinding, which Origin checks do not cover for GETs.
-- **Same-site rule.** Any `/api` request a browser labels `Sec-Fetch-Site: cross-site` or `same-site` is refused with 403, GET included, so a page elsewhere cannot make this server call Fellow. On every mutating route additionally: pass if `Sec-Fetch-Site` is `same-origin`; otherwise pass if `Origin` is present and its hostname is allowed; otherwise 403.
+- **Same-site rule.** Any `/api` request a browser labels `Sec-Fetch-Site: cross-site` or `same-site` is refused with 403, GET included and whatever its mode, so a page elsewhere cannot make this server call Fellow; speculative loads (`Sec-Purpose: prefetch`/`prerender`) are refused too. On every mutating route additionally: pass if `Sec-Fetch-Site` is `same-origin`; otherwise pass if `Origin` is present and its hostname is allowed; otherwise 403. The app's own API reads are client-only: Nuxt's server render forwards a page navigation's headers into requests to itself, and a navigation from a link elsewhere is labelled cross-site.
 - **Body cap.** Mutation bodies over 1 MB are refused with 413 before any route reads them.
 - **Security headers** via nuxt-security: CSP with `frame-ancestors 'none'`, `X-Frame-Options: DENY`, and its other defaults. Its rate limiter, CORS handler, and XSS validator are off (no login, no cross-origin consumers, Zod already validates every field). Fix CSP violations rather than disabling CSP. API responses are `Cache-Control: no-store`.
 - **Red/blue log.** Every hardening pass is recorded in the README under "Red team / blue team log", newest first, older entries collapsed; `scripts/smoke.sh` re-runs the probes against each production build.
@@ -236,7 +236,7 @@ Build in this order. Each checkpoint ends with `pnpm test`, `pnpm lint`, and `pn
 
 1. **Fellow client.** ✅ Done 2026-09-10, tagged `v0.1.0`: `server/lib/fellow/`, Zod schemas, config loader, msw tests, health route, README, ARCHITECTURE, LICENSE, CHANGELOG.
 2. **Server routes and hardening.** ✅ Done 2026-09-10, tagged `v0.2.0`: §3b routes with the shared error handler, startup guard, Host/CSRF middleware, nuxt-security, full §6 logging with redaction and rotation, route tests.
-3. **UI.** ✅ Done 2026-09-10, tagged `v0.3.0`: all pages in §7, verified in a real browser against the mock brewer (`scripts/mock-fellow.mjs`).
+3. **UI.** ✅ Done 2026-09-10, tagged `v0.3.0` (review fixes in `v0.3.1`): all pages in §7, verified in a real browser against the mock brewer (`scripts/mock-fellow.mjs`).
 4. **Deploy and docs.** launchd, README "Run at home", `docs/PHASE-2.md`, final `ARCHITECTURE.md` and `CHANGELOG.md` entry.
 
 ---

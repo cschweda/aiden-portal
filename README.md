@@ -38,7 +38,7 @@ profiles and schedules pages opens the create form directly.
 |---|---|
 | ![Schedules](docs/screenshots/schedules.png) | ![Logs](docs/screenshots/logs.png) |
 
-(Screenshots taken against the mock brewer.)
+(Screenshots taken against the mock brewer. In development the log viewer explains that logs go to the terminal; the production build writes the file it reads.)
 
 ### Run against the mock brewer
 
@@ -183,7 +183,9 @@ repeated and extended the probes, then folded into `scripts/smoke.sh` so it runs
 | Low | esbuild 0.27.7 via `@nuxt/fonts` carried GHSA-g7r4-m6w7-qqqr (dev-server file read, Windows only). | Overridden to the patched line in `pnpm-workspace.yaml`; audit is clean. |
 | Info | `X-Frame-Options: SAMEORIGIN` disagreed with CSP `frame-ancestors 'none'`. | `DENY`. |
 | Info | A remote-start check on a cold client judged readiness on the device list, whose fields are not live. | A fresh device read always goes on to the live detail route. |
-| Medium (regression, same day) | The first version of the same-site rule refused *every* cross-site request. Nuxt's server render forwards the page navigation's `Sec-Fetch-*` headers into its own API calls, and Chrome labels a navigation from a link on another site as cross-site, so the dashboard failed to render for anyone arriving via a link. Found in the browser click-through. | The rule now refuses cross-site and same-site *subresource* requests (images, fetches, iframes) and allows a top-level document navigation, which is a person visibly going somewhere. Covered by tests and the smoke script. |
+| Medium (regression, same day) | The first version of the same-site rule broke the app's own server render: Nuxt forwards the page navigation's `Sec-Fetch-*` headers into its server-side API calls, and Chrome labels a navigation from a link on another site as cross-site, so the dashboard failed for anyone arriving via a link. A first fix exempted top-level navigations, which reopened a path for a page elsewhere to send the owner's tab to an API URL or prefetch it. Found in the browser click-through and by the checkpoint review. | The strict rule stands (any cross-site or same-site request to `/api` is refused, whatever its mode) and speculative loads (`Sec-Purpose: prefetch`/`prerender`) are refused too. The app's own API reads are client-only, so the server never forwards a navigation's headers into requests to itself. Covered by tests and the smoke script. |
+| Low | A failed refresh could blank the dashboard, and a read failure on the profile or schedule pages rendered as "No profiles yet". Found by the checkpoint review. | Reads keep the last good data on a failed refresh, mark it stale, and show the server's reason; every page has an explicit error state. |
+| Info | The Fellow client followed HTTP redirects, which would re-send the login body wherever a redirect pointed. | `redirect: 'error'` on every Fellow request. A plain-http `FELLOW_BASE_URL` is announced on startup so a forgotten mock setting cannot pass for the real brewer. |
 
 **Blue — defenses now in place**
 

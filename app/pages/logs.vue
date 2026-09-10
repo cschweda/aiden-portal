@@ -8,12 +8,20 @@ const UButton = resolveComponent('UButton')
 useHead({ title: 'Logs' })
 
 const level = ref('all')
+const requestIdInput = ref('')
 const requestId = ref('')
 const lines = ref(200)
 
+// Typing an id should not re-read the log file on every keystroke.
+let debounce: ReturnType<typeof setTimeout> | undefined
+watch(requestIdInput, (value) => {
+  clearTimeout(debounce)
+  debounce = setTimeout(() => (requestId.value = value.trim()), 300)
+})
+onBeforeUnmount(() => clearTimeout(debounce))
+
 const levelItems = [
   { label: 'All levels', value: 'all' },
-  { label: 'Trace and up', value: 'trace' },
   { label: 'Debug and up', value: 'debug' },
   { label: 'Info and up', value: 'info' },
   { label: 'Warnings and up', value: 'warn' },
@@ -21,8 +29,8 @@ const levelItems = [
 ]
 const lineItems = [100, 200, 500, 1000].map(n => ({ label: `${n} lines`, value: n }))
 
-const query = computed(() => ({ lines: lines.value, level: level.value === 'all' ? undefined : level.value, requestId: requestId.value.trim() || undefined }))
-const { data, refresh, status } = useFetch<LogsResponse>('/api/logs', { query })
+const query = computed(() => ({ lines: lines.value, level: level.value === 'all' ? undefined : level.value, requestId: requestId.value || undefined }))
+const { data, refresh, status } = useFetch<LogsResponse>('/api/logs', { key: 'logs', query, server: false })
 
 const levelColor: Record<string, 'neutral' | 'primary' | 'warning' | 'error'> = {
   trace: 'neutral',
@@ -74,9 +82,9 @@ const expanded = ref<Record<string, boolean>>({})
         <div class="flex flex-wrap items-center gap-2">
           <USelect v-model="level" :items="levelItems" value-key="value" class="w-44" />
           <USelect v-model="lines" :items="lineItems" value-key="value" class="w-32" />
-          <UInput v-model="requestId" placeholder="Filter by request id" class="w-64 font-mono" :ui="{ trailing: 'pe-1' }">
-            <template v-if="requestId" #trailing>
-              <UButton icon="i-lucide-x" color="neutral" variant="link" size="xs" aria-label="Clear" @click="requestId = ''" />
+          <UInput v-model="requestIdInput" placeholder="Filter by request id" class="w-64 font-mono" :ui="{ trailing: 'pe-1' }">
+            <template v-if="requestIdInput" #trailing>
+              <UButton icon="i-lucide-x" color="neutral" variant="link" size="xs" aria-label="Clear" @click="requestIdInput = ''" />
             </template>
           </UInput>
           <span v-if="data" class="ml-auto text-sm text-muted">{{ data.records.length }} shown</span>
@@ -87,8 +95,8 @@ const expanded = ref<Record<string, boolean>>({})
           color="neutral"
           variant="subtle"
           icon="i-lucide-terminal"
-          title="Logs go to the terminal in development"
-          :description="`The production build writes ${data.file}; run it to see records here.`"
+          :title="data.production ? 'No log file yet' : 'Logs go to the terminal in development'"
+          :description="data.production ? `Nothing has been written to ${data.file} yet.` : `The production build writes ${data.file}; run it to see records here.`"
         />
 
         <UTable
@@ -97,7 +105,7 @@ const expanded = ref<Record<string, boolean>>({})
           :data="data?.records ?? []"
           :columns="columns"
           :loading="status === 'pending'"
-          :get-row-id="row => `${row.time}-${row.msg}-${row.requestId ?? ''}`"
+          :get-row-id="(_row, index) => String(index)"
         >
           <template #time-cell="{ row }">
             {{ formatTime(row.original.time) }}
@@ -106,7 +114,7 @@ const expanded = ref<Record<string, boolean>>({})
             <UBadge :color="levelColor[row.original.levelName] ?? 'neutral'" variant="subtle" size="sm" :label="row.original.levelName" />
           </template>
           <template #requestId-cell="{ row }">
-            <button v-if="row.original.requestId" type="button" class="hover:underline" :title="`Show only request ${row.original.requestId}`" @click="requestId = row.original.requestId!">
+            <button v-if="row.original.requestId" type="button" class="hover:underline" :title="`Show only request ${row.original.requestId}`" @click="requestIdInput = row.original.requestId!">
               {{ row.original.requestId.slice(0, 8) }}
             </button>
           </template>

@@ -27,8 +27,10 @@ export default defineNitroPlugin(() => {
   process.env.NITRO_PORT = String(config.port)
 
   const logger = useLogger()
+  const fellowTarget = new URL(config.fellow.baseUrl)
   logger.info({
     app: config.app.name,
+    fellowHost: fellowTarget.host,
     host: config.host,
     port: config.port,
     dryRun: config.fellow.dryRun,
@@ -39,6 +41,10 @@ export default defineNitroPlugin(() => {
   }, 'aiden-studio starting')
   console.log(`${config.app.name} on http://${config.host}:${config.port} | dry run: ${config.fellow.dryRun} | logs: ${config.isProduction ? currentLogFile(config) : 'stdout'}`)
 
+  if (fellowTarget.protocol !== 'https:') {
+    logger.warn({ baseUrl: fellowTarget.origin }, 'FELLOW_BASE_URL points at a plain-http address: this is a mock, not Fellow')
+    console.log(`Talking to a MOCK brewer at ${fellowTarget.origin}, not to Fellow.`)
+  }
   warnIfEnvFileIsShared(logger)
 
   useFellowClient().getDevice().then(

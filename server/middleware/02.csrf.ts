@@ -6,34 +6,36 @@ const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
 /**
  * With no login, every tab in the owner's browser is the owner, so the API only serves requests that come from
- * this site. Browsers label every request with Sec-Fetch-* headers and cannot forge them:
- *   - a cross-site or same-site *subresource* request to /api (an <img>, a fetch, an iframe) is refused, GET
- *     included, so a page elsewhere cannot make this server call Fellow. CORS would only hide the answer.
- *   - a cross-site *top-level navigation* is the user visibly going somewhere (a link, a bookmark) and is allowed;
- *     Nuxt's server-side render forwards those navigation headers into its own API calls, so this is also what
- *     lets the page render when the visitor arrives via a link.
+ * this site. Browsers label every request with Sec-Fetch-Site and cannot forge it:
+ *   - any /api request labelled cross-site or same-site is refused, GET included, whatever its mode, so a page
+ *     elsewhere cannot make this server call Fellow (CORS would only hide the answer, not stop the call);
+ *   - speculative loads (prefetch, prerender) of /api are refused for the same reason;
  *   - a mutation must additionally carry `same-origin`, or an Origin naming an allowed host for non-browser
- *     clients, which send neither header by default. A cross-site form post has a foreign Origin and fails here.
+ *     clients, which send neither header by default.
+ * The app's own API reads are client-only, so the server never forwards a page navigation's headers into
+ * requests to itself; `Sec-Fetch-Site: none` (a URL typed by the owner) stays allowed.
  */
 export default defineEventHandler((event) => {
   const site = getHeader(event, 'sec-fetch-site')
-  const mode = getHeader(event, 'sec-fetch-mode')
-  const dest = getHeader(event, 'sec-fetch-dest')
   const isApi = event.path.startsWith('/api/')
-  const fromElsewhere = site === 'cross-site' || site === 'same-site'
-  const topLevelNavigation = mode === 'navigate' && dest === 'document'
-  if (isApi && fromElsewhere && !topLevelNavigation) {
-    return refuse(event, site, mode, dest)
-  }
+  if (isApi && (site === 'cross-site' || site === 'same-site')) return refuse(event, site)
+  if (isApi && isSpeculative(event)) return refuse(event, site)
   if (!MUTATING_METHODS.has(event.method)) return
   if (site === 'same-origin') return
   const origin = getHeader(event, 'origin')
   if (isAllowedOrigin(origin, getConfig().allowedHosts)) return
-  return refuse(event, site, mode, dest, origin)
+  return refuse(event, site, origin)
 })
 
-function refuse(event: Parameters<Parameters<typeof defineEventHandler>[0]>[0], site?: string, mode?: string, dest?: string, origin?: string) {
-  event.context.logger?.warn({ site: site ?? null, mode: mode ?? null, dest: dest ?? null, origin: origin ?? null, method: event.method, path: event.path }, 'Rejected a cross-site request')
+type Event = Parameters<Parameters<typeof defineEventHandler>[0]>[0]
+
+function isSpeculative(event: Event): boolean {
+  const purpose = (getHeader(event, 'sec-purpose') ?? getHeader(event, 'purpose') ?? '').toLowerCase()
+  return purpose.includes('prefetch') || purpose.includes('prerender')
+}
+
+function refuse(event: Event, site?: string, origin?: string) {
+  event.context.logger?.warn({ site: site ?? null, origin: origin ?? null, method: event.method, path: event.path }, 'Rejected a cross-site request')
   setResponseStatus(event, 403)
   return { error: 'cross_site_request' }
 }

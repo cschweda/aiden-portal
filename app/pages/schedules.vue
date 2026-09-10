@@ -9,20 +9,14 @@ const { call } = useApi()
 const toast = useToast()
 const { refresh: refreshStatus } = useStatus()
 
-const forceFresh = ref(false)
-const query = computed(() => (forceFresh.value ? { fresh: 1 } : {}))
-const { data: schedules, refresh, status } = useFetch<Schedule[]>('/api/schedules', { query, watch: false, default: () => [] })
-const { data: profiles, refresh: refreshProfiles } = useFetch<Profile[]>('/api/profiles', { query, watch: false, default: () => [] })
+const resource = useApiFetch<Schedule[]>('/api/schedules', { key: 'schedules', defaultValue: () => [] })
+const profileResource = useApiFetch<Profile[]>('/api/profiles', { key: 'profiles', defaultValue: () => [] })
+const schedules = computed(() => resource.data.value ?? [])
+const profiles = computed(() => profileResource.data.value ?? [])
 
 async function reload(fresh = false) {
-  forceFresh.value = fresh
-  try {
-    await Promise.all([refresh(), refreshProfiles()])
-  }
-  finally {
-    forceFresh.value = false
-    await refreshStatus()
-  }
+  await Promise.all([resource.reload({ fresh }), profileResource.reload({ fresh })])
+  await refreshStatus()
 }
 
 const titleOf = (profileId: string | undefined) => profiles.value.find(p => p.id === profileId)?.title ?? profileId ?? '—'
@@ -81,7 +75,7 @@ onMounted(() => {
       <UDashboardNavbar title="Schedules">
         <template #right>
           <StatusBadges />
-          <UButton icon="i-lucide-refresh-cw" color="neutral" variant="ghost" size="sm" aria-label="Refresh from the brewer" :loading="status === 'pending'" @click="reload(true)" />
+          <UButton icon="i-lucide-refresh-cw" color="neutral" variant="ghost" size="sm" aria-label="Refresh from the brewer" :loading="resource.loading.value" @click="reload(true)" />
         </template>
       </UDashboardNavbar>
     </template>
@@ -93,12 +87,14 @@ onMounted(() => {
           <span class="ml-auto text-sm text-muted">Times are the brewer's local time</span>
         </div>
 
-        <div v-if="status === 'pending' && !schedules.length" class="space-y-3">
+        <ApiErrorAlert v-if="resource.failure.value" :failure="resource.failure.value" what="the schedules" :stale="resource.stale.value" />
+
+        <div v-if="resource.loading.value && !schedules.length" class="space-y-3">
           <USkeleton v-for="i in 2" :key="i" class="h-16 w-full" />
         </div>
 
         <UEmpty
-          v-else-if="!schedules.length"
+          v-else-if="!schedules.length && !resource.failure.value"
           icon="i-lucide-alarm-clock"
           title="No schedules"
           description="Add one and the brewer will start on its own."

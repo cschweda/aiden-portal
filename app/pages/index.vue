@@ -1,41 +1,29 @@
 <script setup lang="ts">
 import type { DeviceResponse, Profile } from '#shared/types/api'
-import { describeApiError } from '../utils/api-error'
+import { isBrewing } from '../../server/lib/fellow/device'
 import { describeProfile } from '../utils/profile-form'
 
 useHead({ title: 'Dashboard' })
 
-const { status, refresh: refreshStatus } = useStatus()
-const forceFresh = ref(false)
-const query = computed(() => (forceFresh.value ? { fresh: 1 } : {}))
+const { refresh: refreshStatus } = useStatus()
+const device = useApiFetch<DeviceResponse>('/api/device', { key: 'device' })
+const profiles = useApiFetch<Profile[]>('/api/profiles', { key: 'profiles', defaultValue: () => [] })
 
-const { data: deviceData, refresh: refreshDevice, status: deviceStatus, error: deviceError } = useFetch<DeviceResponse>('/api/device', { query, watch: false })
-const { data: profiles, refresh: refreshProfiles } = useFetch<Profile[]>('/api/profiles', { query, watch: false, default: () => [] })
-
-const refreshing = ref(false)
 async function refreshNow() {
-  refreshing.value = true
-  forceFresh.value = true
-  try {
-    await Promise.all([refreshDevice(), refreshProfiles()])
-  }
-  finally {
-    forceFresh.value = false
-    refreshing.value = false
-    await refreshStatus()
-  }
+  await Promise.all([device.reload({ fresh: true }), profiles.reload({ fresh: true })])
+  await refreshStatus()
 }
 
-// While a brew runs, keep the readout current without the user pressing anything.
+// While a brew runs, keep the readout current without the user pressing anything. Profiles do not change mid-brew.
 let poll: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
   poll = setInterval(() => {
-    if (deviceData.value?.device.brewing) void refreshNow()
+    if (device.data.value && isBrewing(device.data.value.device)) void device.reload({ fresh: true }).then(() => refreshStatus())
   }, 15_000)
 })
 onBeforeUnmount(() => clearInterval(poll))
 
-const quickProfiles = computed(() => profiles.value.slice(0, 6))
+const quickProfiles = computed(() => (profiles.data.value ?? []).slice(0, 6))
 </script>
 
 <template>
@@ -44,42 +32,29 @@ const quickProfiles = computed(() => profiles.value.slice(0, 6))
       <UDashboardNavbar title="Dashboard">
         <template #right>
           <StatusBadges />
-          <UButton icon="i-lucide-refresh-cw" color="neutral" variant="ghost" size="sm" aria-label="Refresh from the brewer" :loading="refreshing" @click="refreshNow" />
+          <UButton icon="i-lucide-refresh-cw" color="neutral" variant="ghost" size="sm" aria-label="Refresh from the brewer" :loading="device.loading.value" @click="refreshNow" />
         </template>
       </UDashboardNavbar>
     </template>
 
     <template #body>
       <div class="mx-auto w-full max-w-5xl space-y-8">
-        <UAlert
-          v-if="status?.fellow === 'fellow_auth_failed'"
-          color="error"
-          variant="subtle"
-          icon="i-lucide-key-round"
-          title="Fellow rejected the login"
-          description="Check FELLOW_EMAIL and FELLOW_PASSWORD in .env, then restart the app."
-        />
-        <UAlert
-          v-else-if="deviceError"
-          color="error"
-          variant="subtle"
-          icon="i-lucide-cloud-off"
-          title="The brewer could not be read"
-          :description="describeApiError(deviceError).message"
-        />
+        <ApiErrorAlert v-if="device.failure.value" :failure="device.failure.value" what="the brewer" :stale="device.stale.value" />
 
-        <div v-if="deviceStatus === 'pending' && !deviceData" class="space-y-4">
+        <div v-if="device.loading.value && !device.data.value" class="space-y-4">
           <USkeleton class="h-4 w-32" />
           <USkeleton class="h-12 w-48" />
           <USkeleton class="h-6 w-full max-w-lg" />
         </div>
 
-        <div v-else-if="deviceData" class="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-          <BrewerReadout :data="deviceData" />
-          <InstantBrewCard :data="deviceData" :profiles="profiles" @started="refreshNow" />
+        <div v-else-if="device.data.value" class="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+          <BrewerReadout :data="device.data.value" />
+          <InstantBrewCard :data="device.data.value" :profiles="profiles.data.value ?? []" @done="refreshNow" />
         </div>
 
-        <section v-if="profiles.length" class="space-y-3">
+        <ApiErrorAlert v-if="profiles.failure.value && !device.failure.value" :failure="profiles.failure.value" what="the profiles" :stale="profiles.stale.value" />
+
+        <section v-if="quickProfiles.length" class="space-y-3">
           <div class="flex items-baseline justify-between">
             <h3 class="text-base font-semibold">
               Profiles

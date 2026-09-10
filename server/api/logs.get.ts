@@ -11,11 +11,13 @@ const LogsQuery = z.object({
   requestId: z.string().max(64).optional(),
 })
 
-/** Tails the current production log file. In development there is no file and the page says so. */
+/** Tails the current production log file. Outside production the logs go to the terminal, and no file is read. */
 export default defineApiRoute(async (event) => {
   const raw = Object.fromEntries(Object.entries(getQuery(event)).filter(([, value]) => value !== ''))
   const query = LogsQuery.parse(raw)
-  const file = currentLogFile(getConfig())
+  const config = getConfig()
+  const file = currentLogFile(config)
+  if (!config.isProduction) return { available: false, production: false, file, records: [] }
   const { available, records } = await readLogTail(file, { lines: query.lines, minLevel: query.level, requestId: query.requestId })
-  return { available, file, records }
+  return { available, production: true, file, records }
 })

@@ -31,8 +31,10 @@ a retried POST could create a duplicate profile after a 503 Fellow had in fact p
 
 ## The UI layer
 
-`app/` is a Nuxt UI dashboard shell (sidebar plus one panel per page). Pages are thin: they fetch through
-`useFetch` and mutate through `useApi()`, which turns the server's error envelope into a toast and rethrows.
+`app/` is a Nuxt UI dashboard shell (sidebar plus one panel per page). Pages are thin: they read through
+`useApiFetch()` (client-only, keeps the last good data across a failed refresh and across navigations, and
+exposes a `failure` the page renders with `ApiErrorAlert`) and mutate through `useApi()`, which turns the
+server's error envelope into a toast and rethrows.
 Everything that can be pure lives in `app/utils/` with explicit imports so it runs under plain Vitest:
 profile defaults and limits, the rule that per-pulse temperatures follow the pulse count, time and day
 conversions for schedules, error description, and formatting. The Zod input schemas from
@@ -49,9 +51,10 @@ Every request passes, in order, through `server/middleware/00.request-id.ts` (a 
 a child logger, and in the `x-request-id` header; `Cache-Control: no-store` on `/api`), `01.host-allowlist.ts`
 (400 unless the Host header, read directly so a missing one fails closed, names an allowed host; this closes
 DNS rebinding), `02.csrf.ts` (403 for any `/api` request a browser labels `cross-site` or `same-site`, and
-for a mutation without `Sec-Fetch-Site: same-origin` or an allowed `Origin`; a cross-site *top-level
-navigation* is allowed, because that is a person following a link, and because Nuxt's server render forwards
-the navigation's headers into its own API calls), and `03.body-limit.ts` (413 for a mutation body over 1 MB). Routes are wrapped in `defineApiRoute` from `server/utils/api.ts`, which
+for any `/api` request a browser labels `cross-site` or `same-site`, for speculative loads, and for a
+mutation without `Sec-Fetch-Site: same-origin` or an allowed `Origin`), and `03.body-limit.ts` (413 for a
+mutation body over 1 MB). The app's own API reads are client-only (`useApiFetch`), because Nuxt's server
+render would otherwise forward the page navigation's `Sec-Fetch-*` headers into requests to itself. Routes are wrapped in `defineApiRoute` from `server/utils/api.ts`, which
 turns a Zod error into 400 with issues, a `FellowError` into 502 with the code and our message, an h3
 client error into its own status inside the same envelope, and anything else into a logged 500.
 `server/api/[...].ts` answers a JSON 404 for anything under `/api` no route claimed. nuxt-security adds the

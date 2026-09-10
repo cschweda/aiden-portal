@@ -11,10 +11,10 @@ describe('GET /api/logs', () => {
     expect((await app.json('GET', '/api/logs?lines=5000')).status).toBe(400)
   })
 
-  it('reports no file in development without failing', async () => {
+  it('reports logs as unavailable outside production without touching the disk', async () => {
     const { status, body } = await createTestApp().json('GET', '/api/logs?lines=50&level=warn')
     expect(status).toBe(200)
-    expect(body).toMatchObject({ available: false, records: [] })
+    expect(body).toMatchObject({ available: false, records: [], production: false })
     expect(typeof body.file).toBe('string')
   })
 })

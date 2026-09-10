@@ -9,22 +9,12 @@ const { call } = useApi()
 const toast = useToast()
 const { refresh: refreshStatus } = useStatus()
 
-const forceFresh = ref(false)
-const { data: profiles, refresh, status } = useFetch<Profile[]>('/api/profiles', {
-  query: computed(() => (forceFresh.value ? { fresh: 1 } : {})),
-  watch: false,
-  default: () => [],
-})
+const resource = useApiFetch<Profile[]>('/api/profiles', { key: 'profiles', defaultValue: () => [] })
+const profiles = computed(() => resource.data.value ?? [])
 
 async function reload(fresh = false) {
-  forceFresh.value = fresh
-  try {
-    await refresh()
-  }
-  finally {
-    forceFresh.value = false
-    await refreshStatus()
-  }
+  await resource.reload({ fresh })
+  await refreshStatus()
 }
 
 const editorOpen = ref(false)
@@ -103,7 +93,7 @@ onMounted(() => {
       <UDashboardNavbar title="Profiles">
         <template #right>
           <StatusBadges />
-          <UButton icon="i-lucide-refresh-cw" color="neutral" variant="ghost" size="sm" aria-label="Refresh from the brewer" :loading="status === 'pending'" @click="reload(true)" />
+          <UButton icon="i-lucide-refresh-cw" color="neutral" variant="ghost" size="sm" aria-label="Refresh from the brewer" :loading="resource.loading.value" @click="reload(true)" />
         </template>
       </UDashboardNavbar>
     </template>
@@ -116,12 +106,14 @@ onMounted(() => {
           <span class="ml-auto text-sm text-muted">{{ profiles.length }} on the brewer</span>
         </div>
 
-        <div v-if="status === 'pending' && !profiles.length" class="space-y-3">
+        <ApiErrorAlert v-if="resource.failure.value" :failure="resource.failure.value" what="the profiles" :stale="resource.stale.value" />
+
+        <div v-if="resource.loading.value && !profiles.length" class="space-y-3">
           <USkeleton v-for="i in 3" :key="i" class="h-16 w-full" />
         </div>
 
         <UEmpty
-          v-else-if="!profiles.length"
+          v-else-if="!profiles.length && !resource.failure.value"
           icon="i-lucide-coffee"
           title="No profiles yet"
           description="Create one from scratch or import a recipe someone shared with you."

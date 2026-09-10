@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DeviceResponse } from '#shared/types/api'
+import { isBrewing } from '../../server/lib/fellow/device'
 import { formatLitres } from '../utils/format'
 
 const props = defineProps<{ data: DeviceResponse }>()
@@ -9,7 +10,7 @@ type Tone = 'success' | 'error' | 'neutral' | 'primary'
 const word = computed<{ text: string, tone: Tone }>(() => {
   const d = props.data.device
   if (d.isConnected === false) return { text: 'Offline', tone: 'error' }
-  if (d.brewing || (d.state !== undefined && d.state !== null)) return { text: 'Brewing', tone: 'primary' }
+  if (isBrewing(d)) return { text: 'Brewing', tone: 'primary' }
   if (d.cleaning) return { text: 'Cleaning', tone: 'neutral' }
   if (d.rinsing) return { text: 'Rinsing', tone: 'neutral' }
   if (props.data.canStartBrew) return { text: 'Ready', tone: 'primary' }
@@ -31,7 +32,9 @@ const chips = computed(() => {
       ? { label: 'Single-serve basket', tone: 'success' as Tone }
       : d.batchBrewBasketPresent
         ? { label: 'Batch basket', tone: 'success' as Tone }
-        : { label: 'No basket', tone: 'error' as Tone },
+        : d.singleBrewBasketPresent === undefined && d.batchBrewBasketPresent === undefined
+          ? { label: 'Basket: unknown', tone: 'neutral' as Tone }
+          : { label: 'No basket', tone: 'error' as Tone },
     ...(d.cleaning ? [{ label: 'Cleaning cycle running', tone: 'neutral' as Tone }] : []),
     ...(d.rinsing ? [{ label: 'Rinse cycle running', tone: 'neutral' as Tone }] : []),
   ]
@@ -116,6 +119,14 @@ const toneClass: Record<Tone, string> = {
         </dt>
         <dd class="font-mono text-sm">
           {{ data.device.wifiMacAddress ?? '—' }}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-muted">
+          Bluetooth
+        </dt>
+        <dd class="font-mono text-sm">
+          {{ data.device.btMacAddress ?? '—' }}
         </dd>
       </div>
     </dl>

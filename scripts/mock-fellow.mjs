@@ -235,5 +235,5 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`Mock Fellow API listening on http://127.0.0.1:${PORT}/v2${FLAKY ? ' (flaky mode)' : ''}`)
-  console.log('Put FELLOW_BASE_URL=http://127.0.0.1:3900/v2 in .env, with any FELLOW_EMAIL and FELLOW_PASSWORD.')
+  console.log(`Put FELLOW_BASE_URL=http://127.0.0.1:${PORT}/v2 in .env, with any FELLOW_EMAIL and FELLOW_PASSWORD.`)
 })

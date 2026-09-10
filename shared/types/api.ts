@@ -1,4 +1,5 @@
 import type { Device, Profile, Schedule } from '../../server/lib/fellow/schemas'
+import type { LogRecord } from '../../server/utils/log-reader'
 
 export type { Device, Profile, Schedule }
 
@@ -15,17 +16,11 @@ export interface DeviceResponse {
   blockers: string[]
 }
 
-export interface LogRecordView {
-  time: number
-  level: number
-  levelName: string
-  msg: string
-  requestId?: string
-  rest: Record<string, unknown>
-}
+export type LogRecordView = LogRecord
 
 export interface LogsResponse {
   available: boolean
+  production: boolean
   file: string
   records: LogRecordView[]
 }

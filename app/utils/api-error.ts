@@ -19,9 +19,12 @@ export function describeApiError(error: unknown): ApiFailure {
     const data = error.data
     if (isRecord(data) && typeof data.error === 'string') {
       const issues = Array.isArray(data.issues) ? (data.issues as ApiIssue[]) : undefined
+      const blockers = Array.isArray(data.blockers) ? (data.blockers as string[]) : undefined
       const message = typeof data.message === 'string'
         ? data.message
-        : issues?.map(issue => `${issue.path || 'body'}: ${issue.message}`).join('; ') ?? data.error
+        : blockers?.length
+          ? blockers.join('; ')
+          : issues?.map(issue => `${issue.path || 'body'}: ${issue.message}`).join('; ') ?? data.error
       return issues ? { code: data.error, message, issues } : { code: data.error, message }
     }
     const message = typeof error.message === 'string' ? error.message : 'Request failed'

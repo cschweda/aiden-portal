@@ -234,6 +234,8 @@ export class FellowHttp {
           headers: { 'User-Agent': this.userAgent, 'Content-Type': 'application/json', 'Accept': 'application/json' },
           body: JSON.stringify({ email: this.email, password: this.password, timezone: this.timezone }),
           signal: AbortSignal.timeout(this.timeoutMs),
+        // A redirect would re-send the body (the login body holds the password) to wherever it points.
+        redirect: 'error',
         })
       }
       catch (error) {
@@ -276,6 +278,8 @@ export class FellowHttp {
         headers: { 'User-Agent': this.userAgent, 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({ refreshToken: this.refreshToken }),
         signal: AbortSignal.timeout(this.timeoutMs),
+        // A redirect would re-send the body (the login body holds the password) to wherever it points.
+        redirect: 'error',
       })
     }
     catch (error) {
@@ -307,6 +311,7 @@ export class FellowHttp {
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(this.timeoutMs),
+      redirect: 'error',
     })
     this.logger.debug({ method, path, status: response.status, durationMs: Math.round(performance.now() - started) }, 'Fellow API call')
     return response

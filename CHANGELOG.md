@@ -7,6 +7,23 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-10
+
+Fixes from the checkpoint 3 review.
+
+### Fixed
+
+- A failed refresh blanked the dashboard and a read failure showed "No profiles yet" on the list pages;
+  reads now keep the last good data, mark it stale, and show the server's reason.
+- The same-site rule is strict again (no navigation exemption) and refuses speculative loads; the app's
+  own API reads are client-only, which is what the exemption had been papering over.
+- `/api/logs` reports logs as unavailable outside production without reading the disk, so a production
+  run from the repo root no longer feeds a dev session or breaks a test.
+- Remote-start refusals show the brewer's blockers in the toast and the dashboard re-reads afterwards.
+- The Fellow client never follows redirects; a plain-http `FELLOW_BASE_URL` is announced at startup.
+- Basket state reads "unknown" rather than "missing" when the brewer reports neither flag; the Bluetooth
+  address is shown; the log viewer debounces the request-id filter and keys rows by position.
+
 ## [0.3.0] - 2026-09-10
 
 Checkpoint 3 of 4: the app.

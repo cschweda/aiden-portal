@@ -48,6 +48,19 @@ describe('readLogTail', () => {
     const { records } = await readLogTail(await fixtureFile(), { lines: 100, requestId: 'r1' })
     expect(records.map(r => r.msg)).toEqual(['warn one', 'debug one'])
   })
+  it('drops the partial first line when the file is longer than the tail window', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'aiden-log-'))
+    const file = join(dir, 'big.log')
+    const filler = line(30, 'x'.repeat(1000), {}, 1)
+    const lines: string[] = []
+    while (lines.join('\n').length < 2.2 * 1024 * 1024) lines.push(filler)
+    lines.push(line(40, 'the last one', {}, 2))
+    await writeFile(file, lines.join('\n') + '\n')
+    const { records } = await readLogTail(file, { lines: 5 })
+    expect(records[0]?.msg).toBe('the last one')
+    expect(records.every(r => r.msg === 'the last one' || r.msg.length === 1000)).toBe(true)
+  })
+
   it('reports a missing file as unavailable', async () => {
     expect(await readLogTail('/nonexistent/aiden/current.log', { lines: 10 })).toEqual({ available: false, records: [] })
   })

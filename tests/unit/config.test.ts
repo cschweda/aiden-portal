@@ -93,6 +93,9 @@ describe('parseEnv', () => {
 
   it('lets FELLOW_BASE_URL point at a loopback mock over plain http, but nowhere else', () => {
     expect(parseEnv({ ...MINIMAL, FELLOW_BASE_URL: 'http://127.0.0.1:3900/v2' }, AIDEN).fellow.baseUrl).toBe('http://127.0.0.1:3900/v2')
+    expect(parseEnv({ ...MINIMAL, FELLOW_BASE_URL: 'http://localhost:3900/v2' }, AIDEN).fellow.baseUrl).toBe('http://localhost:3900/v2')
+    expect(parseEnv({ ...MINIMAL, FELLOW_BASE_URL: 'http://[::1]:3900/v2' }, AIDEN).fellow.baseUrl).toBe('http://[::1]:3900/v2')
+    expect(() => parseEnv({ ...MINIMAL, FELLOW_BASE_URL: 'http://localhost.evil.example/v2' }, AIDEN)).toThrow(/FELLOW_BASE_URL/)
     expect(parseEnv({ ...MINIMAL, FELLOW_BASE_URL: 'https://api.example/v2' }, AIDEN).fellow.baseUrl).toBe('https://api.example/v2')
     expect(() => parseEnv({ ...MINIMAL, FELLOW_BASE_URL: 'http://api.example/v2' }, AIDEN)).toThrow(/FELLOW_BASE_URL/)
     expect(() => parseEnv({ ...MINIMAL, FELLOW_BASE_URL: 'ftp://127.0.0.1/v2' }, AIDEN)).toThrow(/FELLOW_BASE_URL/)

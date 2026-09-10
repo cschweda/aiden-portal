@@ -10,6 +10,10 @@ describe('describeApiError', () => {
     const error = Object.assign(new Error('400'), { data: { error: 'validation_failed', issues: [{ path: 'ratio', message: 'bad' }] } })
     expect(describeApiError(error)).toEqual({ code: 'validation_failed', message: 'ratio: bad', issues: [{ path: 'ratio', message: 'bad' }] })
   })
+  it('turns remote-start blockers into the message', () => {
+    const error = Object.assign(new Error('409'), { data: { error: 'brewer_not_ready', blockers: ['lid is open', 'water tank is empty'] }, statusCode: 409 })
+    expect(describeApiError(error)).toEqual({ code: 'brewer_not_ready', message: 'lid is open; water tank is empty' })
+  })
   it('labels a missing envelope by status', () => {
     expect(describeApiError(Object.assign(new Error('x'), { statusCode: 404, data: '<html>' }))).toEqual({ code: 'http_404', message: 'x' })
   })
