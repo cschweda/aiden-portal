@@ -77,9 +77,12 @@ export class FellowClient {
   }
 
   async getDevice(options: ReadOptions = {}): Promise<Device> {
-    return this.cachedRead('device', options, () =>
-      this.knownDeviceId ? this.fetchDeviceDetail(this.knownDeviceId) : this.discoverDevice(),
-    )
+    return this.cachedRead('device', options, async () => {
+      if (this.knownDeviceId) return this.fetchDeviceDetail(this.knownDeviceId)
+      const discovered = await this.discoverDevice()
+      // The list route carries identity, not live state. A caller asking for fresh data wants the live state.
+      return options.fresh && this.knownDeviceId ? this.fetchDeviceDetail(this.knownDeviceId) : discovered
+    })
   }
 
   /** Account-wide list; the reference clients assume a single brewer per account and take the first one. */

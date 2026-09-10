@@ -1,4 +1,4 @@
-import { createApp, createRouter, toWebHandler } from 'h3'
+import { createApp, createError, createRouter, toWebHandler } from 'h3'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { FellowError } from '../../server/lib/fellow/errors'
@@ -31,6 +31,15 @@ describe('defineApiRoute', () => {
     '/boom': () => {
       throw new Error('kaboom')
     },
+    '/h3-400': () => {
+      throw createError({ statusCode: 400, statusMessage: 'Invalid JSON body' })
+    },
+    '/h3-418': () => {
+      throw createError({ statusCode: 418 })
+    },
+    '/h3-503': () => {
+      throw createError({ statusCode: 503, statusMessage: 'Upstream sad', data: { secret: 'x' } })
+    },
   })
   const get = async (path: string) => {
     const res = await handler(new Request(`http://localhost:3000${path}`))
@@ -54,6 +63,15 @@ describe('defineApiRoute', () => {
   })
   it('maps anything else to a generic 500', async () => {
     expect(await get('/boom')).toEqual({ status: 500, body: { error: 'internal_error' } })
+  })
+  it('keeps h3 client errors in our envelope with their status', async () => {
+    expect(await get('/h3-400')).toEqual({ status: 400, body: { error: 'bad_request', message: 'Invalid JSON body' } })
+    const teapot = await get('/h3-418')
+    expect(teapot.status).toBe(418)
+    expect(teapot.body.error).toBe('http_error')
+  })
+  it('never forwards an h3 server error\'s details', async () => {
+    expect(await get('/h3-503')).toEqual({ status: 500, body: { error: 'internal_error' } })
   })
   it.each([['?fresh=1', true], ['?fresh=true', true], ['?fresh=0', false], ['', false]])('parseFresh %j → %s', async (query, expected) => {
     expect((await get(`/fresh${query}`)).body).toEqual({ fresh: expected })

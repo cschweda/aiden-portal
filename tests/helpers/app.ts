@@ -13,9 +13,11 @@ import scheduleUpdate from '../../server/api/schedules/[id].patch'
 import schedulesList from '../../server/api/schedules/index.get'
 import scheduleCreate from '../../server/api/schedules/index.post'
 import status from '../../server/api/status.get'
+import notFound from '../../server/api/[...]'
 import requestId from '../../server/middleware/00.request-id'
 import hostAllowlist from '../../server/middleware/01.host-allowlist'
 import csrf from '../../server/middleware/02.csrf'
+import bodyLimit from '../../server/middleware/03.body-limit'
 import { resetConfigForTests } from '../../server/utils/config'
 import { resetFellowClientForTests } from '../../server/utils/fellow-client'
 import { resetLoggerForTests } from '../../server/utils/logger'
@@ -42,12 +44,17 @@ export function useTestEnv(overrides: Record<string, string> = {}): void {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface JsonResult { status: number, body: any, headers: Headers }
 
-/** The Nitro request pipeline and routes, mounted on a plain h3 app so tests run in-process against msw. */
+/**
+ * The Nitro request pipeline and routes, mounted on a plain h3 app so tests run in-process against msw.
+ * What this cannot see: nuxt-security's headers, Nuxt's own error rendering for errors thrown before a route,
+ * and Nitro's file-based routing. Those are covered by scripts/smoke.sh against a real build.
+ */
 export function createTestApp() {
   const app = createApp()
   app.use(requestId)
   app.use(hostAllowlist)
   app.use(csrf)
+  app.use(bodyLimit)
   const router = createRouter()
   router.get('/api/health', health)
   router.get('/api/status', status)
@@ -63,15 +70,16 @@ export function createTestApp() {
   router.patch('/api/schedules/:id', scheduleUpdate)
   router.delete('/api/schedules/:id', scheduleDelete)
   router.post('/api/brew/start', brewStart)
+  router.use('/api/**', notFound)
   app.use(router)
   const handler = toWebHandler(app)
 
-  async function fetch(path: string, init: RequestInit = {}, { sameOrigin = true }: { sameOrigin?: boolean } = {}): Promise<Response> {
+  async function fetch(path: string, init: RequestInit = {}, { sameOrigin = true, noHost = false }: { sameOrigin?: boolean, noHost?: boolean } = {}): Promise<Response> {
     const headers = new Headers(init.headers)
     if (sameOrigin && !headers.has('sec-fetch-site')) headers.set('sec-fetch-site', 'same-origin')
     const url = path.startsWith('http') ? path : `http://localhost:3000${path}`
     // A real client always sends Host; the in-process Request does not, so derive it from the URL.
-    if (!headers.has('host')) headers.set('host', new URL(url).host)
+    if (!noHost && !headers.has('host')) headers.set('host', new URL(url).host)
     return handler(new Request(url, { ...init, headers }))
   }
 

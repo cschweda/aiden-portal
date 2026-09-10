@@ -9,12 +9,15 @@ const READY_DETAIL = { ...DEVICE_DETAIL, firmwareVersion: '1.5.16' }
 describe('POST /api/brew/start', () => {
   beforeEach(() => useTestEnv())
 
-  it('refuses with the blockers when the brewer is not ready', async () => {
-    server.use(...happyHandlers(newCalls()))
+  it('refuses with the blockers from a live device read when the brewer is not ready', async () => {
+    const calls = newCalls()
+    server.use(...happyHandlers(calls))
     const { status, body } = await createTestApp().json('POST', '/api/brew/start')
     expect(status).toBe(409)
     expect(body.error).toBe('brewer_not_ready')
-    expect(body.blockers).toContain('brewer is offline')
+    // The detail fixture is connected, closed, and watered; only its firmware (from the list) is too old.
+    expect(body.blockers).toEqual(['firmware 1.2.3 is older than 1.5.16'])
+    expect(calls).toMatchObject({ devices: 1, deviceDetail: 1 })
   })
 
   it('always checks a fresh device state before starting', async () => {

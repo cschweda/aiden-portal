@@ -77,6 +77,15 @@ describe('FellowClient reads', () => {
     expect(refreshed.serialNumber).toBe('SN-0001')
   })
 
+  it('a fresh read on a cold client discovers the brewer and then reads its live state', async () => {
+    const calls = newCalls()
+    server.use(...happyHandlers(calls))
+    const device = await makeClient().getDevice({ fresh: true })
+    expect(calls).toMatchObject({ devices: 1, deviceDetail: 1 })
+    expect(device.lidClosed).toBe(true)
+    expect(device.serialNumber).toBe('SN-0001')
+  })
+
   it('refreshes the device through the detail route after the cache expires', async () => {
     const calls = newCalls()
     server.use(...happyHandlers(calls))

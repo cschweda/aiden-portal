@@ -8,3 +8,8 @@ ignoredBuiltDependencies:
   - msw
   - unrs-resolver
   - vue-demi
+
+# Dependency overrides. esbuild <0.28.1 (pulled in by @nuxt/ui → @nuxt/fonts → fontless) carries a low
+# advisory (GHSA-g7r4-m6w7-qqqr: dev-server file read on Windows). Forcing the patched line is harmless here.
+overrides:
+  'esbuild@<0.28.1': '^0.28.1'

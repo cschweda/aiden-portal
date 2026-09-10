@@ -3,7 +3,6 @@ import aidenConfig from '../../aiden.config'
 import { type AidenConfig, LOG_LEVELS, type LogLevel } from './aiden-config'
 import { hostnameOf } from './hosts'
 
-export type { LogLevel } from './aiden-config'
 
 function isIanaTimeZone(zone: string): boolean {
   try {

@@ -1,4 +1,4 @@
-import { type EventHandler, type H3Event, defineEventHandler, getQuery, setResponseStatus } from 'h3'
+import { type EventHandler, type H3Event, defineEventHandler, getQuery, isError, setResponseStatus } from 'h3'
 import { z, ZodError } from 'zod'
 import { FellowError } from '../lib/fellow'
 import { useLogger } from './logger'
@@ -24,17 +24,22 @@ export function defineApiRoute<T>(handler: (event: H3Event) => T | Promise<T>): 
 export function respondWithError(event: H3Event, error: unknown): ApiErrorBody {
   const logger = event.context.logger ?? useLogger()
   if (error instanceof ZodError) {
+    const issues = error.issues.map(issue => ({ path: issue.path.map(String).join('.'), message: issue.message }))
+    logger.warn({ paths: issues.map(issue => issue.path) }, 'Request failed validation')
     setResponseStatus(event, 400)
-    return {
-      error: 'validation_failed',
-      issues: error.issues.map(issue => ({ path: issue.path.map(String).join('.'), message: issue.message })),
-    }
+    return { error: 'validation_failed', issues }
   }
   if (error instanceof FellowError) {
     // The message is ours; the body is Fellow's and stays on the server.
-    logger.warn({ code: error.code, status: error.status }, error.message)
+    logger.error({ code: error.code, status: error.status }, error.message)
     setResponseStatus(event, 502)
     return { error: error.code, message: error.message }
+  }
+  if (isError(error) && error.statusCode >= 400 && error.statusCode < 500) {
+    // h3's own client errors (malformed JSON, a __proto__ key): its message, never its data.
+    logger.warn({ status: error.statusCode }, error.statusMessage ?? error.message)
+    setResponseStatus(event, error.statusCode)
+    return { error: error.statusCode === 400 ? 'bad_request' : 'http_error', message: error.statusMessage ?? error.message }
   }
   logger.error({ err: error }, 'Unhandled error in an API route')
   setResponseStatus(event, 500)

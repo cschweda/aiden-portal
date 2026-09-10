@@ -44,6 +44,17 @@ describe('/api/profiles', () => {
     expect(body.issues[0].message).toMatch(/bogus/)
   })
 
+  it.each(['PATCH', 'POST'])('answers malformed JSON on %s with our 400 envelope, not a 500', async (method) => {
+    server.use(...happyHandlers(newCalls()))
+    const res = await createTestApp().fetch(method === 'PATCH' ? '/api/profiles/p7' : '/api/profiles', {
+      method,
+      headers: { 'content-type': 'application/json' },
+      body: '{bad',
+    })
+    expect(res.status).toBe(400)
+    expect(await res.json()).toEqual({ error: 'bad_request', message: expect.any(String) })
+  })
+
   it('rejects a non-object body with 400 rather than crashing', async () => {
     server.use(...happyHandlers(newCalls()))
     const { status, body } = await createTestApp().json('POST', '/api/profiles', [1, 2, 3])

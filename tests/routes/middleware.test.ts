@@ -31,6 +31,44 @@ describe('request pipeline', () => {
     expect((await createTestApp().fetch('/api/health', {}, { sameOrigin: false })).status).toBe(200)
   })
 
+  it('fails closed when the Host header is missing entirely', async () => {
+    const res = await createTestApp().fetch('/api/health', {}, { noHost: true })
+    expect(res.status).toBe(400)
+  })
+
+  it.each(['cross-site', 'same-site'])('rejects any API request a browser marks as %s, even a GET', async (site) => {
+    const res = await createTestApp().fetch('/api/device?fresh=1', { headers: { 'sec-fetch-site': site } }, { sameOrigin: false })
+    expect(res.status).toBe(403)
+    expect(await res.json()).toEqual({ error: 'cross_site_request' })
+  })
+
+  it('allows a GET the user navigated to directly', async () => {
+    expect((await createTestApp().fetch('/api/health', { headers: { 'sec-fetch-site': 'none' } }, { sameOrigin: false })).status).toBe(200)
+  })
+
+  it('marks every API response no-store', async () => {
+    const res = await createTestApp().fetch('/api/health')
+    expect(res.headers.get('cache-control')).toBe('no-store')
+  })
+
+  it('answers unknown API paths and unsupported methods with a JSON 404', async () => {
+    const app = createTestApp()
+    const missing = await app.json('GET', '/api/nope')
+    expect(missing.status).toBe(404)
+    expect(missing.body).toEqual({ error: 'not_found' })
+    expect((await app.json('POST', '/api/profiles/p7')).status).toBe(404)
+  })
+
+  it('caps mutation bodies before any route reads them', async () => {
+    const res = await createTestApp().fetch('/api/profiles/p7', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', 'content-length': String(2_000_000) },
+      body: 'x',
+    })
+    expect(res.status).toBe(413)
+    expect(await res.json()).toEqual({ error: 'payload_too_large' })
+  })
+
   it('rejects a mutation with neither Sec-Fetch-Site nor an allowed Origin', async () => {
     const res = await createTestApp().fetch('/api/profiles', { method: 'POST' }, { sameOrigin: false })
     expect(res.status).toBe(403)
