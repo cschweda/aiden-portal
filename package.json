@@ -34,6 +34,7 @@
     "zod": "^4.6.1"
   },
   "devDependencies": {
+    "@iconify-json/lucide": "^1.2.131",
     "@nuxt/eslint": "^1.17.0",
     "@types/node": "^22.0.0",
     "eslint": "^10.10.0",

@@ -18,6 +18,16 @@ export default defineNuxtConfig({
       app: { name: aiden.app.name, ui: aiden.ui },
     },
   },
+  app: {
+    head: {
+      htmlAttrs: { lang: 'en' },
+      title: aiden.app.name,
+    },
+  },
+  colorMode: {
+    preference: aiden.ui.colorMode,
+    fallback: 'dark',
+  },
   security: {
     // No login and no cross-origin consumers: the Host allowlist and same-site middleware carry the request-side
     // protection, nuxt-security carries the response headers. Its rate limiter and CORS handler add nothing here,
