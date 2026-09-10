@@ -33,7 +33,7 @@ logger that satisfies `FellowLogger` (any pino logger does). The tests under `te
 ## Sources
 
 Two reference clients were read, not copied: [9b/fellow-aiden](https://github.com/9b/fellow-aiden) (v1 API)
-and the client vendored in [NewsGuyTor/FellowAiden-HomeAssistant](https://github.com/NewsGuyTor/FellowAiden-HomeAssistant)
+and the client vendored in [kristofferR/FellowAiden-HomeAssistant](https://github.com/kristofferR/FellowAiden-HomeAssistant)
 (v2 API, actively maintained). Where they disagree, the Home Assistant client wins.
 
 ## UNVERIFIED behaviors
@@ -51,4 +51,6 @@ Everything below is inferred, not observed against a live brewer. Each is marked
 | `profileType` | `schemas.ts` | Any integer; both references use `0`. |
 | Shared profile fields | `client.ts` `fetchSharedProfile` | May contain fields beyond the ten we strip; `createProfile` rejects unknown keys, which will surface them. |
 | Drop types | `brew-link.ts` | `aiden` is the default drop type; other values are passed through untouched. |
+| Device detail id | `client.ts` `fetchDeviceDetail` | The per-device route may omit `id`; a missing id is filled from discovery, a different id is rejected. |
+| Schedule id format | `schemas.ts` `ScheduleIdSchema` | Ids look like `s0`; anything URL-safe is accepted before it is put in a path, nothing else. |
 | Live `state` object | `device.ts` | Non-null means a brew is in progress; `missing_water` may appear inside it. |

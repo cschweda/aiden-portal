@@ -1,6 +1,6 @@
 # aiden-studio — Build Prompt
 
-You are building a personal web app called **aiden-studio** for controlling a Fellow Aiden coffee brewer. It will live at `github.com/cschweda/aiden-studio`. It is a single-user app running on the owner's Mac. The Fellow API is undocumented. Two reference implementations exist and were read, not copied: the Python library at https://github.com/9b/fellow-aiden (v1 API) and the client vendored in https://github.com/NewsGuyTor/FellowAiden-HomeAssistant (v2 API, actively maintained). Port their **behavior**, not their structure. Where they disagree, the Home Assistant client wins.
+You are building a personal web app called **aiden-studio** for controlling a Fellow Aiden coffee brewer. It will live at `github.com/cschweda/aiden-studio`. It is a single-user app running on the owner's Mac. The Fellow API is undocumented. Two reference implementations exist and were read, not copied: the Python library at https://github.com/9b/fellow-aiden (v1 API) and the client vendored in https://github.com/kristofferR/FellowAiden-HomeAssistant (v2 API, actively maintained). Port their **behavior**, not their structure. Where they disagree, the Home Assistant client wins.
 
 Before writing code, confirm your understanding of the security model and the checkpoint plan (§9), and list any assumptions in a short plan. Anything about the Fellow API that neither reference demonstrates is a guess: mark it `// UNVERIFIED` in code and list every such item in `ARCHITECTURE.md`.
 
@@ -242,7 +242,7 @@ Build in this order. Each checkpoint ends with `pnpm test`, `pnpm lint`, and `pn
 ## 10. Deliverables
 
 - Working repo with:
-  - `README.md` — setup (Node 22, pnpm 10, no build-script approvals), env vars, "Run at home", security model, a "Hat tip" section crediting https://github.com/9b/fellow-aiden and https://github.com/NewsGuyTor/FellowAiden-HomeAssistant, license note
+  - `README.md` — setup (Node 22, pnpm 10, no build-script approvals), env vars, "Run at home", security model, a "Hat tip" section crediting https://github.com/9b/fellow-aiden and https://github.com/kristofferR/FellowAiden-HomeAssistant, license note
   - `ARCHITECTURE.md` — the two-layer split, how to extract the Fellow client to its own package, and the complete `UNVERIFIED` list
   - `docs/PHASE-2.md` — droplet migration stub as in §2
   - `deploy/local/` — see below

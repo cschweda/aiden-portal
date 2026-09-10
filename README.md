@@ -74,7 +74,7 @@ See `ARCHITECTURE.md` for the layer split and the list of API behaviors that are
 
 This project stands on the shoulders of [fellow-aiden](https://github.com/9b/fellow-aiden) by
 [9b](https://github.com/9b), the Python library that first worked out how to talk to the Aiden, and of the
-[Fellow Aiden Home Assistant integration](https://github.com/NewsGuyTor/FellowAiden-HomeAssistant), whose
+[Fellow Aiden Home Assistant integration](https://github.com/kristofferR/FellowAiden-HomeAssistant), whose
 maintained client documents the v2 API: the refresh-token flow, the `overallTemperature` profile field,
 brew.link drop types, remote Instant Brew, and the device state that gates it. Fellow documents none of this.
 Everything aiden-studio knows about the endpoints, the required headers, the profile and schedule validation
