@@ -63,6 +63,10 @@ describe('parseEnv', () => {
     expect(() => parseEnv({ ...MINIMAL, FELLOW_TIMEZONE: 'Mars/Olympus_Mons' })).toThrow(/FELLOW_TIMEZONE/)
   })
 
+  it('accepts silent as a log level for tests', () => {
+    expect(parseEnv({ ...MINIMAL, LOG_LEVEL: 'silent' }).logLevel).toBe('silent')
+  })
+
   it('rejects an unknown log level', () => {
     expect(() => parseEnv({ ...MINIMAL, LOG_LEVEL: 'loud' })).toThrow(/LOG_LEVEL/)
   })
