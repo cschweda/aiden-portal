@@ -18,6 +18,7 @@
     "../server/utils/**/*.ts",
     "../server/api/**/*.ts",
     "../server/middleware/**/*.ts",
-    "../server/types/**/*.d.ts"
+    "../server/types/**/*.d.ts",
+    "../app/utils/**/*.ts"
   ]
 }
