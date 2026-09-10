@@ -22,6 +22,7 @@ const EnvSchema = z.object({
   FELLOW_PASSWORD: z.string().min(1),
   FELLOW_DRY_RUN: z.stringbool().optional(),
   FELLOW_TIMEZONE: z.string().optional(),
+  FELLOW_BASE_URL: z.url().optional(),
   ALLOWED_HOSTS: z.string().optional(),
   LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
   NITRO_HOST: z.string().optional(),
@@ -83,6 +84,12 @@ export function parseEnv(env: Record<string, string | undefined>, aiden: AidenCo
     throw new Error(`Invalid time zone "${timezone}" in ${source}; use an IANA zone such as America/Chicago`)
   }
 
+  const baseUrl = raw.FELLOW_BASE_URL ?? aiden.fellow.baseUrl
+  const target = new URL(baseUrl)
+  if (target.protocol !== 'https:' && !(target.protocol === 'http:' && isLoopbackHost(target.hostname))) {
+    throw new Error('FELLOW_BASE_URL must be an https URL, or plain http on a loopback address for the mock brewer')
+  }
+
   const allowedHosts = (raw.ALLOWED_HOSTS ? raw.ALLOWED_HOSTS.split(',') : aiden.server.allowedHosts)
     .map(hostnameOf)
     .filter(host => host.length > 0)
@@ -94,7 +101,7 @@ export function parseEnv(env: Record<string, string | undefined>, aiden: AidenCo
       password: raw.FELLOW_PASSWORD,
       dryRun: raw.FELLOW_DRY_RUN ?? aiden.fellow.dryRun,
       timezone,
-      baseUrl: aiden.fellow.baseUrl,
+      baseUrl,
       timeoutMs: aiden.fellow.timeoutMs,
       retry: { ...aiden.fellow.retry },
       cacheTtlMs: aiden.fellow.cacheTtlMs,

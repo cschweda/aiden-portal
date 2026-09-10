@@ -18,7 +18,8 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "typecheck": "nuxt typecheck && tsc -p tests --noEmit",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "mock:fellow": "node scripts/mock-fellow.mjs"
   },
   "dependencies": {
     "@nuxt/ui": "^4.11.1",
