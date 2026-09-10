@@ -1,3 +1,5 @@
+import { http, HttpResponse, type HttpHandler } from 'msw'
+import { FellowClient, type FellowClientOptions } from '../../server/utils/fellow/client'
 import type { ProfileInput, ScheduleInput } from '../../server/utils/fellow/schemas'
 
 export const BASE = 'https://l8qtmnc692.execute-api.us-west-2.amazonaws.com/v1'
@@ -47,3 +49,35 @@ export const SCHEDULE_INPUT: ScheduleInput = {
 }
 
 export const SCHEDULE_S0 = { ...SCHEDULE_INPUT, id: 's0' }
+
+export interface Calls { login: number, devices: number, profiles: number, schedules: number }
+
+export function newCalls(): Calls {
+  return { login: 0, devices: 0, profiles: 0, schedules: 0 }
+}
+
+/** Login plus the three list GETs, all succeeding and counting into `calls`. */
+export function happyHandlers(calls: Calls, token = 'token-1'): HttpHandler[] {
+  return [
+    http.post(`${BASE}/auth/login`, () => {
+      calls.login++
+      return HttpResponse.json({ accessToken: token, refreshToken: 'refresh-1' })
+    }),
+    http.get(`${BASE}/devices`, () => {
+      calls.devices++
+      return HttpResponse.json([DEVICE])
+    }),
+    http.get(`${BASE}/devices/${DEVICE.id}/profiles`, () => {
+      calls.profiles++
+      return HttpResponse.json([PROFILE_P7, PROFILE_P8])
+    }),
+    http.get(`${BASE}/devices/${DEVICE.id}/schedules`, () => {
+      calls.schedules++
+      return HttpResponse.json([SCHEDULE_S0])
+    }),
+  ]
+}
+
+export function makeClient(overrides: Partial<FellowClientOptions> = {}): FellowClient {
+  return new FellowClient({ email: 'coffee@example.com', password: 'hunter2', sleep: async () => {}, random: () => 0, ...overrides })
+}
