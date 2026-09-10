@@ -10,7 +10,12 @@
 2. **`server/api/` — Nuxt server routes.** Thin wrappers that validate input with the same Zod schemas
    and call the single `useFellowClient()` instance. The browser only ever talks to these routes.
 
-Configuration is parsed once by `server/utils/config.ts`. Nothing else reads `process.env`.
+Configuration has two inputs and one output. `aiden.config.ts` at the repo root holds every non-secret setting
+and is validated at import by `server/utils/aiden-config.ts`; `.env` holds the two Fellow secrets and may
+override a few keys for one run. `server/utils/config.ts` merges them once into `AppConfig` and is the only
+place `process.env` is read. The bind address in that object follows Nitro's own precedence (`NITRO_HOST`,
+`HOST`, then the file), and the startup plugin writes it back to `NITRO_HOST`/`NITRO_PORT`, so the guard, the
+startup line, and the socket always agree.
 
 ## Authentication against Fellow
 
@@ -27,12 +32,16 @@ a retried POST could create a duplicate profile after a 503 Fellow had in fact p
 ## Request pipeline
 
 Every request passes, in order, through `server/middleware/00.request-id.ts` (a UUID on the event, on
-a child logger, and in the `x-request-id` header), `01.host-allowlist.ts` (400 unless the Host header
-names an entry of `ALLOWED_HOSTS`, which closes DNS rebinding), and `02.csrf.ts` (403 for a mutation
-without `Sec-Fetch-Site: same-origin` or an allowed `Origin`). Routes are wrapped in `defineApiRoute`
-from `server/utils/api.ts`, which turns a Zod error into 400 with issues, a `FellowError` into 502 with
-the code only, and anything else into a logged 500. nuxt-security adds the response headers; its rate
-limiter and CORS handler are disabled because nothing legitimately calls this API from another origin.
+a child logger, and in the `x-request-id` header; `Cache-Control: no-store` on `/api`), `01.host-allowlist.ts`
+(400 unless the Host header, read directly so a missing one fails closed, names an allowed host; this closes
+DNS rebinding), `02.csrf.ts` (403 for any `/api` request a browser labels `cross-site` or `same-site`, and
+for a mutation without `Sec-Fetch-Site: same-origin` or an allowed `Origin`), and `03.body-limit.ts` (413
+for a mutation body over 1 MB). Routes are wrapped in `defineApiRoute` from `server/utils/api.ts`, which
+turns a Zod error into 400 with issues, a `FellowError` into 502 with the code and our message, an h3
+client error into its own status inside the same envelope, and anything else into a logged 500.
+`server/api/[...].ts` answers a JSON 404 for anything under `/api` no route claimed. nuxt-security adds the
+response headers; its rate limiter, CORS handler, and XSS validator are disabled (nothing calls this API
+from another origin, and Zod already validates every field). The README's red/blue log records why.
 
 Route files import from `h3` directly rather than relying on Nitro's auto-imports, so
 `tests/helpers/app.ts` can mount the identical handlers on a plain h3 app and exercise the whole
@@ -74,3 +83,4 @@ Everything below is inferred, not observed against a live brewer. Each is marked
 | Device detail id | `client.ts` `fetchDeviceDetail` | The per-device route may omit `id`; a missing id is filled from discovery, a different id is rejected. |
 | Schedule id format | `schemas.ts` `ScheduleIdSchema` | Ids look like `s0`; anything URL-safe is accepted before it is put in a path, nothing else. |
 | Live `state` object | `device.ts` | Non-null means a brew is in progress; `missing_water` may appear inside it. |
+| Production logger | `logger.ts` | The pino-roll transport is exercised only by `scripts/smoke.sh`, never by Vitest. |

@@ -7,6 +7,38 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-10
+
+The first red-team / blue-team pass, and a single configuration file.
+
+### Added
+
+- `aiden.config.ts` at the repo root: the single source of truth for every non-secret setting (bind
+  address, dry run, Fellow API URL and tuning, cache, logging, UI defaults), validated at import.
+- `.env.sample`, fully commented, with the two required secrets and six optional overrides.
+- `scripts/smoke.sh`: probes a production build for the guard, headers, Host and same-site rules,
+  error shapes, and the log file.
+- A "Red team / blue team log" section in the README, newest entry first.
+
+### Fixed
+
+- `NITRO_HOST` could bypass the loopback guard; the config now mirrors Nitro's precedence and the
+  startup plugin pins the bind address to the validated value.
+- Cross-site pages could make the server call Fellow through GET requests; any `/api` request a
+  browser labels cross-site or same-site is now refused.
+- Malformed JSON and `__proto__` bodies escaped the shared error envelope; unknown `/api` paths and
+  wrong methods answered the HTML app shell; PATCH bodies had no size cap; a missing Host header
+  passed the allowlist; API responses lacked `Cache-Control: no-store`.
+- A remote-start readiness check on a cold client used list data instead of live state.
+- The log directory is created owner-only, the log file also rotates by size, and startup warns
+  when `.env` is readable by other accounts.
+- esbuild overridden to the patched line for GHSA-g7r4-m6w7-qqqr; `pnpm audit` is clean.
+
+### Changed
+
+- nuxt-security's XSS validator is off (Zod validates every field); `X-Frame-Options` is `DENY`.
+- `.env.example` is replaced by `.env.sample`.
+
 ## [0.2.0] - 2026-09-10
 
 Checkpoint 2 of 4: server routes, request hardening, and logging. Still no UI.

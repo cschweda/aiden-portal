@@ -21,7 +21,7 @@ Before writing code, confirm your understanding of the security model and the ch
 
 There is **no database, no session library, and no native module** in Phase 1. pnpm 10 skips dependency build scripts by default; the ones it skips are declared, with reasons, in `pnpm-workspace.yaml` (`ignoredBuiltDependencies`), so `pnpm install` never needs `pnpm approve-builds`.
 
-All configuration is read once at startup into a Zod-validated config object (`server/utils/config.ts`). Nothing else reads `process.env`.
+Configuration lives in two places and nowhere else: `aiden.config.ts` at the repo root is the single source of truth for every non-secret setting (validated at import by `server/utils/aiden-config.ts`), and `.env` (copied from the committed, commented `.env.sample`) holds the Fellow secrets plus optional single-run overrides of `FELLOW_DRY_RUN`, `FELLOW_TIMEZONE`, `HOST`/`NITRO_HOST`, `PORT`/`NITRO_PORT`, `ALLOWED_HOSTS`, `LOG_LEVEL`. `server/utils/config.ts` merges them once; nothing else reads `process.env`.
 
 ---
 
@@ -33,8 +33,8 @@ Build **Phase 1 only**. Leave clearly marked extension points and a `docs/PHASE-
 
 - Accessed at `http://localhost:3000` only. Bind strictly to `127.0.0.1:3000`. No reverse proxy, no TLS, no Tailscale, no hosts-file aliases.
 - **No login screen and no user accounts.** The only credential anywhere is the owner's Fellow login in `.env`. Whoever can reach the loopback port is the owner.
-- `HOST` must be set explicitly. Nitro's node-server binds every interface when `HOST` is unset, so the startup guard (§5) treats unset as non-loopback and refuses to start.
-- Expected `.env`: `FELLOW_DRY_RUN=true` until the UI is trusted.
+- The bind address comes from `aiden.config.ts` (`server.host`, default `127.0.0.1`). The startup plugin pins Nitro to it; the guard (§5) refuses any non-loopback value from the file or from `HOST`/`NITRO_HOST`.
+- `fellow.dryRun` in `aiden.config.ts` stays `true` until the UI is trusted.
 - A launchd LaunchAgent (§10) runs the production build at login and restarts it on crash.
 
 ### Phase 2 — DigitalOcean droplet (do NOT build now)
@@ -138,12 +138,12 @@ No Nuxt or browser dependencies, so it can be extracted to its own npm package l
 
 ### 3b. `server/api/` — Nuxt server routes (checkpoint 2)
 
-Thin wrappers over the single `useFellowClient()` instance. Every route validates input with the input schemas, uses only POST/PATCH/DELETE for mutations, and returns typed responses. Read client IP from `X-Forwarded-For` / `X-Real-IP`, trusting only a loopback proxy — inert in Phase 1, load-bearing in Phase 2.
+Thin wrappers over the single `useFellowClient()` instance. Every route validates input with the input schemas, uses only POST/PATCH/DELETE for mutations, and returns typed responses. Anything under `/api` no route claims answers a JSON 404. (Reading the client IP from `X-Forwarded-For` behind a loopback proxy is Phase 2 work, added together with the auth layer.)
 
 | Route | Purpose |
 |---|---|
 | `GET /api/health` | `{ ok: true }`. No Fellow call, no secrets. (built) |
-| `GET /api/status` | `{ dryRun, version, fellow: 'ok' \| 'auth_failed' \| 'unknown' }` from the last Fellow outcome. How the UI learns about dry-run; no component reads env vars. |
+| `GET /api/status` | `{ dryRun, version, fellow }` where `fellow` is `'ok'`, `'unknown'`, or the last `FellowError` code (for example `fellow_auth_failed`). How the UI learns about dry-run; no component reads env vars. |
 | `GET /api/device?fresh=1` | device config plus `canStartBrew` |
 | `GET /api/profiles?fresh=1`, `POST /api/profiles` | list / create |
 | `PATCH /api/profiles/:id`, `DELETE /api/profiles/:id` | update / delete |
@@ -167,21 +167,23 @@ None in Phase 1. The Fellow cloud is the source of truth for profiles, schedules
 
 ### Startup guard (Nitro plugin, runs before listen)
 
-Refuse to start, with a clear message at `error` level, when:
+Refuse to start, with a clear message, when:
 
-- `HOST` is unset, or is not `127.0.0.1` / `::1` / `localhost`
+- the effective bind address (`NITRO_HOST`, else `HOST`, else `server.host` in `aiden.config.ts`) is not `127.0.0.1` / `::1` / `localhost`
 - `FELLOW_EMAIL` or `FELLOW_PASSWORD` is missing
 
-Document that this guard sees the bind address only, not proxies.
+Then pin `NITRO_HOST`/`NITRO_PORT` to the validated values so Nitro binds exactly that. Document (README) that this guard sees the bind address only, not proxies. Warn at startup when `.env` is readable by other accounts.
 
 ### Request hardening (load-bearing: every tab in the owner's browser is the owner)
 
 Any website the owner visits can send requests to `127.0.0.1:3000`. So:
 
-- **Host allowlist.** Reject requests whose `Host` hostname (port ignored) is not in `ALLOWED_HOSTS` (comma-separated; default `localhost,127.0.0.1,[::1]`) with 400. This closes DNS rebinding, which Origin checks do not cover for GETs.
-- **CSRF.** On every mutating route: pass if `Sec-Fetch-Site` is `same-origin`; otherwise pass if `Origin` is present and its hostname is in `ALLOWED_HOSTS`; otherwise 403.
-- **Security headers** (CSP, `frame-ancestors 'none'`, etc.) via nuxt-security. Start from its defaults and fix CSP violations rather than disabling CSP.
-- `.env.example` and `.gitignore` covering `.env`, `data/`, `logs/`. Never commit secrets. README tells the owner to `chmod 600 .env`, because `FELLOW_PASSWORD` is their real Fellow account password.
+- **Host allowlist.** Reject requests whose `Host` hostname (read directly, port ignored, missing header fails closed) is not in `server.allowedHosts` (default `localhost`, `127.0.0.1`, `[::1]`) with 400. This closes DNS rebinding, which Origin checks do not cover for GETs.
+- **Same-site rule.** Any `/api` request a browser labels `Sec-Fetch-Site: cross-site` or `same-site` is refused with 403, GET included, so a page elsewhere cannot make this server call Fellow. On every mutating route additionally: pass if `Sec-Fetch-Site` is `same-origin`; otherwise pass if `Origin` is present and its hostname is allowed; otherwise 403.
+- **Body cap.** Mutation bodies over 1 MB are refused with 413 before any route reads them.
+- **Security headers** via nuxt-security: CSP with `frame-ancestors 'none'`, `X-Frame-Options: DENY`, and its other defaults. Its rate limiter, CORS handler, and XSS validator are off (no login, no cross-origin consumers, Zod already validates every field). Fix CSP violations rather than disabling CSP. API responses are `Cache-Control: no-store`.
+- **Red/blue log.** Every hardening pass is recorded in the README under "Red team / blue team log", newest first, older entries collapsed; `scripts/smoke.sh` re-runs the probes against each production build.
+- `.env.sample` (committed, commented, blank values) and `.gitignore` covering `.env`, `data/`, `logs/`. Never commit secrets. README tells the owner to `chmod 600 .env`, because `FELLOW_PASSWORD` is their real Fellow account password.
 
 ---
 
@@ -189,14 +191,14 @@ Any website the owner visits can send requests to `127.0.0.1:3000`. So:
 
 - pino. `LOG_LEVEL` env var; default `info` in production, `debug` in dev.
 - Dev: pino-pretty to stdout (as an in-process stream, not a worker transport, so it survives Nitro bundling).
-- Production: pino-roll at `./logs/aiden.log`, rotated daily, keep 14 files (`limit.count`), `mkdir: true`. pino-roll cannot compress; do not ask it to. Do not also write to stdout — launchd captures stdout to its own file and every line would land twice.
-- Always print one plain line to stdout at startup: bind address, dry-run state, log file path. That is all launchd's stdout file should ever contain, besides crash traces.
+- Production: pino-roll under `logging.directory` (owner-only), rotated daily or at `logging.maxFileMb`, keep `logging.keepDays` files, `symlink` so `logs/current.log` is always the active file. pino-roll cannot compress; do not ask it to. Do not also write to stdout — launchd captures stdout to its own file and every line would land twice.
+- Print one plain line to stdout at startup: bind address, dry-run state, log file path. Nitro prints its own `Listening on …` line after it; those two are all launchd's stdout file should ever contain, besides crash traces.
 - Every request gets a `requestId` (h3 middleware) included in all log lines for that request.
 - **info:** startup config summary (bind address, dry-run, timezone — NEVER secret values); each mutating action with the target id; cache invalidations; Fellow authentication and refresh events.
 - **debug:** every outbound Fellow API call as method, path, status, duration ms, cache hit/miss.
 - **trace:** request/response bodies. Off by default; bodies land on disk and in `/logs`.
-- **warn:** 401→re-auth events, retries, rejected Host/Origin, validation failures, remote-start refused.
-- **error:** unhandled exceptions with stack; any Fellow response ≥400 after retries are exhausted; startup guard failures.
+- **warn:** 401→re-auth events, retries, rejected Host/Origin/size, validation failures (paths only), remote-start refused, `.env` permissions.
+- **error:** unhandled exceptions with stack; any `FellowError` reaching a route; startup guard failures.
 - **Redaction is mandatory** via pino's `redact` with wildcard paths: `*.password`, `*.accessToken`, `*.refreshToken`, `*.authorization`, `*.cookie`. Test that a logged login body comes out redacted.
 - No per-request access log at info level. Errors and mutations are what matter.
 - `/logs` page: tail the last 200 lines of the current log file, filterable by level and requestId.
@@ -246,8 +248,8 @@ Build in this order. Each checkpoint ends with `pnpm test`, `pnpm lint`, and `pn
   - `ARCHITECTURE.md` — the two-layer split, how to extract the Fellow client to its own package, and the complete `UNVERIFIED` list
   - `docs/PHASE-2.md` — droplet migration stub as in §2
   - `deploy/local/` — see below
-  - `.env.example` documenting every env var:
-    `FELLOW_EMAIL`, `FELLOW_PASSWORD`, `FELLOW_DRY_RUN`, `FELLOW_TIMEZONE`, `ALLOWED_HOSTS`, `LOG_LEVEL`, `HOST`, `PORT`
+  - `aiden.config.ts` documenting every setting inline, and `.env.sample` documenting the secrets and the overrides:
+    `FELLOW_EMAIL`, `FELLOW_PASSWORD`, `FELLOW_DRY_RUN`, `FELLOW_TIMEZONE`, `HOST`, `PORT`, `ALLOWED_HOSTS`, `LOG_LEVEL`
   - `.nvmrc` and `engines`
 - `LICENSE` — MIT
 - `CHANGELOG.md` — Keep a Changelog format. Bump the version in `package.json` and add an entry at the end of every checkpoint and every release.
@@ -260,4 +262,4 @@ The production build does not read `.env` — only `nuxt dev` does — and launc
 
 - `com.cschweda.aiden-studio.plist.template` — a LaunchAgent with `RunAtLoad`, `KeepAlive`, `WorkingDirectory` set to the repo, `ProgramArguments` of `<absolute node> --env-file=.env .output/server/index.mjs`, `EnvironmentVariables` containing only `NODE_ENV=production`, and `StandardOutPath` / `StandardErrorPath` pointing at `logs/launchd.log`. No secrets in the plist; they come from `.env` via `--env-file`.
 - `install.sh` — substitutes the absolute repo path and `$(which node)` into the template, copies it to `~/Library/LaunchAgents/`, and runs `launchctl bootstrap gui/$(id -u) …`. `uninstall.sh` reverses it.
-- README "Run at home": `pnpm build`, `deploy/local/install.sh`, then open `http://localhost:3000`. Mention `tail -f logs/aiden.log`.
+- README "Run at home": `pnpm build`, `deploy/local/install.sh`, then open `http://localhost:3000`. Mention `tail -f logs/current.log`.
