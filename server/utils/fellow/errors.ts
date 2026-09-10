@@ -3,7 +3,6 @@ export type FellowErrorCode =
   | 'fellow_http_error'
   | 'fellow_network_error'
   | 'fellow_invalid_link'
-  | 'fellow_not_implemented'
   | 'fellow_bad_response'
 
 export interface FellowErrorOptions {

@@ -35,6 +35,17 @@ function defaultTimezone(): string {
 
 interface TokenResponse { accessToken?: unknown, refreshToken?: unknown }
 
+type TokenSource = 'login' | 'refresh'
+
+interface AuthResult { token: string, source: TokenSource }
+
+/** One authentication operation at a time. `refresh` may be satisfied by a refresh; `login` must be a password login. */
+interface AuthInFlight { kind: 'refresh' | 'login', promise: Promise<AuthResult> }
+
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 /**
  * Talks HTTP to Fellow: lazy login, bearer token, refresh-then-relogin on 401, JSON in and out.
  * The 401 sequence mirrors the maintained Home Assistant client: refresh the token and retry; if the
@@ -57,9 +68,9 @@ export class FellowHttp {
 
   private accessToken: string | null = null
   private refreshToken: string | null = null
-  /** How the current access token was obtained; decides whether a rejected token deserves a password login. */
-  private tokenSource: 'login' | 'refresh' | null = null
-  private authInFlight: Promise<string> | null = null
+  /** How the current access token was obtained. */
+  private tokenSource: TokenSource | null = null
+  private authInFlight: AuthInFlight | null = null
 
   constructor(options: FellowHttpOptions) {
     this.email = options.email
@@ -94,7 +105,7 @@ export class FellowHttp {
         if (attempt >= maxAttempts) {
           throw new FellowError('fellow_network_error', `Fellow request failed: ${method} ${path}`, { cause: error })
         }
-        await this.backoff(attempt, method, path, `network error: ${error instanceof Error ? error.message : String(error)}`)
+        await this.backoff(attempt, method, path, `network error: ${describeError(error)}`)
         continue
       }
       if (response.ok) return (await parseBody(response)) as T
@@ -118,12 +129,13 @@ export class FellowHttp {
   }
 
   /** Exchanges the stored refresh token for a new access token. Rejects with fellow_auth_failed if that is not possible. */
-  refreshAccessToken(): Promise<string> {
-    return this.singleFlight(async () => {
-      const token = await this.tryRefresh()
-      if (!token) throw new FellowError('fellow_auth_failed', 'Fellow did not issue a new access token for the refresh token')
-      return token
+  async refreshAccessToken(): Promise<string> {
+    const result = await this.singleFlight('refresh', async () => {
+      const refreshed = await this.tryRefresh()
+      if (!refreshed) throw new FellowError('fellow_auth_failed', 'Fellow did not issue a new access token for the refresh token')
+      return refreshed
     })
+    return result.token
   }
 
   protected async sendAuthenticated(method: HttpMethod, path: string, body: unknown): Promise<Response> {
@@ -132,79 +144,113 @@ export class FellowHttp {
     if (response.status !== 401) return response
 
     this.logger.warn({ method, path }, 'Fellow returned 401; re-authenticating')
-    const secondToken = await this.reauthenticate(token)
-    response = await this.send(method, path, body, secondToken)
+    const second = await this.reauthenticate(token)
+    response = await this.send(method, path, body, second.token)
     if (response.status !== 401) return response
 
-    if (this.tokenSource === 'refresh') {
+    let lastToken = second.token
+    if (second.source === 'refresh') {
       this.logger.warn({ method, path }, 'Refreshed token was rejected; logging in with the password')
-      const thirdToken = await this.loginAgain(secondToken)
-      response = await this.send(method, path, body, thirdToken)
+      const third = await this.loginAgain(second.token)
+      response = await this.send(method, path, body, third.token)
+      if (response.status !== 401) return response
+      lastToken = third.token
+    }
+
+    // Another request may have obtained a newer token while ours was being rejected. Use it before giving up.
+    if (this.accessToken && this.accessToken !== lastToken) {
+      response = await this.send(method, path, body, this.accessToken)
       if (response.status !== 401) return response
     }
     throw new FellowError('fellow_auth_failed', 'Fellow rejected the request even after re-authenticating', { status: 401 })
   }
 
-  private ensureToken(): Promise<string> {
-    return this.accessToken ? Promise.resolve(this.accessToken) : this.singleFlight(() => this.performLogin())
+  private async ensureToken(): Promise<string> {
+    if (this.accessToken) return this.accessToken
+    return (await this.singleFlight('login', () => this.performLogin())).token
   }
 
   /** Refresh if possible, else log in. If another request already replaced the stale token, reuse it. */
-  private reauthenticate(staleToken: string): Promise<string> {
-    if (this.accessToken && this.accessToken !== staleToken) return Promise.resolve(this.accessToken)
-    return this.singleFlight(async () => (await this.tryRefresh()) ?? this.performLogin())
+  private reauthenticate(staleToken: string): Promise<AuthResult> {
+    if (this.accessToken && this.accessToken !== staleToken && this.tokenSource) {
+      return Promise.resolve({ token: this.accessToken, source: this.tokenSource })
+    }
+    return this.singleFlight('refresh', async () => (await this.tryRefresh()) ?? this.performLogin())
   }
 
   /** Password login, skipping refresh. Reuses a token another request obtained by login in the meantime. */
-  private loginAgain(staleToken: string): Promise<string> {
+  private loginAgain(staleToken: string): Promise<AuthResult> {
     if (this.accessToken && this.accessToken !== staleToken && this.tokenSource === 'login') {
-      return Promise.resolve(this.accessToken)
+      return Promise.resolve({ token: this.accessToken, source: 'login' })
     }
-    return this.singleFlight(() => this.performLogin())
+    return this.singleFlight('login', () => this.performLogin())
   }
 
-  private singleFlight(run: () => Promise<string>): Promise<string> {
-    if (!this.authInFlight) {
-      this.authInFlight = run().finally(() => {
-        this.authInFlight = null
-      })
+  private singleFlight(kind: AuthInFlight['kind'], run: () => Promise<AuthResult>): Promise<AuthResult> {
+    const current = this.authInFlight
+    if (current) {
+      if (kind === 'login' && current.kind !== 'login') {
+        // A refresh is in progress but the caller needs a password login. Let the refresh finish, then
+        // run the login unless the refresh turned out to be a login itself.
+        return current.promise.then(
+          result => (result.source === 'login' ? result : this.singleFlight('login', run)),
+          () => this.singleFlight('login', run),
+        )
+      }
+      return current.promise
     }
-    return this.authInFlight
+    const promise: Promise<AuthResult> = run().finally(() => {
+      if (this.authInFlight?.promise === promise) this.authInFlight = null
+    })
+    this.authInFlight = { kind, promise }
+    return promise
   }
 
-  private async performLogin(): Promise<string> {
-    this.logger.debug({}, 'Authenticating with Fellow')
-    let response: Response
-    try {
-      response = await this.fetchImpl(`${this.baseUrl}/auth/login`, {
-        method: 'POST',
-        headers: { 'User-Agent': this.userAgent, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ email: this.email, password: this.password, timezone: this.timezone }),
-        signal: AbortSignal.timeout(this.timeoutMs),
-      })
+  /** Password login. Retried on 408/5xx and network errors like any idempotent call; 400/401/403 mean bad credentials. */
+  private async performLogin(): Promise<AuthResult> {
+    for (let attempt = 1; ; attempt++) {
+      this.logger.debug({ attempt }, 'Authenticating with Fellow')
+      let response: Response
+      try {
+        response = await this.fetchImpl(`${this.baseUrl}/auth/login`, {
+          method: 'POST',
+          headers: { 'User-Agent': this.userAgent, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ email: this.email, password: this.password, timezone: this.timezone }),
+          signal: AbortSignal.timeout(this.timeoutMs),
+        })
+      }
+      catch (error) {
+        if (attempt >= this.maxAttempts) {
+          throw new FellowError('fellow_network_error', 'Could not reach Fellow to log in', { cause: error })
+        }
+        await this.backoff(attempt, 'POST', '/auth/login', `network error: ${describeError(error)}`)
+        continue
+      }
+      const data = (await parseBody(response)) as TokenResponse | undefined
+      if (BAD_CREDENTIAL_STATUSES.has(response.status)) {
+        throw new FellowError('fellow_auth_failed', 'Fellow rejected the email or password', { status: response.status, body: data })
+      }
+      if (!response.ok) {
+        const retryable = response.status === 408 || response.status >= 500
+        if (retryable && attempt < this.maxAttempts) {
+          await this.backoff(attempt, 'POST', '/auth/login', `status ${response.status}`)
+          continue
+        }
+        throw new FellowError('fellow_http_error', `Fellow responded ${response.status} to the login`, { status: response.status, body: data })
+      }
+      if (typeof data?.accessToken !== 'string') {
+        throw new FellowError('fellow_auth_failed', 'Fellow login response had no access token', { status: response.status, body: data })
+      }
+      this.accessToken = data.accessToken
+      this.refreshToken = typeof data.refreshToken === 'string' ? data.refreshToken : null
+      this.tokenSource = 'login'
+      this.logger.info({}, 'Authenticated with Fellow')
+      return { token: this.accessToken, source: 'login' }
     }
-    catch (error) {
-      throw new FellowError('fellow_network_error', 'Could not reach Fellow to log in', { cause: error })
-    }
-    const data = (await parseBody(response)) as TokenResponse | undefined
-    if (BAD_CREDENTIAL_STATUSES.has(response.status)) {
-      throw new FellowError('fellow_auth_failed', 'Fellow rejected the email or password', { status: response.status, body: data })
-    }
-    if (!response.ok) {
-      throw new FellowError('fellow_http_error', `Fellow responded ${response.status} to the login`, { status: response.status, body: data })
-    }
-    if (typeof data?.accessToken !== 'string') {
-      throw new FellowError('fellow_auth_failed', 'Fellow login response had no access token', { status: response.status, body: data })
-    }
-    this.accessToken = data.accessToken
-    this.refreshToken = typeof data.refreshToken === 'string' ? data.refreshToken : null
-    this.tokenSource = 'login'
-    this.logger.info({}, 'Authenticated with Fellow')
-    return this.accessToken
   }
 
   /** Returns the new access token, or null when there is no refresh token or Fellow declines it. Never throws. */
-  private async tryRefresh(): Promise<string | null> {
+  private async tryRefresh(): Promise<AuthResult | null> {
     if (!this.refreshToken) return null
     let response: Response
     try {
@@ -216,7 +262,7 @@ export class FellowHttp {
       })
     }
     catch (error) {
-      this.logger.debug({ reason: error instanceof Error ? error.message : String(error) }, 'Token refresh request failed')
+      this.logger.debug({ reason: describeError(error) }, 'Token refresh request failed')
       return null
     }
     const data = (await parseBody(response)) as TokenResponse | undefined
@@ -228,7 +274,7 @@ export class FellowHttp {
     if (typeof data.refreshToken === 'string') this.refreshToken = data.refreshToken
     this.tokenSource = 'refresh'
     this.logger.info({}, 'Refreshed the Fellow access token')
-    return this.accessToken
+    return { token: this.accessToken, source: 'refresh' }
   }
 
   private async send(method: HttpMethod, path: string, body: unknown, token: string): Promise<Response> {

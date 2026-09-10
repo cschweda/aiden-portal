@@ -61,7 +61,7 @@ export function parseEnv(env: Record<string, string | undefined>): AppConfig {
       email: raw.FELLOW_EMAIL,
       password: raw.FELLOW_PASSWORD,
       dryRun: raw.FELLOW_DRY_RUN,
-      timezone: raw.FELLOW_TIMEZONE ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezone: raw.FELLOW_TIMEZONE ?? (Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'),
     },
     allowedHosts: raw.ALLOWED_HOSTS.split(',').map(h => h.trim().toLowerCase()).filter(h => h.length > 0),
     logLevel: raw.LOG_LEVEL ?? (isProduction ? 'info' : 'debug'),
@@ -73,8 +73,11 @@ export function parseEnv(env: Record<string, string | undefined>): AppConfig {
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1', 'localhost'])
 
+/** True for 127.0.0.1, ::1 (bracketed or not), and localhost, in any case. */
 export function isLoopbackHost(host: string | undefined): boolean {
-  return host !== undefined && LOOPBACK_HOSTS.has(host.trim().toLowerCase())
+  if (host === undefined) return false
+  const normalized = host.trim().toLowerCase().replace(/^\[(.*)\]$/, '$1')
+  return LOOPBACK_HOSTS.has(normalized)
 }
 
 let cached: AppConfig | undefined

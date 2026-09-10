@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { http, HttpResponse } from 'msw'
+import { delay, http, HttpResponse } from 'msw'
 import { server } from '../../setup/msw'
 import { FELLOW_BASE_URL, FELLOW_USER_AGENT, FellowHttp, type FellowHttpOptions } from '../../../server/utils/fellow/http'
 import { BASE, DEVICE } from '../../helpers/fellow-fixtures'
@@ -79,9 +79,29 @@ describe('login', () => {
     })
   })
 
-  it('reports a 5xx on login as fellow_http_error, not as bad credentials', async () => {
-    server.use(http.post(loginUrl, () => new HttpResponse(null, { status: 503 })))
+  it('reports a persistent 5xx on login as fellow_http_error, not as bad credentials, after three attempts', async () => {
+    let logins = 0
+    server.use(http.post(loginUrl, () => {
+      logins++
+      return new HttpResponse(null, { status: 503 })
+    }))
     await expect(makeHttp().request('GET', '/devices?dataType=real')).rejects.toMatchObject({ code: 'fellow_http_error', status: 503 })
+    expect(logins).toBe(3)
+  })
+
+  it('retries the login itself on a transient 5xx, since a login is safe to repeat', async () => {
+    let logins = 0
+    server.use(
+      http.post(loginUrl, () => {
+        logins++
+        return logins < 2 ? new HttpResponse(null, { status: 503 }) : HttpResponse.json({ accessToken: 't' })
+      }),
+      http.get(devicesUrl, () => HttpResponse.json([DEVICE])),
+    )
+    const sleep = vi.fn(async (_ms: number) => {})
+    expect(await makeHttp({ sleep }).request('GET', '/devices?dataType=real')).toEqual([DEVICE])
+    expect(logins).toBe(2)
+    expect(sleep).toHaveBeenCalledTimes(1)
   })
 
   it('treats a login response without accessToken as a failure', async () => {
@@ -212,6 +232,33 @@ describe('401 handling', () => {
       client.request('GET', '/devices/dev-123/schedules'),
     ])
     expect(counts).toEqual({ logins: 1, refreshes: 1 })
+  })
+
+  it('does not reject a request whose second 401 lands after another request already logged in again', async () => {
+    // Both requests share a refresh that yields token-2, which the server rejects. The devices request
+    // then logs in (token-3). The profiles request's 401 for token-2 is delayed until after that login
+    // has finished; it must reuse token-3 rather than give up.
+    const counts = { logins: 0, refreshes: 0 }
+    const isToken3 = (request: Request) => request.headers.get('authorization') === 'Bearer token-3'
+    server.use(
+      ...authHandlers(counts),
+      http.get(devicesUrl, ({ request }) => isToken3(request) ? HttpResponse.json([DEVICE]) : new HttpResponse(null, { status: 401 })),
+      http.get(`${BASE}/devices/dev-123/profiles`, async ({ request }) => {
+        if (isToken3(request)) return HttpResponse.json([])
+        // Only the refreshed token's rejection is slow, so this request still holds token-2 after the
+        // devices request has already replaced it with token-3.
+        if (request.headers.get('authorization') === 'Bearer token-2') await delay(40)
+        return new HttpResponse(null, { status: 401 })
+      }),
+    )
+    const client = makeHttp()
+    const [devices, profiles] = await Promise.all([
+      client.request('GET', '/devices?dataType=real'),
+      client.request('GET', '/devices/dev-123/profiles'),
+    ])
+    expect(devices).toEqual([DEVICE])
+    expect(profiles).toEqual([])
+    expect(counts).toEqual({ logins: 2, refreshes: 1 })
   })
 
   it('refreshAccessToken rejects before any login and resolves with the new token after one', async () => {

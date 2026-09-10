@@ -13,6 +13,9 @@ describe('parseBrewLink', () => {
     ['https://brew.link/p/ws98/some_other-drop/', 'ws98', 'some_other-drop'],
     ['ws98', 'ws98', 'aiden'],
     ['  ws98  ', 'ws98', 'aiden'],
+    ['https://brew.link/p/ws98?utm_source=app', 'ws98', 'aiden'],
+    ['https://brew.link/p/ws98/#shared', 'ws98', 'aiden'],
+    ['https://brew.link/p/ws98/other?x=1', 'ws98', 'other'],
   ])('%s → id %s, drop type %s', (input, id, dropType) => {
     expect(parseBrewLink(input)).toEqual({ id, dropType })
   })
@@ -22,7 +25,6 @@ describe('parseBrewLink', () => {
     '   ',
     'https://brew.link/p/',
     'https://brew.link/q/ws98',
-    'https://brew.link/p/ws98?utm=1',
     'ws-98',
     'https://brew.link/p/ws 98',
     'https://brew.link/p/ws98/drop/extra',

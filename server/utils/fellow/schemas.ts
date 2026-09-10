@@ -10,6 +10,12 @@ export const BLOOM_RATIO_VALUES = halfSteps(1, 3)
 export const TEMPERATURE_VALUES = halfSteps(50, 99)
 export const TITLE_REGEX = /^[A-Za-z0-9 !@#$%&*\-+?/.,:)(]+$/
 export const PROFILE_ID_REGEX = /^(p|plocal)\d+$/
+// UNVERIFIED: schedule ids look like `s0` in both references; anything URL-safe is accepted, nothing else.
+export const SCHEDULE_ID_REGEX = /^[A-Za-z0-9_-]+$/
+
+/** Ids are interpolated into Fellow URLs, so they are validated before any path is built. */
+export const ProfileIdSchema = z.string().regex(PROFILE_ID_REGEX, { error: 'profileId must be p<n> or plocal<n>' })
+export const ScheduleIdSchema = z.string().regex(SCHEDULE_ID_REGEX, { error: 'scheduleId may contain only letters, digits, - and _' })
 
 function halfStep(values: number[], label: string) {
   const first = values[0]
@@ -57,7 +63,7 @@ export const ScheduleInputSchema = z.strictObject({
   secondFromStartOfTheDay: z.int().min(0).max(86399),
   enabled: z.boolean(),
   amountOfWater: z.int().min(150).max(1500),
-  profileId: z.string().regex(PROFILE_ID_REGEX, { error: 'profileId must be p<n> or plocal<n>' }),
+  profileId: ProfileIdSchema,
 })
 
 export type ScheduleInput = z.infer<typeof ScheduleInputSchema>

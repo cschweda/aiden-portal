@@ -9,9 +9,11 @@ import {
   type Device,
   DeviceSchema,
   type Profile,
+  ProfileIdSchema,
   ProfileInputSchema,
   ProfileSchema,
   type Schedule,
+  ScheduleIdSchema,
   ScheduleInputSchema,
   SchedulePatchSchema,
   ScheduleSchema,
@@ -37,6 +39,16 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+/** Zod's lenient `.catch(undefined)` leaves own properties set to undefined; drop them so spreads do not clobber. */
+function compact<T extends object>(value: T): T {
+  return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T
+}
+
+/** The detail route may omit the id; everything else is as lenient as the list schema. */
+const DeviceDetailSchema = DeviceSchema.partial({ id: true })
+const ProfileListSchema = z.array(ProfileSchema)
+const ScheduleListSchema = z.array(ScheduleSchema)
+
 /** Typed facade over FellowHttp: one brewer per account, cached list reads, dry-run support. */
 export class FellowClient {
   readonly dryRun: boolean
@@ -48,6 +60,8 @@ export class FellowClient {
   private knownDeviceId: string | null = null
   /** Identity fields from the device list; the detail route omits them, so they are merged back in. */
   private inventory: Partial<Device> = {}
+  /** Bumped by every mutation so that a read still in flight cannot re-cache pre-mutation data. */
+  private generation = 0
 
   constructor(options: FellowClientOptions) {
     this.dryRun = options.dryRun ?? false
@@ -72,31 +86,46 @@ export class FellowClient {
       throw new FellowError('fellow_bad_response', 'Fellow returned no usable device for this account', { body: devices })
     }
     this.knownDeviceId = first.id
-    this.inventory = Object.fromEntries(DEVICE_INVENTORY_FIELDS.filter(key => first[key] !== undefined).map(key => [key, first[key]]))
-    return first
+    this.inventory = compact(Object.fromEntries(DEVICE_INVENTORY_FIELDS.map(key => [key, first[key]])))
+    return compact(first)
   }
 
-  /** The lighter per-device route used once the id is known. Live state comes from here; identity from the list. */
+  /**
+   * The lighter per-device route used once the id is known. Live state comes from here; identity from the list.
+   * A 404 means the brewer left the account, so discovery runs again.
+   */
   private async fetchDeviceDetail(deviceId: string): Promise<Device> {
-    const raw = await this.http.request<unknown>('GET', `/devices/${deviceId}?dataType=real`)
-    const detail = DeviceSchema.safeParse(raw)
-    if (!detail.success || detail.data.id !== deviceId) {
+    let raw: unknown
+    try {
+      raw = await this.http.request<unknown>('GET', `/devices/${deviceId}?dataType=real`)
+    }
+    catch (error) {
+      if (error instanceof FellowError && error.status === 404) {
+        this.logger.warn({ deviceId }, 'Brewer is no longer listed under this id; rediscovering')
+        this.knownDeviceId = null
+        this.inventory = {}
+        return this.discoverDevice()
+      }
+      throw error
+    }
+    const detail = DeviceDetailSchema.safeParse(raw)
+    if (!detail.success || (detail.data.id !== undefined && detail.data.id !== deviceId)) {
       throw new FellowError('fellow_bad_response', `Fellow's device detail did not describe brewer ${deviceId}`, { body: raw })
     }
-    return { ...this.inventory, ...detail.data }
+    return { ...this.inventory, ...compact(detail.data), id: deviceId }
   }
 
   async getProfiles(options: ReadOptions = {}): Promise<Profile[]> {
     return this.cachedRead('profiles', options, async () => {
       const raw = await this.http.request<unknown>('GET', `/devices/${await this.deviceId()}/profiles`)
-      return z.array(ProfileSchema).parse(raw) as Profile[]
+      return this.parseOrBadResponse(ProfileListSchema, raw, 'profile list') as Profile[]
     })
   }
 
   async getSchedules(options: ReadOptions = {}): Promise<Schedule[]> {
     return this.cachedRead('schedules', options, async () => {
       const raw = await this.http.request<unknown>('GET', `/devices/${await this.deviceId()}/schedules`)
-      return z.array(ScheduleSchema).parse(raw) as Schedule[]
+      return this.parseOrBadResponse(ScheduleListSchema, raw, 'schedule list') as Schedule[]
     })
   }
 
@@ -114,15 +143,18 @@ export class FellowClient {
 
   // UNVERIFIED: the reference client ignores the PATCH response body, so its shape is unknown and nothing is returned.
   async updateProfile(profileId: string, input: Record<string, unknown>): Promise<void> {
+    ProfileIdSchema.parse(profileId)
     const body = ProfileInputSchema.parse(stripServerFields(input))
     await this.mutate('PATCH', `/devices/${await this.deviceId()}/profiles/${profileId}`, body, () => ({ ...body, id: profileId }))
   }
 
   async deleteProfile(profileId: string): Promise<void> {
+    ProfileIdSchema.parse(profileId)
     await this.mutate('DELETE', `/devices/${await this.deviceId()}/profiles/${profileId}`, undefined, () => undefined)
   }
 
   async generateShareLink(profileId: string): Promise<string> {
+    ProfileIdSchema.parse(profileId)
     const response = await this.mutate(
       'POST',
       `/devices/${await this.deviceId()}/profiles/${profileId}/share`,
@@ -167,11 +199,13 @@ export class FellowClient {
 
   // UNVERIFIED: response body shape unknown (the reference client returns it raw), so nothing is returned.
   async updateSchedule(scheduleId: string, patch: Record<string, unknown>): Promise<void> {
+    ScheduleIdSchema.parse(scheduleId)
     const body = SchedulePatchSchema.parse(patch)
     await this.mutate('PATCH', `/devices/${await this.deviceId()}/schedules/${scheduleId}`, body, () => ({ ...body, id: scheduleId }))
   }
 
   async deleteSchedule(scheduleId: string): Promise<void> {
+    ScheduleIdSchema.parse(scheduleId)
     await this.mutate('DELETE', `/devices/${await this.deviceId()}/schedules/${scheduleId}`, undefined, () => undefined)
   }
 
@@ -211,6 +245,7 @@ export class FellowClient {
     else {
       result = await this.http.request<T>(method, path, body)
     }
+    this.generation += 1
     this.cache.clear()
     return result
   }
@@ -243,9 +278,16 @@ export class FellowClient {
       const pending = this.inFlight.get(key) as Promise<T> | undefined
       if (pending) return pending
     }
+    const generation = this.generation
     const loading = load()
-      .then(value => this.cache.set(key, value))
-      .finally(() => this.inFlight.delete(key))
+      .then((value) => {
+        // A mutation that landed while this read was in flight makes the result stale: return it, do not cache it.
+        if (this.generation === generation) this.cache.set(key, value)
+        return value
+      })
+      .finally(() => {
+        if (this.inFlight.get(key) === loading) this.inFlight.delete(key)
+      })
     this.inFlight.set(key, loading)
     return loading
   }

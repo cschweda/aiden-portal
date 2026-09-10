@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   DeviceSchema,
+  ProfileIdSchema,
   ProfileInputSchema,
   ProfileSchema,
   RATIO_VALUES,
+  ScheduleIdSchema,
   ScheduleInputSchema,
   SchedulePatchSchema,
   TEMPERATURE_VALUES,
@@ -129,5 +131,14 @@ describe('response schemas are lenient', () => {
     expect(device.lidClosed).toBeUndefined()
     expect(device.totalBrewingCycles).toBeUndefined()
     expect(device.firmwareVersion).toBeUndefined()
+  })
+})
+
+describe('id schemas', () => {
+  it.each([['p1', true], ['plocal12', true], ['../x', false], ['p7 ', false], ['s0', false], ['', false]])('ProfileIdSchema %j → %s', (id, ok) => {
+    expect(accepts(ProfileIdSchema, id)).toBe(ok)
+  })
+  it.each([['s0', true], ['abc-DEF_9', true], ['s0/x', false], ['s0?x=1', false], ['..', false], ['', false]])('ScheduleIdSchema %j → %s', (id, ok) => {
+    expect(accepts(ScheduleIdSchema, id)).toBe(ok)
   })
 })

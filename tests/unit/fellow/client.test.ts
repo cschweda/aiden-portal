@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { http, HttpResponse } from 'msw'
+import { delay, http, HttpResponse } from 'msw'
+import { ZodError } from 'zod'
 import { server } from '../../setup/msw'
 import {
   BASE,
@@ -97,6 +98,93 @@ describe('FellowClient reads', () => {
 
   it('exposes dryRun as false by default', () => {
     expect(makeClient().dryRun).toBe(false)
+  })
+
+  it('does not write a read that was in flight during a mutation back into the cache', async () => {
+    const calls = newCalls()
+    server.use(
+      http.get(profilesUrl, async () => {
+        calls.profiles++
+        await delay(30)
+        return HttpResponse.json([PROFILE_P7])
+      }),
+      http.post(profilesUrl, () => HttpResponse.json({ ...PROFILE_INPUT, id: 'p9' })),
+      ...happyHandlers(calls),
+    )
+    const client = makeClient()
+    await client.getDevice()
+    const inFlight = client.getProfiles()
+    await client.createProfile(PROFILE_INPUT)
+    expect((await inFlight).map(p => p.id)).toEqual(['p7'])
+    await client.getProfiles()
+    expect(calls.profiles).toBe(2)
+  })
+
+  it('reports a malformed list response as fellow_bad_response rather than a validation error', async () => {
+    server.use(
+      http.get(profilesUrl, () => HttpResponse.json({ nope: true })),
+      http.get(schedulesUrl, () => HttpResponse.json([{ noId: true }])),
+      ...happyHandlers(newCalls()),
+    )
+    const client = makeClient()
+    await expect(client.getProfiles()).rejects.toMatchObject({ code: 'fellow_bad_response' })
+    await expect(client.getSchedules()).rejects.toMatchObject({ code: 'fellow_bad_response' })
+  })
+
+  it('accepts a device detail without an id, keeps inventory fields, and drops a mistyped duplicate', async () => {
+    const calls = newCalls()
+    const { id: _omitted, ...detailWithoutId } = DEVICE_DETAIL
+    server.use(
+      http.get(`${BASE}/devices/${DEVICE.id}`, () => {
+        calls.deviceDetail++
+        return HttpResponse.json({ ...detailWithoutId, displayName: 42 })
+      }),
+      ...happyHandlers(calls),
+    )
+    const client = makeClient()
+    await client.getDevice()
+    const refreshed = await client.getDevice({ fresh: true })
+    expect(refreshed.id).toBe('dev-123')
+    expect(refreshed.displayName).toBe('Kitchen Aiden')
+    expect(refreshed.serialNumber).toBe('SN-0001')
+    expect(refreshed.lidClosed).toBe(true)
+    expect(calls.deviceDetail).toBe(1)
+  })
+
+  it('rejects a device detail that names a different brewer', async () => {
+    server.use(
+      http.get(`${BASE}/devices/${DEVICE.id}`, () => HttpResponse.json({ ...DEVICE_DETAIL, id: 'dev-999' })),
+      ...happyHandlers(newCalls()),
+    )
+    const client = makeClient()
+    await client.getDevice()
+    await expect(client.getDevice({ fresh: true })).rejects.toMatchObject({ code: 'fellow_bad_response' })
+  })
+
+  it('rediscovers the brewer when the detail route says it is gone', async () => {
+    const calls = newCalls()
+    server.use(
+      http.get(`${BASE}/devices/${DEVICE.id}`, () => new HttpResponse(null, { status: 404 })),
+      ...happyHandlers(calls),
+    )
+    const client = makeClient()
+    await client.getDevice()
+    expect(await client.getDevice({ fresh: true })).toEqual(DEVICE)
+    expect(calls.devices).toBe(2)
+  })
+})
+
+describe('FellowClient id validation', () => {
+  it.each([
+    ['deleteProfile', (c: ReturnType<typeof makeClient>) => c.deleteProfile('../start?confirm=true')],
+    ['updateProfile', (c: ReturnType<typeof makeClient>) => c.updateProfile('..', PROFILE_INPUT)],
+    ['generateShareLink', (c: ReturnType<typeof makeClient>) => c.generateShareLink('p7 ')],
+    ['deleteSchedule', (c: ReturnType<typeof makeClient>) => c.deleteSchedule('s0/../x')],
+    ['updateSchedule', (c: ReturnType<typeof makeClient>) => c.updateSchedule('s0?x=1', { enabled: true })],
+  ])('%s rejects a malformed id before building a path', async (_name, call) => {
+    // Only read handlers exist: a request with a traversed path would be unhandled and fail the test differently.
+    server.use(...happyHandlers(newCalls()))
+    await expect(call(makeClient())).rejects.toBeInstanceOf(ZodError)
   })
 })
 

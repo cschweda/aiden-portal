@@ -76,6 +76,7 @@ describe('isLoopbackHost', () => {
   it.each([
     ['127.0.0.1', true],
     ['::1', true],
+    ['[::1]', true],
     ['localhost', true],
     ['LOCALHOST', true],
     ['0.0.0.0', false],
