@@ -1,0 +1,10 @@
+# Dependencies whose install scripts we deliberately skip (pnpm 10 blocks them by default).
+# Each ships its platform binary or shim as a regular file, so the script is not needed:
+#   esbuild, unrs-resolver: validate an optional-dependency binary that is already present
+#   msw: prints a post-install notice
+#   vue-demi: selects a Vue 2/3 shim; the Vue 3 default is what we use
+ignoredBuiltDependencies:
+  - esbuild
+  - msw
+  - unrs-resolver
+  - vue-demi
