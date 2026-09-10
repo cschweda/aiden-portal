@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { matchProfileByTitle, similarityRatio } from '../../../server/utils/fellow/similarity'
+import { matchProfileByTitle, similarityRatio } from '../../../server/lib/fellow/similarity'
 
 describe('similarityRatio (matches Python difflib.SequenceMatcher.ratio)', () => {
   it.each([

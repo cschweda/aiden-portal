@@ -62,7 +62,7 @@ Every variable is documented in `.env.example`.
 
 ## Project layout
 
-- `server/utils/fellow/` — the Fellow client. Pure TypeScript, no Nuxt imports, so it can become its own package.
+- `server/lib/fellow/` — the Fellow client. Pure TypeScript, no Nuxt imports, so it can become its own package.
 - `server/utils/config.ts` — the only place `process.env` is read.
 - `server/api/` — thin Nuxt server routes over the client.
 - `app/` — the Nuxt UI front end (checkpoint 3).

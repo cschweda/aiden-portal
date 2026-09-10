@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { parseBrewLink } from '../../../server/utils/fellow/brew-link'
-import { FellowError } from '../../../server/utils/fellow/errors'
+import { parseBrewLink } from '../../../server/lib/fellow/brew-link'
+import { FellowError } from '../../../server/lib/fellow/errors'
 
 describe('parseBrewLink', () => {
   it.each([

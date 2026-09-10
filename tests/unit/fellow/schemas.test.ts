@@ -9,7 +9,7 @@ import {
   ScheduleInputSchema,
   SchedulePatchSchema,
   TEMPERATURE_VALUES,
-} from '../../../server/utils/fellow/schemas'
+} from '../../../server/lib/fellow/schemas'
 import { PROFILE_INPUT, SCHEDULE_INPUT } from '../../helpers/fellow-fixtures'
 
 const profile = (overrides: Record<string, unknown> = {}) => ({ ...PROFILE_INPUT, ...overrides })

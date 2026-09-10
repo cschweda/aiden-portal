@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { TtlCache } from '../../../server/utils/fellow/cache'
+import { TtlCache } from '../../../server/lib/fellow/cache'
 
 describe('TtlCache', () => {
   it('returns what was set until the TTL passes', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canStartBrew, isBrewing, isMissingWater, supportsRemoteStart } from '../../../server/utils/fellow/device'
+import { canStartBrew, isBrewing, isMissingWater, supportsRemoteStart } from '../../../server/lib/fellow/device'
 
 const READY = {
   id: 'dev-123',

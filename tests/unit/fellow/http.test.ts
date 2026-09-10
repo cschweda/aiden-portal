@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { delay, http, HttpResponse } from 'msw'
 import { server } from '../../setup/msw'
-import { FELLOW_BASE_URL, FELLOW_USER_AGENT, FellowHttp, type FellowHttpOptions } from '../../../server/utils/fellow/http'
+import { FELLOW_BASE_URL, FELLOW_USER_AGENT, FellowHttp, type FellowHttpOptions } from '../../../server/lib/fellow/http'
 import { BASE, DEVICE } from '../../helpers/fellow-fixtures'
 
 const EMAIL = 'coffee@example.com'

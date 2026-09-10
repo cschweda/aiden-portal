@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SERVER_SIDE_PROFILE_FIELDS, stripServerFields } from '../../../server/utils/fellow/strip'
+import { SERVER_SIDE_PROFILE_FIELDS, stripServerFields } from '../../../server/lib/fellow/strip'
 import { PROFILE_INPUT, PROFILE_P7 } from '../../helpers/fellow-fixtures'
 
 describe('stripServerFields', () => {

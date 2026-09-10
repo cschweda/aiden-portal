@@ -1,6 +1,6 @@
 import { http, HttpResponse, type HttpHandler } from 'msw'
-import { FellowClient, type FellowClientOptions } from '../../server/utils/fellow/client'
-import type { ProfileInput, ScheduleInput } from '../../server/utils/fellow/schemas'
+import { FellowClient, type FellowClientOptions } from '../../server/lib/fellow/client'
+import type { ProfileInput, ScheduleInput } from '../../server/lib/fellow/schemas'
 
 export const BASE = 'https://l8qtmnc692.execute-api.us-west-2.amazonaws.com/v2'
 

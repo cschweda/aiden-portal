@@ -2,7 +2,7 @@
 
 ## Two layers
 
-1. **`server/utils/fellow/` — the Fellow client.** Pure TypeScript with zero Nuxt or browser imports.
+1. **`server/lib/fellow/` — the Fellow client.** Pure TypeScript with zero Nuxt or browser imports.
    It uses the global `fetch` and takes its logger, clock, sleep, and randomness as constructor options
    so it is deterministic under test. `FellowHttp` owns authentication, retries, and JSON;
    `FellowClient` owns the typed API, the read cache, and dry-run behavior; `device.ts` holds the pure
@@ -26,7 +26,7 @@ a retried POST could create a duplicate profile after a 503 Fellow had in fact p
 
 ## Extracting the client to its own package
 
-Copy `server/utils/fellow/` into a package whose only dependency is `zod`, export `index.ts`, and pass a
+Copy `server/lib/fellow/` into a package whose only dependency is `zod`, export `index.ts`, and pass a
 logger that satisfies `FellowLogger` (any pino logger does). The tests under `tests/unit/fellow/` and
 `tests/helpers/fellow-fixtures.ts` move with it unchanged apart from import paths.
 

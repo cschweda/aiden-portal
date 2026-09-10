@@ -1,5 +1,5 @@
 import { getConfig } from './config'
-import { FellowClient } from './fellow'
+import { FellowClient } from '../lib/fellow'
 import { useLogger } from './logger'
 
 let instance: FellowClient | undefined

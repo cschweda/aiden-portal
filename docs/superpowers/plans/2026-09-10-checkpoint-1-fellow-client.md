@@ -4,7 +4,7 @@
 
 **Goal:** Produce a Nuxt 4 repo whose pure-TypeScript Fellow client, Zod schemas, and env config loader are complete and fully tested against msw, with build, lint, typecheck, and tests all green.
 
-**Architecture:** `server/utils/fellow/` is a dependency-free TypeScript client (global `fetch`, injectable logger/sleep/random/now) split into an HTTP core (auth, single-flight login, retry) and a `FellowClient` facade (typed methods, read cache, dry-run). `server/utils/config.ts` parses `process.env` once with Zod. A thin Nitro layer (`server/utils/fellow-client.ts`, `server/utils/logger.ts`, `server/api/health.get.ts`) proves the wiring. Checkpoints 2–4 (auth, UI, deploy) get their own plans.
+**Architecture:** `server/lib/fellow/` is a dependency-free TypeScript client (global `fetch`, injectable logger/sleep/random/now) split into an HTTP core (auth, single-flight login, retry) and a `FellowClient` facade (typed methods, read cache, dry-run). `server/utils/config.ts` parses `process.env` once with Zod. A thin Nitro layer (`server/utils/fellow-client.ts`, `server/utils/logger.ts`, `server/api/health.get.ts`) proves the wiring. Checkpoints 2–4 (auth, UI, deploy) get their own plans.
 
 **Tech Stack:** Node 22, pnpm 10, Nuxt 4.5, Nuxt UI 4.11, TypeScript 6, Zod 4.6, Vitest 5, msw 2.15, pino 10.
 
@@ -24,7 +24,7 @@
 - Node 22 LTS pinned in `engines` and `.nvmrc`; pnpm 10; Nuxt 4; Nuxt UI v4; TypeScript; Zod for all validation; Nitro preset `node-server`; license MIT (the reference library is GPL-3.0 and is credited in the README).
 - better-sqlite3 ≥ 13 and `@node-rs/argon2` are the only native modules (checkpoint 2); neither has an install script. No `pnpm approve-builds`.
 - All configuration is read once at startup into a Zod-validated config object (`server/utils/config.ts`). Nothing else reads `process.env`.
-- `server/utils/fellow/` has no Nuxt or browser dependencies.
+- `server/lib/fellow/` has no Nuxt or browser dependencies.
 - The browser never talks to Fellow and never sees Fellow credentials.
 - Base URL `https://l8qtmnc692.execute-api.us-west-2.amazonaws.com/v1`; header `User-Agent: Fellow/5 CFNetwork/1568.300.101 Darwin/24.2.0` on every request.
 - Retry GET and DELETE only, on 408 and 5xx, up to 3 attempts, exponential backoff with jitter. Never retry POST or PATCH.
@@ -43,16 +43,16 @@
 |---|---|
 | `package.json`, `nuxt.config.ts`, `tsconfig.json`, `vitest.config.ts`, `eslint.config.mjs`, `.nvmrc`, `.gitignore`, `.env.example` | Project scaffold and tooling |
 | `app/app.vue`, `app/assets/css/main.css` | Minimal Nuxt UI shell (real pages in checkpoint 3) |
-| `server/utils/fellow/errors.ts` | `FellowError` with typed codes |
-| `server/utils/fellow/logger.ts` | `FellowLogger` interface and `noopLogger` |
-| `server/utils/fellow/schemas.ts` | Zod input schemas, value sets, lenient response schemas, inferred types |
-| `server/utils/fellow/strip.ts` | Server-side field list and `stripServerFields` |
-| `server/utils/fellow/brew-link.ts` | `parseBrewLink` |
-| `server/utils/fellow/similarity.ts` | `similarityRatio`, `matchProfileByTitle` |
-| `server/utils/fellow/http.ts` | `FellowHttp`: login, single-flight, 401 re-login, retry/backoff, JSON handling |
-| `server/utils/fellow/cache.ts` | `TtlCache` |
-| `server/utils/fellow/client.ts` | `FellowClient`: typed API methods, cache, dry-run |
-| `server/utils/fellow/index.ts` | Public re-exports |
+| `server/lib/fellow/errors.ts` | `FellowError` with typed codes |
+| `server/lib/fellow/logger.ts` | `FellowLogger` interface and `noopLogger` |
+| `server/lib/fellow/schemas.ts` | Zod input schemas, value sets, lenient response schemas, inferred types |
+| `server/lib/fellow/strip.ts` | Server-side field list and `stripServerFields` |
+| `server/lib/fellow/brew-link.ts` | `parseBrewLink` |
+| `server/lib/fellow/similarity.ts` | `similarityRatio`, `matchProfileByTitle` |
+| `server/lib/fellow/http.ts` | `FellowHttp`: login, single-flight, 401 re-login, retry/backoff, JSON handling |
+| `server/lib/fellow/cache.ts` | `TtlCache` |
+| `server/lib/fellow/client.ts` | `FellowClient`: typed API methods, cache, dry-run |
+| `server/lib/fellow/index.ts` | Public re-exports |
 | `server/utils/config.ts` | `parseEnv`, `getConfig`, `isLoopbackHost` |
 | `server/utils/logger.ts` | Minimal pino instance (extended in checkpoint 2) |
 | `server/utils/fellow-client.ts` | `useFellowClient()` singleton for Nitro |
@@ -340,7 +340,7 @@ git commit -m "chore: scaffold Nuxt 4 project with test, lint, and typecheck too
 ### Task 2: Fellow errors, logger interface, and Zod schemas
 
 **Files:**
-- Create: `server/utils/fellow/errors.ts`, `server/utils/fellow/logger.ts`, `server/utils/fellow/schemas.ts`
+- Create: `server/lib/fellow/errors.ts`, `server/lib/fellow/logger.ts`, `server/lib/fellow/schemas.ts`
 - Test: `tests/unit/fellow/schemas.test.ts`
 
 **Interfaces:**
@@ -363,7 +363,7 @@ import {
   ScheduleInputSchema,
   SchedulePatchSchema,
   TEMPERATURE_VALUES,
-} from '../../../server/utils/fellow/schemas'
+} from '../../../server/lib/fellow/schemas'
 import { PROFILE_INPUT, SCHEDULE_INPUT } from '../../helpers/fellow-fixtures'
 
 const profile = (overrides: Record<string, unknown> = {}) => ({ ...PROFILE_INPUT, ...overrides })
@@ -478,7 +478,7 @@ describe('response schemas are lenient', () => {
 
 `tests/helpers/fellow-fixtures.ts` (first version; later tasks extend it):
 ```ts
-import type { ProfileInput, ScheduleInput } from '../../server/utils/fellow/schemas'
+import type { ProfileInput, ScheduleInput } from '../../server/lib/fellow/schemas'
 
 export const BASE = 'https://l8qtmnc692.execute-api.us-west-2.amazonaws.com/v1'
 
@@ -532,11 +532,11 @@ export const SCHEDULE_S0 = { ...SCHEDULE_INPUT, id: 's0' }
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `pnpm vitest run tests/unit/fellow/schemas.test.ts`
-Expected: FAIL — cannot resolve `server/utils/fellow/schemas`.
+Expected: FAIL — cannot resolve `server/lib/fellow/schemas`.
 
 - [ ] **Step 3: Write errors.ts and logger.ts**
 
-`server/utils/fellow/errors.ts`:
+`server/lib/fellow/errors.ts`:
 ```ts
 export type FellowErrorCode =
   | 'fellow_auth_failed'
@@ -568,7 +568,7 @@ export class FellowError extends Error {
 }
 ```
 
-`server/utils/fellow/logger.ts`:
+`server/lib/fellow/logger.ts`:
 ```ts
 export type LogFn = (obj: Record<string, unknown>, msg: string) => void
 
@@ -588,7 +588,7 @@ export const noopLogger: FellowLogger = { trace: ignore, debug: ignore, info: ig
 
 - [ ] **Step 4: Write schemas.ts**
 
-`server/utils/fellow/schemas.ts`:
+`server/lib/fellow/schemas.ts`:
 ```ts
 import { z } from 'zod'
 
@@ -687,7 +687,7 @@ git commit -m "feat(fellow): add error type, logger interface, and Zod schemas"
 ### Task 3: Server-field stripping and brew-link parsing
 
 **Files:**
-- Create: `server/utils/fellow/strip.ts`, `server/utils/fellow/brew-link.ts`
+- Create: `server/lib/fellow/strip.ts`, `server/lib/fellow/brew-link.ts`
 - Test: `tests/unit/fellow/strip.test.ts`, `tests/unit/fellow/brew-link.test.ts`
 
 **Interfaces:**
@@ -698,7 +698,7 @@ git commit -m "feat(fellow): add error type, logger interface, and Zod schemas"
 `tests/unit/fellow/strip.test.ts`:
 ```ts
 import { describe, expect, it } from 'vitest'
-import { SERVER_SIDE_PROFILE_FIELDS, stripServerFields } from '../../../server/utils/fellow/strip'
+import { SERVER_SIDE_PROFILE_FIELDS, stripServerFields } from '../../../server/lib/fellow/strip'
 import { PROFILE_INPUT, PROFILE_P7 } from '../../helpers/fellow-fixtures'
 
 describe('stripServerFields', () => {
@@ -725,8 +725,8 @@ describe('stripServerFields', () => {
 `tests/unit/fellow/brew-link.test.ts`:
 ```ts
 import { describe, expect, it } from 'vitest'
-import { parseBrewLink } from '../../../server/utils/fellow/brew-link'
-import { FellowError } from '../../../server/utils/fellow/errors'
+import { parseBrewLink } from '../../../server/lib/fellow/brew-link'
+import { FellowError } from '../../../server/lib/fellow/errors'
 
 describe('parseBrewLink', () => {
   it.each([
@@ -767,7 +767,7 @@ Expected: FAIL — modules not found.
 
 - [ ] **Step 3: Write the implementations**
 
-`server/utils/fellow/strip.ts`:
+`server/lib/fellow/strip.ts`:
 ```ts
 /** Fields Fellow adds to a profile. They must never be sent back on create/update. Same list as the reference library. */
 export const SERVER_SIDE_PROFILE_FIELDS = [
@@ -792,7 +792,7 @@ export function stripServerFields(profile: Record<string, unknown>): Record<stri
 }
 ```
 
-`server/utils/fellow/brew-link.ts`:
+`server/lib/fellow/brew-link.ts`:
 ```ts
 import { FellowError } from './errors'
 
@@ -830,7 +830,7 @@ git commit -m "feat(fellow): strip server-side profile fields and parse brew.lin
 ### Task 4: Title similarity and lookup
 
 **Files:**
-- Create: `server/utils/fellow/similarity.ts`
+- Create: `server/lib/fellow/similarity.ts`
 - Test: `tests/unit/fellow/similarity.test.ts`
 
 **Interfaces:**
@@ -843,7 +843,7 @@ Expected ratios below were produced by `python3 -c "from difflib import Sequence
 `tests/unit/fellow/similarity.test.ts`:
 ```ts
 import { describe, expect, it } from 'vitest'
-import { matchProfileByTitle, similarityRatio } from '../../../server/utils/fellow/similarity'
+import { matchProfileByTitle, similarityRatio } from '../../../server/lib/fellow/similarity'
 
 describe('similarityRatio (matches Python difflib.SequenceMatcher.ratio)', () => {
   it.each([
@@ -907,7 +907,7 @@ Expected: FAIL — module not found.
 
 - [ ] **Step 3: Write the implementation**
 
-`server/utils/fellow/similarity.ts`:
+`server/lib/fellow/similarity.ts`:
 ```ts
 /**
  * Ratcliff/Obershelp similarity: 2 × (matched characters) / (total characters).
@@ -1228,7 +1228,7 @@ git commit -m "feat(config): parse environment once with Zod"
 ### Task 6: FellowHttp — login, single-flight, 401 re-login
 
 **Files:**
-- Create: `server/utils/fellow/http.ts`
+- Create: `server/lib/fellow/http.ts`
 - Test: `tests/unit/fellow/http.test.ts`
 
 **Interfaces:**
@@ -1260,7 +1260,7 @@ git commit -m "feat(config): parse environment once with Zod"
 import { describe, expect, it } from 'vitest'
 import { http, HttpResponse } from 'msw'
 import { server } from '../../setup/msw'
-import { FELLOW_BASE_URL, FELLOW_USER_AGENT, FellowHttp, type FellowHttpOptions } from '../../../server/utils/fellow/http'
+import { FELLOW_BASE_URL, FELLOW_USER_AGENT, FellowHttp, type FellowHttpOptions } from '../../../server/lib/fellow/http'
 import { BASE, DEVICE } from '../../helpers/fellow-fixtures'
 
 const EMAIL = 'coffee@example.com'
@@ -1469,7 +1469,7 @@ Expected: FAIL — module not found.
 
 - [ ] **Step 3: Write the implementation (no retry loop yet; Task 7 adds it)**
 
-`server/utils/fellow/http.ts`:
+`server/lib/fellow/http.ts`:
 ```ts
 import { FellowError } from './errors'
 import { type FellowLogger, noopLogger } from './logger'
@@ -1646,7 +1646,7 @@ Expected: PASS.
 Run: `pnpm lint && pnpm typecheck`
 
 ```bash
-git add server/utils/fellow/http.ts tests/unit/fellow/http.test.ts
+git add server/lib/fellow/http.ts tests/unit/fellow/http.test.ts
 git commit -m "feat(fellow): HTTP core with lazy single-flight login and one re-login on 401"
 ```
 
@@ -1655,7 +1655,7 @@ git commit -m "feat(fellow): HTTP core with lazy single-flight login and one re-
 ### Task 7: FellowHttp — retry with backoff for GET and DELETE only
 
 **Files:**
-- Modify: `server/utils/fellow/http.ts` (replace `request`, add `backoff`)
+- Modify: `server/lib/fellow/http.ts` (replace `request`, add `backoff`)
 - Test: `tests/unit/fellow/http.test.ts` (append a `describe('retries')`)
 
 **Interfaces:**
@@ -1855,7 +1855,7 @@ Expected: PASS, all cases including the earlier ones.
 
 ```bash
 pnpm lint && pnpm typecheck
-git add server/utils/fellow/http.ts tests/unit/fellow/http.test.ts
+git add server/lib/fellow/http.ts tests/unit/fellow/http.test.ts
 git commit -m "feat(fellow): retry GET and DELETE on 408/5xx with jittered backoff"
 ```
 
@@ -1864,7 +1864,7 @@ git commit -m "feat(fellow): retry GET and DELETE on 408/5xx with jittered backo
 ### Task 8: TtlCache and FellowClient reads
 
 **Files:**
-- Create: `server/utils/fellow/cache.ts`, `server/utils/fellow/client.ts`
+- Create: `server/lib/fellow/cache.ts`, `server/lib/fellow/client.ts`
 - Modify: `tests/helpers/fellow-fixtures.ts` (add handlers and `makeClient`)
 - Test: `tests/unit/fellow/cache.test.ts`, `tests/unit/fellow/client.test.ts`
 
@@ -1889,7 +1889,7 @@ git commit -m "feat(fellow): retry GET and DELETE on 408/5xx with jittered backo
 Append to `tests/helpers/fellow-fixtures.ts`:
 ```ts
 import { http, HttpResponse, type HttpHandler } from 'msw'
-import { FellowClient, type FellowClientOptions } from '../../server/utils/fellow/client'
+import { FellowClient, type FellowClientOptions } from '../../server/lib/fellow/client'
 
 export interface Calls { login: number, devices: number, profiles: number, schedules: number }
 
@@ -1930,7 +1930,7 @@ export function makeClient(overrides: Partial<FellowClientOptions> = {}): Fellow
 `tests/unit/fellow/cache.test.ts`:
 ```ts
 import { describe, expect, it } from 'vitest'
-import { TtlCache } from '../../../server/utils/fellow/cache'
+import { TtlCache } from '../../../server/lib/fellow/cache'
 
 describe('TtlCache', () => {
   it('returns what was set until the TTL passes', () => {
@@ -2040,7 +2040,7 @@ Expected: FAIL — modules not found.
 
 - [ ] **Step 4: Write cache.ts and client.ts**
 
-`server/utils/fellow/cache.ts`:
+`server/lib/fellow/cache.ts`:
 ```ts
 interface Entry { value: unknown, expiresAt: number }
 
@@ -2071,7 +2071,7 @@ export class TtlCache {
 }
 ```
 
-`server/utils/fellow/client.ts` (reads only; Task 9 adds mutations):
+`server/lib/fellow/client.ts` (reads only; Task 9 adds mutations):
 ```ts
 import { z } from 'zod'
 import { TtlCache } from './cache'
@@ -2182,8 +2182,8 @@ git commit -m "feat(fellow): typed client reads with a 30s cache and in-flight d
 ### Task 9: FellowClient mutations, dry run, brew links, title lookup
 
 **Files:**
-- Modify: `server/utils/fellow/client.ts`
-- Create: `server/utils/fellow/index.ts`
+- Modify: `server/lib/fellow/client.ts`
+- Create: `server/lib/fellow/index.ts`
 - Test: `tests/unit/fellow/client.test.ts` (append)
 
 **Interfaces:**
@@ -2420,7 +2420,7 @@ Expected: the new describes fail with "is not a function"; the reads still pass.
 
 - [ ] **Step 3: Add the mutation methods to `client.ts`**
 
-Extend the imports at the top of `server/utils/fellow/client.ts`:
+Extend the imports at the top of `server/lib/fellow/client.ts`:
 ```ts
 import { parseBrewLink } from './brew-link'
 import { type HttpMethod } from './http'
@@ -2537,7 +2537,7 @@ Add these members to the class, after `getSchedules`:
   }
 ```
 
-`server/utils/fellow/index.ts`:
+`server/lib/fellow/index.ts`:
 ```ts
 export { parseBrewLink } from './brew-link'
 export { TtlCache } from './cache'
@@ -2716,7 +2716,7 @@ Every variable is documented in `.env.example`. The important ones:
 
 ## Project layout
 
-- `server/utils/fellow/` — the Fellow client. Pure TypeScript, no Nuxt imports, so it can become its own package.
+- `server/lib/fellow/` — the Fellow client. Pure TypeScript, no Nuxt imports, so it can become its own package.
 - `server/utils/config.ts` — the only place `process.env` is read.
 - `server/api/` — thin Nuxt server routes over the client.
 - `app/` — the Nuxt UI front end (checkpoint 3).
@@ -2745,7 +2745,7 @@ MIT. See `LICENSE`.
 
 ## Two layers
 
-1. **`server/utils/fellow/` — the Fellow client.** Pure TypeScript with zero Nuxt or browser imports.
+1. **`server/lib/fellow/` — the Fellow client.** Pure TypeScript with zero Nuxt or browser imports.
    It uses the global `fetch` and takes its logger, clock, sleep, and randomness as constructor options
    so it is deterministic under test. `FellowHttp` owns authentication, retries, and JSON;
    `FellowClient` owns the typed API, the read cache, and dry-run behavior.
@@ -2756,7 +2756,7 @@ Configuration is parsed once by `server/utils/config.ts`. Nothing else reads `pr
 
 ## Extracting the client to its own package
 
-Copy `server/utils/fellow/` into a package whose only dependency is `zod`, export `index.ts`, and pass a
+Copy `server/lib/fellow/` into a package whose only dependency is `zod`, export `index.ts`, and pass a
 logger that satisfies `FellowLogger` (any pino logger does). The tests under `tests/unit/fellow/` and
 `tests/helpers/fellow-fixtures.ts` move with it unchanged apart from import paths.
 
