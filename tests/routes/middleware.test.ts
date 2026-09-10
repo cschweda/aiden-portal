@@ -36,10 +36,28 @@ describe('request pipeline', () => {
     expect(res.status).toBe(400)
   })
 
-  it.each(['cross-site', 'same-site'])('rejects any API request a browser marks as %s, even a GET', async (site) => {
-    const res = await createTestApp().fetch('/api/device?fresh=1', { headers: { 'sec-fetch-site': site } }, { sameOrigin: false })
+  it.each([
+    ['cross-site', 'no-cors', 'image'],
+    ['cross-site', 'cors', 'empty'],
+    ['same-site', 'cors', 'empty'],
+    ['cross-site', 'navigate', 'iframe'],
+  ])('rejects a %s %s %s request to the API, even a GET', async (site, mode, dest) => {
+    const res = await createTestApp().fetch('/api/device?fresh=1', { headers: { 'sec-fetch-site': site, 'sec-fetch-mode': mode, 'sec-fetch-dest': dest } }, { sameOrigin: false })
     expect(res.status).toBe(403)
     expect(await res.json()).toEqual({ error: 'cross_site_request' })
+  })
+
+  it('allows a cross-site top-level navigation, which is how a link from elsewhere and the SSR render arrive', async () => {
+    const res = await createTestApp().fetch('/api/health', { headers: { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document' } }, { sameOrigin: false })
+    expect(res.status).toBe(200)
+  })
+
+  it('still refuses a mutation arriving as a cross-site navigation (a form post from another site)', async () => {
+    const res = await createTestApp().fetch('/api/profiles', {
+      method: 'POST',
+      headers: { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document', 'origin': 'http://evil.example' },
+    }, { sameOrigin: false })
+    expect(res.status).toBe(403)
   })
 
   it('allows a GET the user navigated to directly', async () => {
