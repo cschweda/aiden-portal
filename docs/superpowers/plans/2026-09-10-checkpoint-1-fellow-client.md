@@ -12,6 +12,13 @@
 
 **Spec:** `docs/aiden-studio-build-prompt.md` (sections 1, 3, 4 partially, 8 partially, 9 checkpoint 1)
 
+
+> **Execution notes (2026-09-10).** Executed inline; all ten tasks done, tagged `v0.1.0`. Deviations from the text below, all driven by owner decisions or reference findings made during execution:
+> - Auth was dropped from Phase 1 entirely, so the config loader (Task 5) has no `AUTH_ENABLED`, `NUXT_SESSION_*`, or `DATABASE_PATH`, and gained `FELLOW_TIMEZONE`.
+> - The Home Assistant integration's vendored client turned out to be a newer v2 reference. An extra task aligned the client with it: v2 base URL, login with timezone, a real refresh-token flow (the "not implemented" extension point is gone), brew.link drop types, required `overallTemperature`, remote Instant Brew start with readiness rules (`device.ts`), and the per-device detail route. Tests grew from the planned set to 221.
+> - `pino-pretty` moved to `dependencies` in Task 1 rather than Task 10.
+> - Tasks 6+7 and 8+9 were each committed together so that every commit has a green test suite.
+
 ## Global Constraints
 
 - Node 22 LTS pinned in `engines` and `.nvmrc`; pnpm 10; Nuxt 4; Nuxt UI v4; TypeScript; Zod for all validation; Nitro preset `node-server`; license MIT (the reference library is GPL-3.0 and is credited in the README).
