@@ -3,8 +3,8 @@
 A personal web app for controlling a [Fellow Aiden](https://fellowproducts.com/products/aiden) coffee brewer:
 brew profiles, schedules, brew.link import, share links, and remote Instant Brew, from a browser on your own machine.
 
-> **Status:** checkpoint 2 of 4. The Fellow client and the server API are complete and tested.
-> There is no UI yet. See `CHANGELOG.md`.
+> **Status:** checkpoint 3 of 4. The app is usable end to end: dashboard, profiles, schedules, and logs over
+> the Fellow client. Checkpoint 4 adds the launchd service and the Phase 2 notes. See `CHANGELOG.md`.
 
 ## How it works
 
@@ -15,6 +15,43 @@ Fellow and never sees those credentials.
 - **Phase 1 (now):** runs on your Mac, reachable only at `http://localhost:3000`, no login screen. The only
   credential anywhere is your Fellow login in `.env`.
 - **Phase 2 (later):** the same build on a DigitalOcean droplet behind Nginx, with an auth layer added then.
+
+## The app
+
+Dark by default (the toggle is in the sidebar footer), one accent, and every value the brewer accepts.
+
+| Page | What it does |
+|---|---|
+| Dashboard | The brewer's state as one word (Ready, Brewing, Offline, Not ready) with every reported flag underneath, the reasons a brew cannot start, brew counters and inventory, and the **Start brew** button, which is enabled only when the brewer says it is ready and asks before it sends. |
+| Profiles | Every profile on the brewer with a one-line recipe summary. Create, edit, delete, share (a brew.link URL to copy), and import from a brew.link. The editor exposes every variable in its exact steps: ratio and temperature sliders in halves, bloom, and per-pulse temperatures that follow the pulse count. |
+| Schedules | Each schedule with its time in the brewer's local time, days, water, and profile; pause or resume with the switch, delete, or add one with the day chips and time picker. |
+| Logs | The production log file, newest first, filterable by level and by request id (click any id). Each row expands to the full record. |
+
+Failed calls show a toast with the server's error code, never a blank failure. The `?new=1` query on the
+profiles and schedules pages opens the create form directly.
+
+| Dashboard | Profile editor |
+|---|---|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Profile editor](docs/screenshots/profile-editor.png) |
+
+| Schedules | Logs |
+|---|---|
+| ![Schedules](docs/screenshots/schedules.png) | ![Logs](docs/screenshots/logs.png) |
+
+(Screenshots taken against the mock brewer.)
+
+### Run against the mock brewer
+
+You do not need a brewer, or even a Fellow account, to try the app:
+
+```sh
+pnpm mock:fellow                      # terminal 1: an in-memory Fellow API on http://127.0.0.1:3900
+```
+
+Then in `.env` set `FELLOW_BASE_URL=http://127.0.0.1:3900/v2` and any `FELLOW_EMAIL` / `FELLOW_PASSWORD`,
+and run `pnpm dev` (or `pnpm build && pnpm start`). The mock has three profiles, two schedules, a ready
+brewer, and accepts every mutation; `pnpm mock:fellow -- --flaky` makes every third read fail with a 503
+so you can watch the retries. Leave `FELLOW_BASE_URL` blank to talk to the real Fellow API.
 
 ## Requirements
 
@@ -146,6 +183,7 @@ repeated and extended the probes, then folded into `scripts/smoke.sh` so it runs
 | Low | esbuild 0.27.7 via `@nuxt/fonts` carried GHSA-g7r4-m6w7-qqqr (dev-server file read, Windows only). | Overridden to the patched line in `pnpm-workspace.yaml`; audit is clean. |
 | Info | `X-Frame-Options: SAMEORIGIN` disagreed with CSP `frame-ancestors 'none'`. | `DENY`. |
 | Info | A remote-start check on a cold client judged readiness on the device list, whose fields are not live. | A fresh device read always goes on to the live detail route. |
+| Medium (regression, same day) | The first version of the same-site rule refused *every* cross-site request. Nuxt's server render forwards the page navigation's `Sec-Fetch-*` headers into its own API calls, and Chrome labels a navigation from a link on another site as cross-site, so the dashboard failed to render for anyone arriving via a link. Found in the browser click-through. | The rule now refuses cross-site and same-site *subresource* requests (images, fetches, iframes) and allows a top-level document navigation, which is a person visibly going somewhere. Covered by tests and the smoke script. |
 
 **Blue — defenses now in place**
 
@@ -184,8 +222,9 @@ None yet.
 - `server/lib/fellow/` — the Fellow client. Pure TypeScript, no Nuxt imports, so it can become its own package.
 - `aiden.config.ts` — every non-secret setting; `server/utils/config.ts` merges it with `.env` and is the only place `process.env` is read.
 - `server/api/` — thin Nuxt server routes over the client; `server/middleware/` is the request pipeline.
-- `app/` — the Nuxt UI front end (checkpoint 3).
+- `app/` — the Nuxt UI front end: `pages/`, `components/`, `composables/`, and `utils/` (pure, unit-tested logic such as the profile form rules and time conversion).
 - `tests/` — Vitest, with msw standing in for Fellow.
+- `scripts/mock-fellow.mjs` — an in-memory Fellow API for development and demos.
 
 See `ARCHITECTURE.md` for the layer split and the list of API behaviors that are inferred rather than verified.
 

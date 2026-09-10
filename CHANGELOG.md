@@ -7,6 +7,27 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-10
+
+Checkpoint 3 of 4: the app.
+
+### Added
+
+- Dark-by-default Nuxt UI front end: dashboard with the brewer's state, readiness reasons, counters, and a
+  gated, confirmed Instant Brew button; profiles with a full editor (every variable in its exact steps,
+  per-pulse temperatures that follow the pulse count), import from brew.link, share links, and delete;
+  schedules with a brewer-local time picker, day chips, and pause/resume; a log viewer with level and
+  request-id filters and expandable records.
+- `GET /api/logs` and a log-tail reader.
+- `scripts/mock-fellow.mjs`, an in-memory Fellow API for development and demos, and the `FELLOW_BASE_URL`
+  override (https, or plain http on loopback).
+- Pure, unit-tested UI logic in `app/utils/` and shared API types in `shared/types/api.ts`.
+
+### Fixed
+
+- The same-site rule refused cross-site top-level navigations, which broke the server render for visitors
+  arriving via a link; it now targets subresource requests only.
+
 ## [0.2.1] - 2026-09-10
 
 The first red-team / blue-team pass, and a single configuration file.
