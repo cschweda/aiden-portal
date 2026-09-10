@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { parseBrewLink } from './brew-link'
 import { TtlCache } from './cache'
 import { FellowError } from './errors'
-import { FellowHttp, type FellowHttpOptions, type HttpMethod } from './http'
+import { FellowHttp, type FellowHttpOptions, type FellowOutcome, type HttpMethod } from './http'
 import { type FellowLogger, noopLogger } from './logger'
 import {
   DEVICE_INVENTORY_FIELDS,
@@ -69,6 +69,11 @@ export class FellowClient {
     this.now = options.now ?? Date.now
     this.http = new FellowHttp(options)
     this.cache = new TtlCache(options.cacheTtlMs ?? 30_000, this.now)
+  }
+
+  /** Result of the most recent Fellow request, for the status route and the dashboard banner. */
+  get lastOutcome(): FellowOutcome {
+    return this.http.lastOutcome
   }
 
   async getDevice(options: ReadOptions = {}): Promise<Device> {

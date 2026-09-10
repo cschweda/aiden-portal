@@ -36,16 +36,28 @@ export function isMissingWater(device: Device): boolean | undefined {
   return typeof nested === 'boolean' ? nested : undefined
 }
 
-/** Whether the reported state is safe for an Instant Brew start. Every unknown is treated as "no". */
-export function canStartBrew(device: Device): boolean {
+/** Human-readable reasons an Instant Brew must not be started now. Every unknown counts as a reason. */
+export function brewStartBlockers(device: Device): string[] {
+  const blockers: string[] = []
+  if (typeof device.firmwareVersion !== 'string') blockers.push('firmware version is unknown')
+  else if (!supportsRemoteStart(device)) blockers.push(`firmware ${device.firmwareVersion} is older than ${MIN_REMOTE_START_FIRMWARE.join('.')}`)
+  if (device.isConnected !== true) blockers.push('brewer is offline')
+  const brewing = isBrewing(device)
+  if (brewing === undefined) blockers.push('brew state is unknown')
+  else if (brewing) blockers.push('a brew is in progress')
+  if (device.lidClosed !== true) blockers.push('lid is open')
+  const missingWater = isMissingWater(device)
+  if (missingWater === undefined) blockers.push('water level is unknown')
+  else if (missingWater) blockers.push('water tank is empty')
+  if (device.cleaning !== false) blockers.push('cleaning cycle is running')
+  if (device.rinsing !== false) blockers.push('rinse cycle is running')
   const singleBasket = device.singleBrewBasketPresent === true
   const batchReady = device.batchBrewBasketPresent === true && device.carafePresent === true
-  return supportsRemoteStart(device)
-    && device.isConnected === true
-    && isBrewing(device) === false
-    && device.lidClosed === true
-    && isMissingWater(device) === false
-    && device.cleaning === false
-    && device.rinsing === false
-    && (singleBasket || batchReady)
+  if (!singleBasket && !batchReady) blockers.push('no basket detected (batch basket also needs the carafe)')
+  return blockers
+}
+
+/** Whether the reported state is safe for an Instant Brew start. */
+export function canStartBrew(device: Device): boolean {
+  return brewStartBlockers(device).length === 0
 }

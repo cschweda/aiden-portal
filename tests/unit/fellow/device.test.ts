@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canStartBrew, isBrewing, isMissingWater, supportsRemoteStart } from '../../../server/lib/fellow/device'
+import { brewStartBlockers, canStartBrew, isBrewing, isMissingWater, supportsRemoteStart } from '../../../server/lib/fellow/device'
 
 const READY = {
   id: 'dev-123',
@@ -83,5 +83,38 @@ describe('canStartBrew', () => {
     ['unknown water state', { missingWater: undefined }],
   ])('is false when %s', (_label, overrides) => {
     expect(canStartBrew({ ...READY, ...overrides })).toBe(false)
+  })
+})
+
+describe('brewStartBlockers', () => {
+  it('is empty for a ready brewer', () => {
+    expect(brewStartBlockers(READY)).toEqual([])
+  })
+  it('names every problem, in a stable order', () => {
+    expect(brewStartBlockers({
+      ...READY,
+      firmwareVersion: '1.0.0',
+      isConnected: false,
+      brewing: true,
+      lidClosed: false,
+      missingWater: true,
+      cleaning: true,
+      rinsing: true,
+      singleBrewBasketPresent: false,
+    })).toEqual([
+      'firmware 1.0.0 is older than 1.5.16',
+      'brewer is offline',
+      'a brew is in progress',
+      'lid is open',
+      'water tank is empty',
+      'cleaning cycle is running',
+      'rinse cycle is running',
+      'no basket detected (batch basket also needs the carafe)',
+    ])
+  })
+  it('treats unknown state as a blocker', () => {
+    expect(brewStartBlockers({ ...READY, brewing: undefined })).toEqual(['brew state is unknown'])
+    expect(brewStartBlockers({ ...READY, missingWater: undefined })).toEqual(['water level is unknown'])
+    expect(brewStartBlockers({ ...READY, firmwareVersion: undefined })).toEqual(['firmware version is unknown'])
   })
 })

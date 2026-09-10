@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { delay, http, HttpResponse } from 'msw'
 import { ZodError } from 'zod'
+import { FellowError } from '../../../server/lib/fellow/errors'
 import { server } from '../../setup/msw'
 import {
   BASE,
@@ -418,5 +419,24 @@ describe('FellowClient dry run', () => {
     await client.createProfile(PROFILE_INPUT)
     await client.getProfiles()
     expect(calls.profiles).toBe(2)
+  })
+})
+
+describe('FellowClient last outcome', () => {
+  it('starts unknown, becomes ok after a success, and records the error code after a failure', async () => {
+    server.use(...happyHandlers(newCalls()), http.get(`${BASE}/shared/aiden/nope`, () => new HttpResponse(null, { status: 404 })))
+    const client = makeClient()
+    expect(client.lastOutcome).toBe('unknown')
+    await client.getDevice()
+    expect(client.lastOutcome).toBe('ok')
+    await expect(client.fetchSharedProfile('nope')).rejects.toBeInstanceOf(FellowError)
+    expect(client.lastOutcome).toBe('fellow_http_error')
+  })
+
+  it('reports auth failures', async () => {
+    server.use(http.post(`${BASE}/auth/login`, () => HttpResponse.json({ message: 'no' }, { status: 401 })))
+    const client = makeClient()
+    await expect(client.getDevice()).rejects.toMatchObject({ code: 'fellow_auth_failed' })
+    expect(client.lastOutcome).toBe('fellow_auth_failed')
   })
 })

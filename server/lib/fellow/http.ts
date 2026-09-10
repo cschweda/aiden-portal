@@ -1,10 +1,12 @@
-import { FellowError } from './errors'
+import { FellowError, type FellowErrorCode } from './errors'
 import { type FellowLogger, noopLogger } from './logger'
 
 export const FELLOW_BASE_URL = 'https://l8qtmnc692.execute-api.us-west-2.amazonaws.com/v2'
 export const FELLOW_USER_AGENT = 'Fellow/5 CFNetwork/1568.300.101 Darwin/24.2.0'
 
 export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE'
+
+export type FellowOutcome = 'ok' | FellowErrorCode | 'unknown'
 
 export interface FellowHttpOptions {
   email: string
@@ -66,6 +68,9 @@ export class FellowHttp {
   protected readonly backoffBaseMs: number
   private readonly timeoutMs: number
 
+  /** Result of the most recent request: 'ok', the FellowError code, or 'unknown' before any request. */
+  lastOutcome: FellowOutcome = 'unknown'
+
   private accessToken: string | null = null
   private refreshToken: string | null = null
   /** How the current access token was obtained. */
@@ -92,6 +97,18 @@ export class FellowHttp {
   }
 
   async request<T = unknown>(method: HttpMethod, path: string, body?: unknown): Promise<T> {
+    try {
+      const result = await this.requestOnce<T>(method, path, body)
+      this.lastOutcome = 'ok'
+      return result
+    }
+    catch (error) {
+      if (error instanceof FellowError) this.lastOutcome = error.code
+      throw error
+    }
+  }
+
+  private async requestOnce<T>(method: HttpMethod, path: string, body?: unknown): Promise<T> {
     // Only idempotent methods are retried. A retried POST could create a duplicate profile after a 503 that
     // Fellow had in fact processed. This matches the reference client's urllib3 policy.
     const maxAttempts = RETRYABLE_METHODS.has(method) ? this.maxAttempts : 1

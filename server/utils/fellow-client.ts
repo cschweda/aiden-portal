@@ -18,3 +18,7 @@ export function useFellowClient(): FellowClient {
   }
   return instance
 }
+
+export function resetFellowClientForTests(): void {
+  instance = undefined
+}
