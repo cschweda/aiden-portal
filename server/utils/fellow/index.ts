@@ -1,6 +1,7 @@
-export { parseBrewLink } from './brew-link'
+export { type BrewLink, DEFAULT_DROP_TYPE, parseBrewLink } from './brew-link'
 export { TtlCache } from './cache'
 export { FellowClient, type FellowClientOptions, type ReadOptions } from './client'
+export { canStartBrew, isBrewing, isMissingWater, MIN_REMOTE_START_FIRMWARE, supportsRemoteStart } from './device'
 export { FellowError, type FellowErrorCode, type FellowErrorOptions } from './errors'
 export { FELLOW_BASE_URL, FELLOW_USER_AGENT, FellowHttp, type FellowHttpOptions, type HttpMethod } from './http'
 export { type FellowLogger, type LogFn, noopLogger } from './logger'

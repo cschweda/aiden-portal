@@ -35,6 +35,13 @@ describe('ProfileInputSchema', () => {
   it.each([[49.5, false], [50, true], [99, true], [99.5, false]])('bloomTemperature %s → %s', (t, ok) => {
     expect(accepts(ProfileInputSchema, profile({ bloomTemperature: t }))).toBe(ok)
   })
+  it.each([[49.5, false], [50, true], [94, true], [99, true], [99.5, false]])('overallTemperature %s → %s', (t, ok) => {
+    expect(accepts(ProfileInputSchema, profile({ overallTemperature: t }))).toBe(ok)
+  })
+  it('requires overallTemperature', () => {
+    const { overallTemperature: _omitted, ...withoutOverall } = PROFILE_INPUT
+    expect(accepts(ProfileInputSchema, withoutOverall)).toBe(false)
+  })
   it.each([[0.5, false], [1, true], [3, true], [3.5, false]])('bloomRatio %s → %s', (r, ok) => {
     expect(accepts(ProfileInputSchema, profile({ bloomRatio: r }))).toBe(ok)
   })
@@ -116,5 +123,11 @@ describe('response schemas are lenient', () => {
   })
   it('accepts a device with only an id', () => {
     expect(DeviceSchema.parse({ id: 'd1', weird: true })).toEqual({ id: 'd1', weird: true })
+  })
+  it('drops a known device field that has an unexpected type instead of failing the read', () => {
+    const device = DeviceSchema.parse({ id: 'd1', lidClosed: 'yes', totalBrewingCycles: '42', firmwareVersion: 7 })
+    expect(device.lidClosed).toBeUndefined()
+    expect(device.totalBrewingCycles).toBeUndefined()
+    expect(device.firmwareVersion).toBeUndefined()
   })
 })

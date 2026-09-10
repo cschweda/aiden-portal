@@ -2,9 +2,35 @@ import { http, HttpResponse, type HttpHandler } from 'msw'
 import { FellowClient, type FellowClientOptions } from '../../server/utils/fellow/client'
 import type { ProfileInput, ScheduleInput } from '../../server/utils/fellow/schemas'
 
-export const BASE = 'https://l8qtmnc692.execute-api.us-west-2.amazonaws.com/v1'
+export const BASE = 'https://l8qtmnc692.execute-api.us-west-2.amazonaws.com/v2'
 
-export const DEVICE = { id: 'dev-123', displayName: 'Kitchen Aiden', firmwareVersion: '1.2.3' }
+/** Inventory fields as returned by the account-wide device list. */
+export const DEVICE = {
+  id: 'dev-123',
+  displayName: 'Kitchen Aiden',
+  serialNumber: 'SN-0001',
+  sku: 'AIDEN-1',
+  firmwareVersion: '1.2.3',
+  wifiMacAddress: 'aa:bb:cc:dd:ee:ff',
+  btMacAddress: '11:22:33:44:55:66',
+}
+
+/** Live state as returned by the per-device detail route (no inventory fields). */
+export const DEVICE_DETAIL = {
+  id: 'dev-123',
+  displayName: 'Kitchen Aiden',
+  isConnected: true,
+  lidClosed: true,
+  carafePresent: true,
+  missingWater: false,
+  singleBrewBasketPresent: false,
+  batchBrewBasketPresent: true,
+  brewing: false,
+  cleaning: false,
+  rinsing: false,
+  ibSelectedProfileId: 'p7',
+  totalBrewingCycles: 42,
+}
 
 export const PROFILE_INPUT: ProfileInput = {
   profileType: 0,
@@ -14,6 +40,7 @@ export const PROFILE_INPUT: ProfileInput = {
   bloomRatio: 2,
   bloomDuration: 30,
   bloomTemperature: 96,
+  overallTemperature: 94,
   ssPulsesEnabled: true,
   ssPulsesNumber: 3,
   ssPulsesInterval: 23,
@@ -50,13 +77,13 @@ export const SCHEDULE_INPUT: ScheduleInput = {
 
 export const SCHEDULE_S0 = { ...SCHEDULE_INPUT, id: 's0' }
 
-export interface Calls { login: number, devices: number, profiles: number, schedules: number }
+export interface Calls { login: number, devices: number, deviceDetail: number, profiles: number, schedules: number }
 
 export function newCalls(): Calls {
-  return { login: 0, devices: 0, profiles: 0, schedules: 0 }
+  return { login: 0, devices: 0, deviceDetail: 0, profiles: 0, schedules: 0 }
 }
 
-/** Login plus the three list GETs, all succeeding and counting into `calls`. */
+/** Login, the device list and detail routes, and the two list GETs, all succeeding and counting into `calls`. */
 export function happyHandlers(calls: Calls, token = 'token-1'): HttpHandler[] {
   return [
     http.post(`${BASE}/auth/login`, () => {
@@ -66,6 +93,10 @@ export function happyHandlers(calls: Calls, token = 'token-1'): HttpHandler[] {
     http.get(`${BASE}/devices`, () => {
       calls.devices++
       return HttpResponse.json([DEVICE])
+    }),
+    http.get(`${BASE}/devices/${DEVICE.id}`, () => {
+      calls.deviceDetail++
+      return HttpResponse.json(DEVICE_DETAIL)
     }),
     http.get(`${BASE}/devices/${DEVICE.id}/profiles`, () => {
       calls.profiles++

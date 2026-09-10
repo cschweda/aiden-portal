@@ -12,11 +12,12 @@ function makeHttp(overrides: Partial<FellowHttpOptions> = {}): FellowHttp {
 }
 
 const loginUrl = `${BASE}/auth/login`
+const refreshUrl = `${BASE}/auth/refresh-token`
 const devicesUrl = `${BASE}/devices`
 
 describe('constants', () => {
   it('uses the reference base URL and user agent', () => {
-    expect(FELLOW_BASE_URL).toBe('https://l8qtmnc692.execute-api.us-west-2.amazonaws.com/v1')
+    expect(FELLOW_BASE_URL).toBe('https://l8qtmnc692.execute-api.us-west-2.amazonaws.com/v2')
     expect(FELLOW_USER_AGENT).toBe('Fellow/5 CFNetwork/1568.300.101 Darwin/24.2.0')
   })
 })
@@ -48,7 +49,7 @@ describe('login', () => {
     const client = makeHttp()
     expect(await client.request('GET', '/devices?dataType=real')).toEqual([DEVICE])
     expect(client.isAuthenticated).toBe(true)
-    expect(loginBody).toEqual({ email: EMAIL, password: PASSWORD })
+    expect(loginBody).toEqual({ email: EMAIL, password: PASSWORD, timezone: expect.any(String) })
     expect(loginUserAgent).toBe(FELLOW_USER_AGENT)
     expect(seen).toEqual([{ auth: 'Bearer token-1', ua: FELLOW_USER_AGENT }])
 
@@ -56,13 +57,31 @@ describe('login', () => {
     expect(logins).toBe(1)
   })
 
-  it('reports bad credentials as fellow_auth_failed', async () => {
-    server.use(http.post(loginUrl, () => HttpResponse.json({ message: 'Incorrect username or password.' }, { status: 401 })))
+  it('sends the configured IANA timezone with the login', async () => {
+    let loginBody: unknown
+    server.use(
+      http.post(loginUrl, async ({ request }) => {
+        loginBody = await request.json()
+        return HttpResponse.json({ accessToken: 'token-1', refreshToken: 'refresh-1' })
+      }),
+      http.get(devicesUrl, () => HttpResponse.json([DEVICE])),
+    )
+    await makeHttp({ timezone: 'America/Chicago' }).request('GET', '/devices?dataType=real')
+    expect(loginBody).toEqual({ email: EMAIL, password: PASSWORD, timezone: 'America/Chicago' })
+  })
+
+  it.each([400, 401, 403])('reports a %s on login as fellow_auth_failed', async (status) => {
+    server.use(http.post(loginUrl, () => HttpResponse.json({ message: 'Incorrect username or password.' }, { status })))
     await expect(makeHttp().request('GET', '/devices?dataType=real')).rejects.toMatchObject({
       name: 'FellowError',
       code: 'fellow_auth_failed',
-      status: 401,
+      status,
     })
+  })
+
+  it('reports a 5xx on login as fellow_http_error, not as bad credentials', async () => {
+    server.use(http.post(loginUrl, () => new HttpResponse(null, { status: 503 })))
+    await expect(makeHttp().request('GET', '/devices?dataType=real')).rejects.toMatchObject({ code: 'fellow_http_error', status: 503 })
   })
 
   it('treats a login response without accessToken as a failure', async () => {
@@ -86,69 +105,123 @@ describe('login', () => {
 })
 
 describe('401 handling', () => {
-  it('re-logs in once and retries the request', async () => {
+  /** Login issues token-N and refresh-N; refresh issues the next pair. Both count. */
+  function authHandlers(counts: { logins: number, refreshes: number }, opts: { refreshStatus?: number, refreshBody?: unknown } = {}) {
+    let issued = 0
+    return [
+      http.post(loginUrl, () => {
+        counts.logins++
+        issued++
+        return HttpResponse.json({ accessToken: `token-${issued}`, refreshToken: `refresh-${issued}` })
+      }),
+      http.post(refreshUrl, async ({ request }) => {
+        counts.refreshes++
+        const body = await request.json()
+        if (opts.refreshStatus) return new HttpResponse(null, { status: opts.refreshStatus })
+        if (opts.refreshBody !== undefined) return HttpResponse.json(opts.refreshBody)
+        expect(body).toEqual({ refreshToken: `refresh-${issued}` })
+        expect(request.headers.get('authorization')).toBeNull()
+        issued++
+        return HttpResponse.json({ accessToken: `token-${issued}`, refreshToken: `refresh-${issued}` })
+      }),
+    ]
+  }
+  const acceptOnly = (token: string) => ({ request }: { request: Request }) =>
+    request.headers.get('authorization') === `Bearer ${token}` ? HttpResponse.json([DEVICE]) : new HttpResponse(null, { status: 401 })
+
+  it('refreshes the access token on 401 and retries the request', async () => {
+    const counts = { logins: 0, refreshes: 0 }
+    server.use(...authHandlers(counts), http.get(devicesUrl, acceptOnly('token-2')))
+    expect(await makeHttp().request('GET', '/devices?dataType=real')).toEqual([DEVICE])
+    expect(counts).toEqual({ logins: 1, refreshes: 1 })
+  })
+
+  it('falls back to a password login when the refresh call fails', async () => {
+    const counts = { logins: 0, refreshes: 0 }
+    server.use(...authHandlers(counts, { refreshStatus: 500 }), http.get(devicesUrl, acceptOnly('token-2')))
+    expect(await makeHttp().request('GET', '/devices?dataType=real')).toEqual([DEVICE])
+    expect(counts).toEqual({ logins: 2, refreshes: 1 })
+  })
+
+  it('falls back to a password login when the refresh response has no access token', async () => {
+    const counts = { logins: 0, refreshes: 0 }
+    server.use(...authHandlers(counts, { refreshBody: { ok: true } }), http.get(devicesUrl, acceptOnly('token-2')))
+    expect(await makeHttp().request('GET', '/devices?dataType=real')).toEqual([DEVICE])
+    expect(counts).toEqual({ logins: 2, refreshes: 1 })
+  })
+
+  it('falls back to a password login when the refreshed token is still rejected', async () => {
+    const counts = { logins: 0, refreshes: 0 }
+    let gets = 0
+    server.use(...authHandlers(counts), http.get(devicesUrl, (info) => {
+      gets++
+      return acceptOnly('token-3')(info)
+    }))
+    expect(await makeHttp().request('GET', '/devices?dataType=real')).toEqual([DEVICE])
+    expect(counts).toEqual({ logins: 2, refreshes: 1 })
+    expect(gets).toBe(3)
+  })
+
+  it('gives up with fellow_auth_failed when refresh and re-login both leave the server unconvinced', async () => {
+    const counts = { logins: 0, refreshes: 0 }
+    let gets = 0
+    server.use(...authHandlers(counts), http.get(devicesUrl, () => {
+      gets++
+      return new HttpResponse(null, { status: 401 })
+    }))
+    await expect(makeHttp().request('GET', '/devices?dataType=real')).rejects.toMatchObject({ code: 'fellow_auth_failed', status: 401 })
+    expect(counts).toEqual({ logins: 2, refreshes: 1 })
+    expect(gets).toBe(3)
+  })
+
+  it('goes straight to a password login when no refresh token was issued', async () => {
     let logins = 0
     server.use(
       http.post(loginUrl, () => {
         logins++
         return HttpResponse.json({ accessToken: `token-${logins}` })
       }),
-      http.get(devicesUrl, ({ request }) =>
-        request.headers.get('authorization') === 'Bearer token-2'
-          ? HttpResponse.json([DEVICE])
-          : new HttpResponse(null, { status: 401 }),
-      ),
+      // No refresh handler: a refresh attempt would be an unhandled request and fail the test.
+      http.get(devicesUrl, acceptOnly('token-2')),
     )
     expect(await makeHttp().request('GET', '/devices?dataType=real')).toEqual([DEVICE])
     expect(logins).toBe(2)
   })
 
-  it('gives up with fellow_auth_failed after a second 401 and makes no further attempts', async () => {
-    let logins = 0
-    let gets = 0
-    server.use(
-      http.post(loginUrl, () => {
-        logins++
-        return HttpResponse.json({ accessToken: `token-${logins}` })
-      }),
-      http.get(devicesUrl, () => {
-        gets++
-        return new HttpResponse(null, { status: 401 })
-      }),
-    )
-    await expect(makeHttp().request('GET', '/devices?dataType=real')).rejects.toMatchObject({ code: 'fellow_auth_failed', status: 401 })
-    expect(logins).toBe(2)
-    expect(gets).toBe(2)
-  })
-
-  it('logs in once when several requests hit 401 at the same time', async () => {
-    let logins = 0
-    let validToken = ''
+  it('shares one re-authentication between requests that hit 401 at the same time', async () => {
+    const counts = { logins: 0, refreshes: 0 }
+    let validToken = 'token-1'
     const acceptOnlyValidToken = ({ request }: { request: Request }) =>
       request.headers.get('authorization') === `Bearer ${validToken}`
         ? HttpResponse.json([])
         : new HttpResponse(null, { status: 401 })
     server.use(
-      http.post(loginUrl, () => {
-        logins++
-        validToken = `token-${logins}`
-        return HttpResponse.json({ accessToken: validToken })
-      }),
+      ...authHandlers(counts),
       http.get(devicesUrl, acceptOnlyValidToken),
       http.get(`${BASE}/devices/dev-123/profiles`, acceptOnlyValidToken),
       http.get(`${BASE}/devices/dev-123/schedules`, acceptOnlyValidToken),
     )
     const client = makeHttp()
     await client.request('GET', '/devices?dataType=real')
-    expect(logins).toBe(1)
+    expect(counts).toEqual({ logins: 1, refreshes: 0 })
 
-    validToken = 'token-expired-server-side'
+    validToken = 'token-2'
     await Promise.all([
       client.request('GET', '/devices?dataType=real'),
       client.request('GET', '/devices/dev-123/profiles'),
       client.request('GET', '/devices/dev-123/schedules'),
     ])
-    expect(logins).toBe(2)
+    expect(counts).toEqual({ logins: 1, refreshes: 1 })
+  })
+
+  it('refreshAccessToken rejects before any login and resolves with the new token after one', async () => {
+    const counts = { logins: 0, refreshes: 0 }
+    server.use(...authHandlers(counts), http.get(devicesUrl, () => HttpResponse.json([DEVICE])))
+    const client = makeHttp()
+    await expect(client.refreshAccessToken()).rejects.toMatchObject({ code: 'fellow_auth_failed' })
+    await client.request('GET', '/devices?dataType=real')
+    expect(await client.refreshAccessToken()).toBe('token-2')
+    expect(counts).toEqual({ logins: 1, refreshes: 1 })
   })
 })
 
@@ -197,9 +270,6 @@ describe('response handling', () => {
     })
   })
 
-  it('refreshAccessToken is an explicit not-implemented extension point', async () => {
-    await expect(makeHttp().refreshAccessToken()).rejects.toMatchObject({ code: 'fellow_not_implemented' })
-  })
 })
 
 describe('retries', () => {

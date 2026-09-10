@@ -4,10 +4,23 @@ const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace'] as const
 
 export type LogLevel = (typeof LOG_LEVELS)[number]
 
+function isIanaTimeZone(zone: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: zone })
+    return true
+  }
+  catch {
+    return false
+  }
+}
+
 const EnvSchema = z.object({
   FELLOW_EMAIL: z.email(),
   FELLOW_PASSWORD: z.string().min(1),
   FELLOW_DRY_RUN: z.stringbool().default(false),
+  FELLOW_TIMEZONE: z.string().optional().refine(zone => zone === undefined || isIanaTimeZone(zone), {
+    error: 'must be an IANA time zone such as America/Chicago',
+  }),
   ALLOWED_HOSTS: z.string().default('localhost,127.0.0.1,[::1]'),
   LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
   HOST: z.string().optional(),
@@ -16,7 +29,8 @@ const EnvSchema = z.object({
 })
 
 export interface AppConfig {
-  fellow: { email: string, password: string, dryRun: boolean }
+  /** `timezone` is sent to Fellow at login; defaults to this machine's zone. */
+  fellow: { email: string, password: string, dryRun: boolean, timezone: string }
   /** Lower-cased hostnames accepted in the Host header (port ignored). */
   allowedHosts: string[]
   logLevel: LogLevel
@@ -43,7 +57,12 @@ export function parseEnv(env: Record<string, string | undefined>): AppConfig {
   const raw = result.data
   const isProduction = raw.NODE_ENV === 'production'
   return {
-    fellow: { email: raw.FELLOW_EMAIL, password: raw.FELLOW_PASSWORD, dryRun: raw.FELLOW_DRY_RUN },
+    fellow: {
+      email: raw.FELLOW_EMAIL,
+      password: raw.FELLOW_PASSWORD,
+      dryRun: raw.FELLOW_DRY_RUN,
+      timezone: raw.FELLOW_TIMEZONE ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
     allowedHosts: raw.ALLOWED_HOSTS.split(',').map(h => h.trim().toLowerCase()).filter(h => h.length > 0),
     logLevel: raw.LOG_LEVEL ?? (isProduction ? 'info' : 'debug'),
     host: raw.HOST,

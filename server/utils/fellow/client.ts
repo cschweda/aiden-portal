@@ -5,6 +5,7 @@ import { FellowError } from './errors'
 import { FellowHttp, type FellowHttpOptions, type HttpMethod } from './http'
 import { type FellowLogger, noopLogger } from './logger'
 import {
+  DEVICE_INVENTORY_FIELDS,
   type Device,
   DeviceSchema,
   type Profile,
@@ -32,6 +33,10 @@ export interface ReadOptions {
 
 const DEVICES_PATH = '/devices?dataType=real'
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 /** Typed facade over FellowHttp: one brewer per account, cached list reads, dry-run support. */
 export class FellowClient {
   readonly dryRun: boolean
@@ -41,6 +46,8 @@ export class FellowClient {
   private readonly now: () => number
   private readonly inFlight = new Map<string, Promise<unknown>>()
   private knownDeviceId: string | null = null
+  /** Identity fields from the device list; the detail route omits them, so they are merged back in. */
+  private inventory: Partial<Device> = {}
 
   constructor(options: FellowClientOptions) {
     this.dryRun = options.dryRun ?? false
@@ -51,17 +58,32 @@ export class FellowClient {
   }
 
   async getDevice(options: ReadOptions = {}): Promise<Device> {
-    return this.cachedRead('device', options, async () => {
-      const devices = await this.http.request<unknown>('GET', DEVICES_PATH)
-      const parsed = z.array(DeviceSchema).safeParse(devices)
-      const first = parsed.success ? parsed.data[0] : undefined
-      if (!first) {
-        throw new FellowError('fellow_bad_response', 'Fellow returned no usable device for this account', { body: devices })
-      }
-      // The reference client assumes a single brewer per account and takes the first one.
-      this.knownDeviceId = first.id
-      return first
-    })
+    return this.cachedRead('device', options, () =>
+      this.knownDeviceId ? this.fetchDeviceDetail(this.knownDeviceId) : this.discoverDevice(),
+    )
+  }
+
+  /** Account-wide list; the reference clients assume a single brewer per account and take the first one. */
+  private async discoverDevice(): Promise<Device> {
+    const devices = await this.http.request<unknown>('GET', DEVICES_PATH)
+    const parsed = z.array(DeviceSchema).safeParse(devices)
+    const first = parsed.success ? parsed.data[0] : undefined
+    if (!first) {
+      throw new FellowError('fellow_bad_response', 'Fellow returned no usable device for this account', { body: devices })
+    }
+    this.knownDeviceId = first.id
+    this.inventory = Object.fromEntries(DEVICE_INVENTORY_FIELDS.filter(key => first[key] !== undefined).map(key => [key, first[key]]))
+    return first
+  }
+
+  /** The lighter per-device route used once the id is known. Live state comes from here; identity from the list. */
+  private async fetchDeviceDetail(deviceId: string): Promise<Device> {
+    const raw = await this.http.request<unknown>('GET', `/devices/${deviceId}?dataType=real`)
+    const detail = DeviceSchema.safeParse(raw)
+    if (!detail.success || detail.data.id !== deviceId) {
+      throw new FellowError('fellow_bad_response', `Fellow's device detail did not describe brewer ${deviceId}`, { body: raw })
+    }
+    return { ...this.inventory, ...detail.data }
   }
 
   async getProfiles(options: ReadOptions = {}): Promise<Profile[]> {
@@ -116,12 +138,12 @@ export class FellowClient {
 
   /** The shared profile with server-side fields removed. Not validated: pass it to createProfile for that. */
   async fetchSharedProfile(linkOrId: string): Promise<Record<string, unknown>> {
-    const brewId = parseBrewLink(linkOrId)
-    const shared = await this.http.request<unknown>('GET', `/shared/${brewId}`)
-    if (typeof shared !== 'object' || shared === null || Array.isArray(shared)) {
-      throw new FellowError('fellow_bad_response', `Shared profile ${brewId} was not an object`, { body: shared })
+    const { id, dropType } = parseBrewLink(linkOrId)
+    const shared = await this.http.request<unknown>('GET', `/shared/${dropType}/${id}`)
+    if (!isPlainObject(shared)) {
+      throw new FellowError('fellow_bad_response', `Shared profile ${id} was not an object`, { body: shared })
     }
-    return stripServerFields(shared as Record<string, unknown>)
+    return stripServerFields(shared)
   }
 
   async createProfileFromLink(linkOrId: string): Promise<Profile> {
@@ -159,7 +181,21 @@ export class FellowClient {
     return this.mutate('PATCH', `/devices/${await this.deviceId()}`, body, () => body)
   }
 
-  refreshAccessToken(): Promise<never> {
+  /**
+   * Starts the brewer's configured Instant Brew recipe. Check `canStartBrew(await getDevice({ fresh: true }))`
+   * first; Fellow does not validate readiness for you.
+   * UNVERIFIED: the response is an object of unknown shape.
+   */
+  async startBrew(): Promise<Record<string, unknown>> {
+    const path = `/devices/${await this.deviceId()}/start?confirm=true`
+    const response = await this.mutate('PATCH', path, undefined, () => ({ dryRun: true }))
+    if (!isPlainObject(response)) {
+      throw new FellowError('fellow_bad_response', 'Fellow returned an unexpected remote-start response', { body: response })
+    }
+    return response
+  }
+
+  refreshAccessToken(): Promise<string> {
     return this.http.refreshAccessToken()
   }
 

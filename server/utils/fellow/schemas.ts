@@ -30,6 +30,7 @@ export const ProfileInputSchema = z
     bloomRatio: halfStep(BLOOM_RATIO_VALUES, 'bloomRatio'),
     bloomDuration: z.int().min(1).max(120),
     bloomTemperature: halfStep(TEMPERATURE_VALUES, 'bloomTemperature'),
+    overallTemperature: halfStep(TEMPERATURE_VALUES, 'overallTemperature'),
     ssPulsesEnabled: z.boolean(),
     ssPulsesNumber: z.int().min(1).max(10),
     ssPulsesInterval: z.int().min(5).max(60),
@@ -66,7 +67,39 @@ export const SchedulePatchSchema = ScheduleInputSchema.partial()
 export type SchedulePatch = z.infer<typeof SchedulePatchSchema>
 
 // Responses are lenient on purpose: the API is undocumented and may grow fields. Only `id` is load-bearing.
-export const DeviceSchema = z.looseObject({ id: z.string(), displayName: z.string().optional() })
+// A known field with an unexpected type is dropped rather than failing the whole read.
+const lenientBoolean = z.boolean().optional().catch(undefined)
+const lenientString = z.string().optional().catch(undefined)
+const lenientNumber = z.number().optional().catch(undefined)
+
+/** Fields that only the account-wide device list reports; the per-device detail route omits them. */
+export const DEVICE_INVENTORY_FIELDS = ['id', 'displayName', 'serialNumber', 'wifiMacAddress', 'btMacAddress', 'sku', 'firmwareVersion'] as const
+
+export const DeviceSchema = z.looseObject({
+  id: z.string(),
+  displayName: lenientString,
+  serialNumber: lenientString,
+  sku: lenientString,
+  firmwareVersion: lenientString,
+  wifiMacAddress: lenientString,
+  btMacAddress: lenientString,
+  isConnected: lenientBoolean,
+  brewing: lenientBoolean,
+  rinsing: lenientBoolean,
+  cleaning: lenientBoolean,
+  lidClosed: lenientBoolean,
+  carafePresent: lenientBoolean,
+  missingWater: lenientBoolean,
+  singleBrewBasketPresent: lenientBoolean,
+  batchBrewBasketPresent: lenientBoolean,
+  ibSelectedProfileId: lenientString,
+  brewingProfileId: lenientString,
+  brewStartTime: lenientNumber,
+  totalBrewingCycles: lenientNumber,
+  totalWaterVolumeL: lenientNumber,
+  /** Live brew state object while a brew is in progress; null or absent when idle. Shape unknown. */
+  state: z.unknown().optional(),
+})
 export const ProfileSchema = z.looseObject({ id: z.string(), title: z.string() })
 export const ScheduleSchema = z.looseObject({ id: z.string() })
 

@@ -4,6 +4,7 @@ import { server } from '../../setup/msw'
 import {
   BASE,
   DEVICE,
+  DEVICE_DETAIL,
   PROFILE_INPUT,
   PROFILE_P7,
   SCHEDULE_INPUT,
@@ -26,7 +27,7 @@ describe('FellowClient reads', () => {
     const profiles = await client.getProfiles()
     expect(profiles.map(p => p.id)).toEqual(['p7', 'p8'])
     expect(profiles[0]?.title).toBe('Debug-FellowAiden')
-    expect(calls).toEqual({ login: 1, devices: 1, profiles: 1, schedules: 0 })
+    expect(calls).toEqual({ login: 1, devices: 1, deviceDetail: 0, profiles: 1, schedules: 0 })
   })
 
   it('fetches the device once to learn the id, even when schedules are asked for first', async () => {
@@ -60,13 +61,29 @@ describe('FellowClient reads', () => {
     expect(calls.profiles).toBe(2)
   })
 
-  it('bypasses the cache when fresh is set', async () => {
+  it('bypasses the cache when fresh is set, using the lighter detail route once the id is known', async () => {
     const calls = newCalls()
     server.use(...happyHandlers(calls))
     const client = makeClient()
     await client.getDevice()
-    await client.getDevice({ fresh: true })
-    expect(calls.devices).toBe(2)
+    const refreshed = await client.getDevice({ fresh: true })
+    expect(calls.devices).toBe(1)
+    expect(calls.deviceDetail).toBe(1)
+    // Live state from the detail route, inventory (serial, MAC, sku) kept from the list route.
+    expect(refreshed).toEqual({ ...DEVICE, ...DEVICE_DETAIL })
+    expect(refreshed.lidClosed).toBe(true)
+    expect(refreshed.serialNumber).toBe('SN-0001')
+  })
+
+  it('refreshes the device through the detail route after the cache expires', async () => {
+    const calls = newCalls()
+    server.use(...happyHandlers(calls))
+    let now = 0
+    const client = makeClient({ now: () => now })
+    await client.getDevice()
+    now += 31_000
+    await client.getDevice()
+    expect(calls).toMatchObject({ devices: 1, deviceDetail: 1 })
   })
 
   it('collapses concurrent identical reads into one request', async () => {
@@ -146,18 +163,23 @@ describe('FellowClient profile mutations', () => {
     await expect(makeClient().generateShareLink('p7')).rejects.toMatchObject({ code: 'fellow_bad_response' })
   })
 
-  it('fetches a shared profile by link or id and strips server fields', async () => {
-    server.use(loggedIn(), http.get(`${BASE}/shared/ws98`, () => HttpResponse.json({ ...PROFILE_P7, sharedFrom: 'someone' })))
+  it('fetches a shared profile by link or id, under its drop type, and strips server fields', async () => {
+    server.use(
+      loggedIn(),
+      http.get(`${BASE}/shared/aiden/ws98`, () => HttpResponse.json({ ...PROFILE_P7, sharedFrom: 'someone' })),
+      http.get(`${BASE}/shared/other/ws98`, () => HttpResponse.json({ ...PROFILE_P7, title: 'Other Drop' })),
+    )
     const client = makeClient()
     expect(await client.fetchSharedProfile('https://brew.link/p/ws98')).toEqual(PROFILE_INPUT)
     expect(await client.fetchSharedProfile('ws98')).toEqual(PROFILE_INPUT)
+    expect((await client.fetchSharedProfile('https://brew.link/p/ws98/other')).title).toBe('Other Drop')
   })
 
   it('creates a profile from a brew link', async () => {
     let posted: unknown
     server.use(
       ...happyHandlers(newCalls()),
-      http.get(`${BASE}/shared/ws98`, () => HttpResponse.json(PROFILE_P7)),
+      http.get(`${BASE}/shared/aiden/ws98`, () => HttpResponse.json(PROFILE_P7)),
       http.post(profilesUrl, async ({ request }) => {
         posted = await request.json()
         return HttpResponse.json({ ...PROFILE_INPUT, id: 'p10' })
@@ -226,8 +248,35 @@ describe('FellowClient device settings (UNVERIFIED)', () => {
     expect(patched).toEqual({ displayName: 'Bench' })
   })
 
-  it('surfaces refreshAccessToken as not implemented', async () => {
-    await expect(makeClient().refreshAccessToken()).rejects.toMatchObject({ code: 'fellow_not_implemented' })
+  it('exposes refreshAccessToken, which fails before any login', async () => {
+    await expect(makeClient().refreshAccessToken()).rejects.toMatchObject({ code: 'fellow_auth_failed' })
+  })
+})
+
+describe('FellowClient remote start', () => {
+  it('starts the configured instant brew with an explicit confirm flag and no body', async () => {
+    let seen: { confirm: string | null, hasBody: boolean } | undefined
+    server.use(...happyHandlers(newCalls()), http.patch(`${BASE}/devices/${DEVICE.id}/start`, async ({ request }) => {
+      seen = { confirm: new URL(request.url).searchParams.get('confirm'), hasBody: (await request.text()).length > 0 }
+      return HttpResponse.json({ status: 'started' })
+    }))
+    expect(await makeClient().startBrew()).toEqual({ status: 'started' })
+    expect(seen).toEqual({ confirm: 'true', hasBody: false })
+  })
+
+  it('reports a non-object start response as fellow_bad_response', async () => {
+    server.use(...happyHandlers(newCalls()), http.patch(`${BASE}/devices/${DEVICE.id}/start`, () => new HttpResponse(null, { status: 204 })))
+    await expect(makeClient().startBrew()).rejects.toMatchObject({ code: 'fellow_bad_response' })
+  })
+
+  it('does not start a brew in dry-run mode', async () => {
+    const logger = { trace: vi.fn(), debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+    server.use(...happyHandlers(newCalls()))
+    expect(await makeClient({ dryRun: true, logger }).startBrew()).toEqual({ dryRun: true })
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ dryRun: true, method: 'PATCH', path: `/devices/${DEVICE.id}/start?confirm=true` }),
+      expect.stringContaining('DRY RUN'),
+    )
   })
 })
 
@@ -267,8 +316,9 @@ describe('FellowClient dry run', () => {
     await expect(client.updateSchedule('s0', { enabled: false })).resolves.toBeUndefined()
     await expect(client.deleteSchedule('s0')).resolves.toBeUndefined()
     expect(await client.adjustSetting('displayName', 'x')).toEqual({ displayName: 'x' })
-    // Nine mutations above; the login line is also logged at info, so count only dry-run entries.
-    expect(logger.info.mock.calls.filter(call => (call[0] as { dryRun?: boolean }).dryRun === true)).toHaveLength(9)
+    expect(await client.startBrew()).toEqual({ dryRun: true })
+    // Ten mutations above; the login line is also logged at info, so count only dry-run entries.
+    expect(logger.info.mock.calls.filter(call => (call[0] as { dryRun?: boolean }).dryRun === true)).toHaveLength(10)
   })
 
   it('still validates input and still invalidates the cache', async () => {
