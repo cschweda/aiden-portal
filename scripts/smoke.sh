@@ -57,7 +57,9 @@ check "cross-site image GET" 403 -H 'Sec-Fetch-Site: cross-site' -H 'Sec-Fetch-M
 check "cross-site fetch GET" 403 -H 'Sec-Fetch-Site: cross-site' -H 'Sec-Fetch-Mode: cors' -H 'Sec-Fetch-Dest: empty' "$URL/api/device"
 check "cross-site iframe" 403 -H 'Sec-Fetch-Site: cross-site' -H 'Sec-Fetch-Mode: navigate' -H 'Sec-Fetch-Dest: iframe' "$URL/api/device"
 check "same-site fetch GET" 403 -H 'Sec-Fetch-Site: same-site' -H 'Sec-Fetch-Mode: cors' -H 'Sec-Fetch-Dest: empty' "$URL/api/device"
-check "cross-site link click (navigation)" 200 -H 'Sec-Fetch-Site: cross-site' -H 'Sec-Fetch-Mode: navigate' -H 'Sec-Fetch-Dest: document' "$URL/api/health"
+check "cross-site navigation to the API" 403 -H 'Sec-Fetch-Site: cross-site' -H 'Sec-Fetch-Mode: navigate' -H 'Sec-Fetch-Dest: document' "$URL/api/health"
+check "speculative prefetch of the API" 403 -H 'Sec-Purpose: prefetch' "$URL/api/device"
+check "cross-site navigation to a page (allowed)" 200 -H 'Sec-Fetch-Site: cross-site' -H 'Sec-Fetch-Mode: navigate' -H 'Sec-Fetch-Dest: document' "$URL/"
 check "direct navigation GET" 200 -H 'Sec-Fetch-Site: none' "$URL/api/health"
 check "allowed Origin reaches validation" 400 -X POST -H "Origin: http://127.0.0.1:${PORT}" -H 'content-type: application/json' -d '{}' "$URL/api/schedules"
 
