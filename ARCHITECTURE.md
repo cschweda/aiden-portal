@@ -71,6 +71,18 @@ pipeline in-process with msw standing in for Fellow.
 (exit 1) when `HOST` is unset or not loopback, logs a config summary without secrets, prints one plain
 line to stdout, and probes Fellow once without blocking.
 
+## Deployment (Phase 1)
+
+`deploy/local/install.sh` copies `.output/` and `.env` to `~/Library/Application Support/aiden-studio`,
+renders `com.cschweda.aiden-studio.plist.template` into `~/Library/LaunchAgents/` with an absolute node path
+and that directory as `WorkingDirectory`, loads it, and waits for `/api/health`. launchd starts the job at
+login and restarts it after any non-zero exit, throttled to 30 seconds. The division of labour: the app
+enforces its own configuration (the guard exits 1 on a bad one), pins its bind address, rotates its own log
+under its `logs/`, and redacts secrets; launchd only supervises, and its own stdout for the job goes to
+`~/Library/Logs/aiden-studio/launchd.log`. Running from an installed copy rather than the checkout is what
+makes this work when the checkout lives on an external volume, which macOS hides from unattended
+processes, and it keeps builds and git operations away from the running service.
+
 ## Extracting the client to its own package
 
 Copy `server/lib/fellow/` into a package whose only dependency is `zod`, export `index.ts`, and pass a

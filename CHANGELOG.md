@@ -7,6 +7,27 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-10
+
+Checkpoint 4 of 4: running at home. Phase 1 is complete.
+
+### Added
+
+- A launchd LaunchAgent (`deploy/local/`): template, `install.sh` (checks the build, `.env`, node
+  version and permissions; copies the build and `.env` to `~/Library/Application Support/aiden-studio`;
+  renders and loads the plist; waits for health), `status.sh`, `logs.sh`, and `uninstall.sh` (with
+  `--purge`). Starts at login, restarts after any non-zero exit, throttled to 30 seconds.
+- README "Run at home": install, update, stop, and troubleshoot.
+- `docs/PHASE-2.md`: what changes for a DigitalOcean droplet, starting with the auth layer that must exist
+  before anything leaves loopback.
+- ARCHITECTURE "Deployment" section.
+
+### Changed
+
+- The service runs from an installed copy on the internal disk, not from the checkout: macOS does not let
+  an unattended process read a removable volume, and a rebuild must not touch a running service. launchd's
+  own stdout goes to `~/Library/Logs/aiden-studio/`.
+
 ## [0.3.1] - 2026-09-10
 
 Fixes from the checkpoint 3 review.

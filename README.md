@@ -3,8 +3,8 @@
 A personal web app for controlling a [Fellow Aiden](https://fellowproducts.com/products/aiden) coffee brewer:
 brew profiles, schedules, brew.link import, share links, and remote Instant Brew, from a browser on your own machine.
 
-> **Status:** checkpoint 3 of 4. The app is usable end to end: dashboard, profiles, schedules, and logs over
-> the Fellow client. Checkpoint 4 adds the launchd service and the Phase 2 notes. See `CHANGELOG.md`.
+> **Status:** Phase 1 complete. The app runs at login on your Mac under launchd and is reachable only from
+> that Mac. Phase 2 (a DigitalOcean droplet) is designed in `docs/PHASE-2.md` and not built. See `CHANGELOG.md`.
 
 ## How it works
 
@@ -81,6 +81,45 @@ Fellow, and the UI shows a DRY RUN badge. Reads still go through. Flip it once y
 `pnpm install` needs no build-script approvals. The few dependencies whose install scripts pnpm 10 skips are
 listed, with reasons, in `pnpm-workspace.yaml`, as is the one dependency override.
 
+## Run at home
+
+Once `.env` holds your Fellow login and `aiden.config.ts` says what you want, install the app as a launchd
+LaunchAgent. It starts when you log in, restarts if it crashes, and writes its own rotating log.
+
+```sh
+pnpm build
+deploy/local/install.sh          # copies the build and .env into place, loads the service, waits for /api/health
+open http://localhost:3000
+deploy/local/logs.sh             # follows the app's log (JSON lines, secrets redacted)
+deploy/local/status.sh           # loaded? pid? answering? last log lines
+```
+
+What the installer does: it copies `.output/` and `.env` to `~/Library/Application Support/aiden-studio`
+and runs the service from there, not from this checkout. Two reasons: macOS does not let an unattended
+process read a removable volume, so a checkout on an external SSD cannot be run by launchd directly; and a
+rebuild or a git operation in the checkout should never touch a running service. The app's rotating log
+lives next to that copy, in `~/Library/Application Support/aiden-studio/logs/current.log`; launchd's own
+stdout for the job (the startup lines and any crash trace) goes to `~/Library/Logs/aiden-studio/launchd.log`.
+
+What launchd does: starts the installed build at login with `node --env-file=.env`, restarts it after any
+non-zero exit (a crash, or the startup guard refusing a bad configuration), and waits 30 seconds first if
+the process died within 30 seconds of starting, so a misconfiguration cannot spin.
+
+- **After editing `aiden.config.ts`:** `pnpm build && deploy/local/install.sh` (the file is compiled in).
+- **After editing `.env`:** `deploy/local/install.sh` (it copies the file and restarts the service).
+- **After pulling changes:** `pnpm install && pnpm build && deploy/local/install.sh`.
+- **To stop it:** `deploy/local/uninstall.sh`; add `--purge` to remove the installed copy and its logs too.
+  The checkout is never touched.
+- **If `node` is not on your login shell's PATH** (nvm, fnm): `AIDEN_NODE=/path/to/node deploy/local/install.sh`.
+  Node itself should live on the internal disk for the same reason as the build.
+- **If it will not start:** `deploy/local/status.sh` shows launchd's last exit code and the last log lines.
+  A configuration problem (for example a non-loopback `HOST`, or missing Fellow credentials) is printed in
+  `~/Library/Logs/aiden-studio/launchd.log` and retried every 30 seconds until you fix it and run the installer
+  again.
+
+The app listens on `127.0.0.1` only. Other devices on your network cannot reach it, by design: there is no
+login. Reaching it from elsewhere is what Phase 2 is about.
+
 ## Scripts
 
 | Command | What it does |
@@ -92,6 +131,7 @@ listed, with reasons, in `pnpm-workspace.yaml`, as is the one dependency overrid
 | `pnpm lint` | ESLint |
 | `pnpm typecheck` | `nuxt typecheck` plus the test tree |
 | `scripts/smoke.sh` | Probes a production build for the things Vitest cannot see: guard, headers, Host/CSRF, error shapes, log file |
+| `deploy/local/install.sh`, `status.sh`, `logs.sh`, `uninstall.sh` | The launchd service (see Run at home) |
 
 ## Configuration
 
@@ -227,6 +267,7 @@ None yet.
 - `app/` — the Nuxt UI front end: `pages/`, `components/`, `composables/`, and `utils/` (pure, unit-tested logic such as the profile form rules and time conversion).
 - `tests/` — Vitest, with msw standing in for Fellow.
 - `scripts/mock-fellow.mjs` — an in-memory Fellow API for development and demos.
+- `deploy/local/` — the launchd LaunchAgent template and its install, status, logs, and uninstall scripts.
 
 See `ARCHITECTURE.md` for the layer split and the list of API behaviors that are inferred rather than verified.
 

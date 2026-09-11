@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Rendered by deploy/local/install.sh; the placeholders become absolute paths. No secrets live here:
+       the app reads .env itself through node's --env-file, relative to WorkingDirectory, which is the installed
+       copy under ~/Library/Application Support/aiden-studio (an unattended process may not read an external volume). -->
+  <key>Label</key>
+  <string>__LABEL__</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__NODE__</string>
+    <string>--env-file=.env</string>
+    <string>.output/server/index.mjs</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__APP_HOME__</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>NODE_ENV</key>
+    <string>production</string>
+  </dict>
+
+  <!-- Start at login and restart whenever the process exits with an error (a crash, or the startup guard
+       refusing a bad configuration), but never more often than every 30 seconds. -->
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+  <key>ThrottleInterval</key>
+  <integer>30</integer>
+  <key>ProcessType</key>
+  <string>Background</string>
+
+  <!-- Only the app's own startup lines and crash traces land here; the app writes its log to logs/current.log in
+       the repo. This file lives under ~/Library/Logs on purpose: launchd refuses to open its stdout file on an
+       external volume (exit code 78, EX_CONFIG), while the app itself reads and writes there without trouble. -->
+  <key>StandardOutPath</key>
+  <string>__LAUNCHD_LOG__</string>
+  <key>StandardErrorPath</key>
+  <string>__LAUNCHD_LOG__</string>
+</dict>
+</plist>

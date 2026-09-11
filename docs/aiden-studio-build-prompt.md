@@ -237,7 +237,7 @@ Build in this order. Each checkpoint ends with `pnpm test`, `pnpm lint`, and `pn
 1. **Fellow client.** ✅ Done 2026-09-10, tagged `v0.1.0`: `server/lib/fellow/`, Zod schemas, config loader, msw tests, health route, README, ARCHITECTURE, LICENSE, CHANGELOG.
 2. **Server routes and hardening.** ✅ Done 2026-09-10, tagged `v0.2.0`: §3b routes with the shared error handler, startup guard, Host/CSRF middleware, nuxt-security, full §6 logging with redaction and rotation, route tests.
 3. **UI.** ✅ Done 2026-09-10, tagged `v0.3.0` (review fixes in `v0.3.1`): all pages in §7, verified in a real browser against the mock brewer (`scripts/mock-fellow.mjs`).
-4. **Deploy and docs.** launchd, README "Run at home", `docs/PHASE-2.md`, final `ARCHITECTURE.md` and `CHANGELOG.md` entry.
+4. **Deploy and docs.** ✅ Done 2026-09-10, tagged `v0.4.0`: launchd, README "Run at home", `docs/PHASE-2.md`, final `ARCHITECTURE.md` and `CHANGELOG.md` entry. **Phase 1 complete.**
 
 ---
 
@@ -260,6 +260,6 @@ Build in this order. Each checkpoint ends with `pnpm test`, `pnpm lint`, and `pn
 
 The production build does not read `.env` — only `nuxt dev` does — and launchd starts processes with no shell, no `PATH`, and no working directory. So:
 
-- `com.cschweda.aiden-studio.plist.template` — a LaunchAgent with `RunAtLoad`, `KeepAlive`, `WorkingDirectory` set to the repo, `ProgramArguments` of `<absolute node> --env-file=.env .output/server/index.mjs`, `EnvironmentVariables` containing only `NODE_ENV=production`, and `StandardOutPath` / `StandardErrorPath` pointing at `logs/launchd.log`. No secrets in the plist; they come from `.env` via `--env-file`.
-- `install.sh` — substitutes the absolute repo path and `$(which node)` into the template, copies it to `~/Library/LaunchAgents/`, and runs `launchctl bootstrap gui/$(id -u) …`. `uninstall.sh` reverses it.
-- README "Run at home": `pnpm build`, `deploy/local/install.sh`, then open `http://localhost:3000`. Mention `tail -f logs/current.log`.
+- `com.cschweda.aiden-studio.plist.template` — a LaunchAgent with `RunAtLoad`, `KeepAlive` on non-zero exit throttled to 30 s, `WorkingDirectory` set to the installed copy at `~/Library/Application Support/aiden-studio` (macOS hides removable volumes from unattended processes, so the checkout is never run directly), `ProgramArguments` of `<absolute node> --env-file=.env .output/server/index.mjs`, `EnvironmentVariables` containing only `NODE_ENV=production`, and `StandardOutPath` / `StandardErrorPath` pointing at `~/Library/Logs/aiden-studio/launchd.log`. No secrets in the plist; they come from the copied `.env` via `--env-file`.
+- `install.sh` — checks the build, `.env`, and node, copies `.output/` and `.env` to the install directory, substitutes the absolute paths into the template, copies it to `~/Library/LaunchAgents/`, runs `launchctl bootstrap gui/$(id -u) …`, and waits for `/api/health`. `status.sh` reports, `logs.sh` follows the app log, `uninstall.sh` reverses it (`--purge` removes the copy).
+- README "Run at home": `pnpm build`, `deploy/local/install.sh`, then open `http://localhost:3000`. Mention `deploy/local/logs.sh`.
