@@ -7,6 +7,11 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+### Removed
+
+- `docs/aiden-studio-build-prompt.v1.md`, the original build prompt kept alongside the rewritten spec. The
+  current spec is `docs/aiden-studio-build-prompt.md`.
+
 ## [0.4.0] - 2026-09-10
 
 Checkpoint 4 of 4: running at home. Phase 1 is complete.
