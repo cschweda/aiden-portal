@@ -22,6 +22,7 @@ describe('parseEnv', () => {
       host: '127.0.0.1',
       port: 3000,
       allowedHosts: ['localhost', '127.0.0.1', '[::1]'],
+      tailnetUsers: [],
       logging: { level: 'debug', directory: 'logs', keepDays: 14, maxFileMb: 50 },
       ui: { colorMode: 'dark', confirmBrewStart: true },
       history: { enabled: true, directory: 'data', idlePollSeconds: 60, brewPollSeconds: 5 },
@@ -75,6 +76,12 @@ describe('parseEnv', () => {
     const config = parseEnv({ ...MINIMAL, NITRO_HOST: '0.0.0.0', HOST: '127.0.0.1', NITRO_PORT: '5000', PORT: '4000' }, AIDEN)
     expect(config.host).toBe('0.0.0.0')
     expect(config.port).toBe(5000)
+  })
+
+  it('lower-cases the tailnet logins allowed to make changes', () => {
+    const aiden = { ...AIDEN, server: { ...AIDEN.server, tailnetUsers: [' Owner@GitHub ', ''] } }
+    expect(parseEnv(MINIMAL, aiden).tailnetUsers).toEqual(['owner@github'])
+    expect(parseEnv({ ...MINIMAL, TAILNET_USERS: 'a@github, B@Github' }, aiden).tailnetUsers).toEqual(['a@github', 'b@github'])
   })
 
   it('normalises allowed hosts from either source', () => {

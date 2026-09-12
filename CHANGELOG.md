@@ -7,6 +7,19 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-09-12
+
+Phase 1.5: the dashboard from every one of your computers, through Tailscale.
+
+### Added
+
+- The Mac mini's Tailscale name (`cschwedas-mac-mini.taildc8082.ts.net`) is an allowed host, so `tailscale serve --bg 5150` publishes the
+  dashboard onto your private network with a real certificate while the app stays on loopback. README explains the
+  setup for the Mac mini and for other Macs and Windows PCs.
+- `server.tailnetUsers` (or `TAILNET_USERS`): the Tailscale logins allowed to make changes through `tailscale serve`,
+  which stamps the signed-in login on each request; everyone else on the tailnet can look but not change. The login
+  is logged with every request.
+
 ## [0.10.2] - 2026-09-12
 
 ### Fixed

@@ -150,10 +150,15 @@
 <body>
 <main>
   <h1>Reaching aiden-studio</h1>
-  <p class="lede">The brewer dashboard runs as a service on the Mac mini and listens only on that machine. Here is every way to open it, and the one way to reach it from the laptop.</p>
+  <p class="lede">The brewer dashboard runs as a service on the Mac mini and listens only on that machine. Here is every way to open it, from the Mac mini, from any of your computers through Tailscale, and the SSH fallback.</p>
 
   <h2>Addresses</h2>
   <ul class="addresses">
+    <li>
+      <span class="where">Any of your computers, with Tailscale</span>
+      <span class="url">https://cschwedas-mac-mini.taildc8082.ts.net</span>
+      <span class="note">Works from anywhere on any device signed in to your Tailscale account. No port, real certificate. Nothing else can reach it.</span>
+    </li>
     <li>
       <span class="where">On the Mac mini</span>
       <span class="url">http://localhost:5150</span>
@@ -176,7 +181,16 @@
     </li>
   </ul>
 
-  <h2>From the laptop on the same Wi-Fi</h2>
+  <h2>With Tailscale, from any of your computers</h2>
+  <p>Tailscale joins your computers into a private network only they can see. The Mac mini publishes the dashboard onto it; the app itself still listens only on the Mac mini.</p>
+  <ol class="steps">
+    <li><strong>Already done on the Mac mini:</strong> Tailscale installed and signed in as <code>cschweda@github</code>, the dashboard published with <code>tailscale serve --bg 5150</code>, and the app told to answer to its network name. Two admin-console settings keep it that way: DNS, HTTPS certificates on; Machines, the Mac mini, key expiry disabled.</li>
+    <li><strong>On each other computer:</strong> install Tailscale (Mac: App Store or tailscale.com; Windows: the installer from tailscale.com) and sign in with the same account. That is the whole setup.</li>
+    <li>Open <code>https://cschwedas-mac-mini.taildc8082.ts.net</code> in any browser on that computer.</li>
+  </ol>
+  <p class="aside">Only the login <code>cschweda@github</code> may make changes (start a brew, edit profiles or schedules, mark descaled); any other member of the network can only look. Never run <code>tailscale funnel</code>: that publishes the address to the whole internet, and the app has no login of its own.</p>
+
+  <h2>Without Tailscale: the SSH tunnel from the laptop</h2>
   <p>The app has no login screen, so it never listens beyond the Mac mini itself. An SSH tunnel carries the laptop's <code>localhost:5150</code> to the Mac mini's, and SSH asks for the Mac's own password, which is the login the dashboard would otherwise lack.</p>
   <ol class="steps">
     <li><strong>Once, on the Mac mini:</strong> System Settings, General, Sharing, turn on <em>Remote Login</em>. Leave it on.</li>
@@ -197,9 +211,9 @@
     <tr><th>Device</th><th>Reaches it?</th><th>Why</th></tr>
     <tr><td>The Mac mini</td><td><span class="verdict ok">Yes</span></td><td>The service listens on 127.0.0.1:5150.</td></tr>
     <tr><td>The laptop, with the tunnel</td><td><span class="verdict ok">Yes</span></td><td>SSH carries loopback across, behind the Mac's login.</td></tr>
-    <tr><td>The laptop, without the tunnel</td><td><span class="verdict no">No</span></td><td>Nothing listens on the Wi-Fi interface, by design.</td></tr>
-    <tr><td>A phone on the Wi-Fi</td><td><span class="verdict no">No</span></td><td>Same reason; a phone SSH app would work but is clumsy.</td></tr>
-    <tr><td>Anything outside the house</td><td><span class="verdict no">No</span></td><td>Phase 2 adds a login and a proper host; see <code>docs/PHASE-2.md</code>.</td></tr>
+    <tr><td>Any computer or phone signed in to your Tailscale account</td><td><span class="verdict ok">Yes</span></td><td>Tailscale carries it privately; from home or anywhere else.</td></tr>
+    <tr><td>The laptop, without Tailscale or the tunnel</td><td><span class="verdict no">No</span></td><td>Nothing listens on the Wi-Fi interface, by design.</td></tr>
+    <tr><td>Anyone not signed in to your account</td><td><span class="verdict no">No</span></td><td>A public address would need the app's own login first; that is Phase 2.</td></tr>
   </table>
   </div>
   <p class="aside">Do not change <code>HOST</code> in <code>.env</code> or <code>server.host</code> in <code>aiden.config.ts</code> to reach it from elsewhere: the startup guard refuses any address other than loopback while there is no login, on purpose. The brewer would otherwise be controllable by anyone on the network.</p>
@@ -218,7 +232,7 @@
   </div>
   <p class="aside">While the service is installed it holds port 5150, so a dev server needs another port: <code>PORT=5151 pnpm dev</code>.</p>
 
-  <footer>aiden-studio, Phase 1. Written 12 September 2026. The full notes live in the repo's README under "Run at home".</footer>
+  <footer>aiden-studio, Phase 1.5. Written 12 September 2026, updated the same day for Tailscale. The full notes live in the repo's README under "Run at home".</footer>
 </main>
 </body>
 </html>

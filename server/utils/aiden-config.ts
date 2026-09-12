@@ -19,6 +19,11 @@ export const AidenConfigSchema = z.strictObject({
     port: z.int().min(1).max(65535),
     /** Hostnames accepted in the Host header, as they appear there (port ignored, IPv6 in brackets). */
     allowedHosts: z.array(z.string().min(1)).min(1),
+    /**
+     * Tailscale logins allowed to make changes when the request arrives through `tailscale serve`, which stamps the
+     * signed-in user on it. Empty means any member of the tailnet. Reads are never restricted by this.
+     */
+    tailnetUsers: z.array(z.string().min(1)),
   }),
   fellow: z.strictObject({
     /** Log mutations instead of sending them. Reads still go to Fellow. */

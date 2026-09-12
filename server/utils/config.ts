@@ -24,6 +24,7 @@ const EnvSchema = z.object({
   FELLOW_TIMEZONE: z.string().optional(),
   FELLOW_BASE_URL: z.url().optional(),
   ALLOWED_HOSTS: z.string().optional(),
+  TAILNET_USERS: z.string().optional(),
   LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
   NITRO_HOST: z.string().optional(),
   HOST: z.string().optional(),
@@ -52,6 +53,8 @@ export interface AppConfig {
   port: number
   /** Lower-cased hostnames accepted in the Host header (port ignored). */
   allowedHosts: string[]
+  /** Lower-cased Tailscale logins allowed to make changes; empty means any tailnet member. */
+  tailnetUsers: string[]
   logging: { level: LogLevel, directory: string, keepDays: number, maxFileMb: number }
   ui: AidenConfig['ui']
   /** The brew log, the descale marker, and the poller that feeds them. */
@@ -114,6 +117,7 @@ export function parseEnv(env: Record<string, string | undefined>, aiden: AidenCo
     host: raw.NITRO_HOST ?? raw.HOST ?? aiden.server.host,
     port: raw.NITRO_PORT ?? raw.PORT ?? aiden.server.port,
     allowedHosts,
+    tailnetUsers: (raw.TAILNET_USERS ? raw.TAILNET_USERS.split(',') : aiden.server.tailnetUsers).map(user => user.trim().toLowerCase()).filter(user => user.length > 0),
     logging: {
       level: raw.LOG_LEVEL ?? aiden.logging.level ?? (isProduction ? 'info' : 'debug'),
       directory: aiden.logging.directory,

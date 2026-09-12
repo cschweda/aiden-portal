@@ -22,7 +22,11 @@ export default defineAidenConfig({
     port: 5150,
     // Hostnames the app will answer to, exactly as browsers put them in the Host header (port is
     // ignored, IPv6 goes in brackets). Anything else gets a 400. This closes DNS-rebinding attacks.
-    allowedHosts: ['localhost', '127.0.0.1', '[::1]', 'aiden.local', 'aiden.localhost'],
+    allowedHosts: ['localhost', '127.0.0.1', '[::1]', 'aiden.local', 'aiden.localhost', 'cschwedas-mac-mini.taildc8082.ts.net'],
+    // Requests that arrive through `tailscale serve` carry the signed-in Tailscale login. When this list is not
+    // empty, only these logins may make changes (start a brew, edit profiles or schedules, mark descaled); anyone
+    // else on the tailnet can still look. The login is the one shown in the Tailscale admin console.
+    tailnetUsers: ['cschweda@github'],
   },
 
   fellow: {

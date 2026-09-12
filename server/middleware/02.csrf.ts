@@ -21,9 +21,17 @@ export default defineEventHandler((event) => {
   if (isApi && (site === 'cross-site' || site === 'same-site')) return refuse(event, site)
   if (isApi && isSpeculative(event)) return refuse(event, site)
   if (!MUTATING_METHODS.has(event.method)) return
+  // Through `tailscale serve` the request names the signed-in tailnet user; the owner can restrict changes to a list.
+  const { allowedHosts, tailnetUsers } = getConfig()
+  const tailnetUser = event.context.tailnetUser
+  if (tailnetUser && tailnetUsers.length > 0 && !tailnetUsers.includes(tailnetUser)) {
+    event.context.logger?.warn({ tailnetUser, method: event.method, path: event.path }, 'Rejected a change from a tailnet user who is not allowed to make changes')
+    setResponseStatus(event, 403)
+    return { error: 'tailnet_user_not_allowed', message: 'Your Tailscale login may look at the brewer but not change it' }
+  }
   if (site === 'same-origin') return
   const origin = getHeader(event, 'origin')
-  if (isAllowedOrigin(origin, getConfig().allowedHosts)) return
+  if (isAllowedOrigin(origin, allowedHosts)) return
   return refuse(event, site, origin)
 })
 

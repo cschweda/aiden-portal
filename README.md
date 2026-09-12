@@ -174,7 +174,32 @@ login. Reaching it from elsewhere is what Phase 2 is about.
 A one-page version of the addresses, the laptop tunnel, and the service commands is in
 [`docs/reaching-aiden-studio.html`](docs/reaching-aiden-studio.html); open it in a browser.
 
-### From a laptop on the same network
+### From your other computers, with Tailscale (Phase 1.5)
+
+[Tailscale](https://tailscale.com) joins your computers into a private network that only they can see. The Mac
+mini publishes the dashboard onto that network with `tailscale serve`, which forwards to the app on loopback,
+so the app itself never listens beyond this Mac. Every device signed in to your Tailscale account can then open
+
+```
+https://cschwedas-mac-mini.taildc8082.ts.net
+```
+
+from anywhere, phone included, with a real certificate. Setting it up:
+
+1. One Tailscale account for everything. On the Mac mini: install Tailscale, sign in; in the admin console under
+   DNS turn on HTTPS certificates, and under Machines disable key expiry for the Mac mini so it never silently
+   drops off after six months.
+2. On the Mac mini, once (it persists across restarts): `tailscale serve --bg 5150`. On the App Store build the
+   command is `/Applications/Tailscale.app/Contents/MacOS/Tailscale`.
+3. Add the Mac mini's `ts.net` name to `server.allowedHosts` in `aiden.config.ts`; optionally list the logins
+   allowed to make changes in `server.tailnetUsers` (`tailscale serve` stamps the signed-in login on every request,
+   and the app logs it). Rebuild and reinstall.
+4. On every other computer, Mac or Windows: install Tailscale, sign in with the same account, open the address.
+
+Never use `tailscale funnel`, which is the public version, and never change `server.host`: the app stays on
+loopback and Tailscale is the only door.
+
+### Without Tailscale: an SSH tunnel from a laptop on the same network
 
 Without a login the app must stay on loopback, but a laptop can reach loopback on this Mac through an SSH
 tunnel, which keeps the brewer behind your Mac's own login. Once, on this Mac: System Settings > General >
@@ -213,6 +238,7 @@ single-run override of the keys below; `.env.sample` documents each one.
 | `FELLOW_TIMEZONE` | Overrides `fellow.timezone` (IANA zone sent to Fellow at login). |
 | `HOST`, `PORT` | Override `server.host` / `server.port`. `NITRO_HOST` / `NITRO_PORT` are honoured too, with the same guard. |
 | `ALLOWED_HOSTS` | Overrides `server.allowedHosts` (hostnames only, as they appear in the `Host` header). |
+| `TAILNET_USERS` | Overrides `server.tailnetUsers` (comma-separated Tailscale logins allowed to make changes). |
 | `LOG_LEVEL` | Overrides `logging.level`. |
 | `HISTORY_ENABLED` | `false` stops the background reads that feed the brew log, the trace, and the descale tally. |
 | `HISTORY_DIRECTORY` | Overrides `history.directory` (where `brews.jsonl` and `descale.json` are written). |

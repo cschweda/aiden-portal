@@ -47,7 +47,7 @@ process.on('exit', () => rmSync(HISTORY_ROOT, { recursive: true, force: true }))
 /** A complete, known environment plus fresh config, logger, Fellow client, and history singletons. */
 export function useTestEnv(overrides: Record<string, string> = {}): void {
   // Assigning undefined would store the string 'undefined'; the property has to go.
-  for (const key of ['ALLOWED_HOSTS', 'FELLOW_TIMEZONE', 'PORT', 'NODE_ENV', 'NITRO_HOST', 'NITRO_PORT', 'LOG_LEVEL', 'HISTORY_ENABLED', 'HISTORY_DIRECTORY']) Reflect.deleteProperty(process.env, key)
+  for (const key of ['ALLOWED_HOSTS', 'FELLOW_TIMEZONE', 'PORT', 'NODE_ENV', 'NITRO_HOST', 'NITRO_PORT', 'LOG_LEVEL', 'HISTORY_ENABLED', 'HISTORY_DIRECTORY', 'TAILNET_USERS']) Reflect.deleteProperty(process.env, key)
   Object.assign(process.env, BASE_ENV, { HISTORY_DIRECTORY: join(HISTORY_ROOT, String(historyDirs++)) }, overrides)
   resetConfigForTests()
   resetLoggerForTests()

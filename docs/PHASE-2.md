@@ -55,8 +55,9 @@ table (argon2id hashes, `pnpm user:add <email>`), keeping everything else above.
 - **Secrets.** `.env` copied to the droplet by hand, `chmod 600`, owned by the service user; never in the repo.
 - **Logs.** pino-roll keeps rotating in `logs/`; Forge's log viewer or `journalctl -u aiden-studio` for the
   process itself.
-- **Access choice.** Either public HTTPS behind the login and rate limiter, or Tailscale-only
-  (`tailscale serve` to 127.0.0.1:5150, or Nginx bound to the tailnet IP). **Auth is required in both.**
+- **Access choice.** Tailscale-only access (`tailscale serve` on the Mac, the owner's own devices) is Phase 1.5 and
+  already in place; the tailnet is the login there, plus `server.tailnetUsers`. A public host is a different matter:
+  **the app's own login is required before anything is reachable from the internet.**
 
 ## Pre-flight checklist
 
