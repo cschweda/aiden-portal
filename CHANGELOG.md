@@ -7,6 +7,12 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+### Added
+
+- README "Quick start on a Mac": the copy-pasteable path from nothing to the app running under launchd and
+  reachable from your other machines over Tailscale, tested on Apple Silicon. It replaces the old Requirements and
+  Setup sections.
+
 ### Removed
 
 - `docs/PHASE-2.md`. The public droplet it described is not where this is going; the design notes stay in the

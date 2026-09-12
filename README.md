@@ -93,19 +93,94 @@ counters.
   estimate of the due date from the litres per day in the log, or since the last mark while the log is young. Until
   the first mark the tally counts from the brewer's lifetime totals. Marking writes only to `data/descale.json`.
 
-## Requirements
+## Quick start on a Mac
 
-- Node 22 (see `.nvmrc`)
-- pnpm 10
+This is what the app was built for: one Mac that stays on, running it under launchd, with Tailscale letting
+your other Macs and PCs open it. Tested on Apple Silicon (macOS 26 on an M-series Mac mini); an Intel Mac is the
+same apart from the Homebrew path noted below. Budget about fifteen minutes, most of it downloads. Every line
+below goes into Terminal.
 
-## Setup
+**1. Node 22 and pnpm.**
 
 ```sh
-cp .env.sample .env      # then fill in FELLOW_EMAIL and FELLOW_PASSWORD
-chmod 600 .env           # it holds your real Fellow password
+# Homebrew first, if you do not already have it
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+brew install node@22 pnpm
+echo 'export PATH="/opt/homebrew/opt/node@22/bin:$PATH"' >> ~/.zshrc   # Intel Macs: /usr/local/opt/node@22/bin
+exec zsh
+node -v   # v22.x
+pnpm -v   # 10.x
+```
+
+Already an nvm user? `nvm install 22 && nvm use 22`, then `corepack enable pnpm`. Node must be on the internal
+disk: launchd will not start one that lives on an external volume.
+
+**2. The app and your Fellow login.**
+
+```sh
+git clone https://github.com/cschweda/aiden-studio.git ~/aiden-studio
+cd ~/aiden-studio
 pnpm install
+cp .env.sample .env
+chmod 600 .env     # it is about to hold your real Fellow password
+nano .env          # fill in FELLOW_EMAIL and FELLOW_PASSWORD: the login you use in the Fellow phone app
+```
+
+The repository is private, so the clone asks for a GitHub account that can read it.
+
+**3. See it work, without touching the brewer.**
+
+```sh
 pnpm dev
 ```
+
+Open `http://localhost:5150`. `fellow.dryRun` starts out `true`, so reads are live but every change is logged
+instead of sent: the header shows a DRY RUN badge. Ctrl-C stops it.
+
+**4. Run it for real, at login.**
+
+```sh
+# writes are real from here on; leave this line out to stay in dry run
+printf 'FELLOW_DRY_RUN=false\n' >> .env
+
+pnpm build
+deploy/local/install.sh
+open http://localhost:5150
+deploy/local/status.sh      # loaded? running? answering?
+```
+
+The installer copies the build and `.env` into `~/Library/Application Support/aiden-studio` and registers a
+launchd agent that starts at login and restarts on a crash. Run those last two commands again after any change
+to the code, to `aiden.config.ts`, or to `.env`.
+
+**5. Reach it from your other Macs and PCs.**
+
+```sh
+brew install --cask tailscale
+open -a Tailscale        # sign in with the account every machine will use
+```
+
+In the Tailscale admin console, once: under **DNS** turn on HTTPS certificates, and under **Machines** open this
+Mac's menu and disable key expiry, so it never quietly drops off after six months. Then publish the dashboard:
+
+```sh
+alias ts=/Applications/Tailscale.app/Contents/MacOS/Tailscale
+ts serve --bg 5150
+```
+
+The first run prints a link to enable Serve for this machine; open it, approve, and run the command again. It
+then prints the address, `https://<this-mac>.<your-tailnet>.ts.net`. Put that hostname into
+`server.allowedHosts` in `aiden.config.ts`, and your Tailscale login (`ts status` shows it) into
+`server.tailnetUsers` if you want to be the only one who can change anything, then rebuild:
+
+```sh
+pnpm build && deploy/local/install.sh
+```
+
+On every other machine, Mac or Windows: install Tailscale, sign in with the same account, open that `https://`
+address. Nothing else to configure, and it works away from home too. The app itself never listens beyond
+`127.0.0.1`; Tailscale is the only door.
 
 Two files configure the app:
 
