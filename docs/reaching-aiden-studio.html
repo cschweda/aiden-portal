@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reaching aiden-studio</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    color-scheme: light;
+    --ground: #faf8f4;
+    --panel: #f2efe8;
+    --ink: #1f1b17;
+    --muted: #6b635a;
+    --rule: #e0dbd1;
+    --accent: #a85f0a;
+    --accent-ink: #7a4506;
+    --code-bg: #ece8df;
+    --code-ink: #2a2520;
+    --ok: #2f7a4a;
+    --no: #a13b2c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --ground: #1b1916;
+      --panel: #24211d;
+      --ink: #f3efe8;
+      --muted: #a39b90;
+      --rule: #3a352f;
+      --accent: #f2b53c;
+      --accent-ink: #f2b53c;
+      --code-bg: #2a2621;
+      --code-ink: #efe9df;
+      --ok: #6cc08a;
+      --no: #e0836f;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground: #1b1916;
+    --panel: #24211d;
+    --ink: #f3efe8;
+    --muted: #a39b90;
+    --rule: #3a352f;
+    --accent: #f2b53c;
+    --accent-ink: #f2b53c;
+    --code-bg: #2a2621;
+    --code-ink: #efe9df;
+    --ok: #6cc08a;
+    --no: #e0836f;
+  }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+    padding-block: 48px 80px;
+    padding-inline: 20px;
+  }
+  main { max-width: 42rem; margin: 0 auto; }
+  h1 {
+    font-size: 2rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+    margin: 0 0 0.35rem;
+    text-wrap: balance;
+  }
+  .lede { color: var(--muted); margin: 0 0 2.5rem; max-width: 36rem; }
+  h2 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 2.75rem 0 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--rule);
+    text-wrap: balance;
+  }
+  h2:first-of-type { margin-top: 0; border-top: 0; padding-top: 0; }
+  p { margin: 0 0 0.9rem; max-width: 38rem; }
+  code {
+    font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 0.92em;
+    background: var(--code-bg);
+    color: var(--code-ink);
+    padding: 0.08em 0.35em;
+    border-radius: 3px;
+  }
+  pre {
+    margin: 0.5rem 0 1.1rem;
+    padding: 0.85rem 1rem;
+    background: var(--code-bg);
+    color: var(--code-ink);
+    border-left: 3px solid var(--accent);
+    overflow-x: auto;
+    font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  .addresses {
+    list-style: none;
+    margin: 0 0 0.5rem;
+    padding: 0;
+    display: grid;
+    gap: 0;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .addresses li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.5rem 1.25rem;
+    align-items: baseline;
+    padding: 0.7rem 1rem;
+    background: var(--panel);
+  }
+  .addresses li + li { border-top: 1px solid var(--rule); }
+  .addresses .where { font-size: 0.8rem; color: var(--muted); letter-spacing: 0.02em; text-transform: uppercase; }
+  .addresses .url {
+    font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--accent-ink);
+    word-break: break-all;
+  }
+  .addresses .note { grid-column: 1 / -1; color: var(--muted); font-size: 0.9rem; }
+  ol.steps { margin: 0 0 1rem; padding-left: 1.4rem; }
+  ol.steps li { margin-bottom: 0.9rem; }
+  ol.steps li::marker { color: var(--accent); font-weight: 600; }
+  ul.plain { margin: 0 0 1rem; padding-left: 1.2rem; }
+  ul.plain li { margin-bottom: 0.45rem; }
+  .verdict { display: inline-block; min-width: 3.4rem; font-weight: 600; font-size: 0.85rem; letter-spacing: 0.02em; text-transform: uppercase; }
+  .verdict.ok { color: var(--ok); }
+  .verdict.no { color: var(--no); }
+  table { border-collapse: collapse; width: 100%; margin: 0.5rem 0 1rem; font-size: 0.95rem; }
+  .table-wrap { overflow-x: auto; }
+  th, td { text-align: left; padding: 0.5rem 0.75rem 0.5rem 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-weight: 600; color: var(--muted); font-size: 0.8rem; letter-spacing: 0.02em; text-transform: uppercase; }
+  td code { white-space: nowrap; }
+  .aside { color: var(--muted); font-size: 0.92rem; }
+  a { color: var(--accent-ink); }
+  a:focus-visible, code:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  footer { margin-top: 3rem; padding-top: 0.75rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Reaching aiden-studio</h1>
+  <p class="lede">The brewer dashboard runs as a service on the Mac mini and listens only on that machine. Here is every way to open it, and the one way to reach it from the laptop.</p>
+
+  <h2>Addresses</h2>
+  <ul class="addresses">
+    <li>
+      <span class="where">On the Mac mini</span>
+      <span class="url">http://localhost:5150</span>
+      <span class="note">Always works. Bookmarked in Chrome.</span>
+    </li>
+    <li>
+      <span class="where">On the Mac mini, by name</span>
+      <span class="url">http://aiden.local:5150</span>
+      <span class="note">Needs the two lines in <code>/etc/hosts</code> (<code>127.0.0.1 aiden.local</code> and <code>::1 aiden.local</code>). With only the first line every page load waits five seconds for Bonjour. The port is part of the address; port 80 would need root.</span>
+    </li>
+    <li>
+      <span class="where">On the Mac mini, no setup</span>
+      <span class="url">http://aiden.localhost:5150</span>
+      <span class="note">macOS resolves every <code>*.localhost</code> name to itself, instantly.</span>
+    </li>
+    <li>
+      <span class="where">On the laptop, through the tunnel</span>
+      <span class="url">http://localhost:5150</span>
+      <span class="note">Only while the SSH command below is running. The <code>aiden.local</code> alias exists on the Mac mini alone, so on the laptop it is always <code>localhost</code>.</span>
+    </li>
+  </ul>
+
+  <h2>From the laptop on the same Wi-Fi</h2>
+  <p>The app has no login screen, so it never listens beyond the Mac mini itself. An SSH tunnel carries the laptop's <code>localhost:5150</code> to the Mac mini's, and SSH asks for the Mac's own password, which is the login the dashboard would otherwise lack.</p>
+  <ol class="steps">
+    <li><strong>Once, on the Mac mini:</strong> System Settings, General, Sharing, turn on <em>Remote Login</em>. Leave it on.</li>
+    <li><strong>Each time, on the laptop</strong> (Terminal on a Mac, PowerShell on Windows, both have <code>ssh</code>):
+      <pre><code>ssh -N -L 5150:127.0.0.1:5150 cschweda@cschwedas-Mac-mini.local</code></pre>
+      Enter the Mac mini's account password. The command prints nothing and keeps running; that is the tunnel.</li>
+    <li>Open <code>http://localhost:5150</code> in the laptop's browser.</li>
+    <li>To finish, press <kbd>Ctrl</kbd>+<kbd>C</kbd> in that terminal. The dashboard on the Mac mini is unaffected.</li>
+  </ol>
+  <p><strong>If the name does not resolve on the laptop,</strong> use the Mac mini's Wi-Fi address instead, which System Settings, Wi-Fi, Details shows, or this command on the Mac mini prints:</p>
+  <pre><code>ipconfig getifaddr en0</code></pre>
+  <p>Then <code>ssh -N -L 5150:127.0.0.1:5150 cschweda@192.168.x.x</code> with that address.</p>
+  <p class="aside">A tunnel left open for hours can time out on some routers. Adding <code>-o ServerAliveInterval=60</code> to the command keeps it alive.</p>
+
+  <h2>What reaches it and what doesn't</h2>
+  <div class="table-wrap">
+  <table>
+    <tr><th>Device</th><th>Reaches it?</th><th>Why</th></tr>
+    <tr><td>The Mac mini</td><td><span class="verdict ok">Yes</span></td><td>The service listens on 127.0.0.1:5150.</td></tr>
+    <tr><td>The laptop, with the tunnel</td><td><span class="verdict ok">Yes</span></td><td>SSH carries loopback across, behind the Mac's login.</td></tr>
+    <tr><td>The laptop, without the tunnel</td><td><span class="verdict no">No</span></td><td>Nothing listens on the Wi-Fi interface, by design.</td></tr>
+    <tr><td>A phone on the Wi-Fi</td><td><span class="verdict no">No</span></td><td>Same reason; a phone SSH app would work but is clumsy.</td></tr>
+    <tr><td>Anything outside the house</td><td><span class="verdict no">No</span></td><td>Phase 2 adds a login and a proper host; see <code>docs/PHASE-2.md</code>.</td></tr>
+  </table>
+  </div>
+  <p class="aside">Do not change <code>HOST</code> in <code>.env</code> or <code>server.host</code> in <code>aiden.config.ts</code> to reach it from elsewhere: the startup guard refuses any address other than loopback while there is no login, on purpose. The brewer would otherwise be controllable by anyone on the network.</p>
+
+  <h2>Checking on the service, from the Mac mini</h2>
+  <p>All from the repo at <code>/Volumes/satechi/webdev/aiden-portal</code>.</p>
+  <div class="table-wrap">
+  <table>
+    <tr><th>Command</th><th>What it does</th></tr>
+    <tr><td><code>deploy/local/status.sh</code></td><td>Loaded? Running? Answering? The last log lines.</td></tr>
+    <tr><td><code>deploy/local/logs.sh</code></td><td>Follows the app's log. Ctrl+C to stop.</td></tr>
+    <tr><td><code>pnpm build &amp;&amp; deploy/local/install.sh</code></td><td>After any code, config, or <code>.env</code> change. Restarts the service.</td></tr>
+    <tr><td><code>deploy/local/uninstall.sh</code></td><td>Stops it. Add <code>--purge</code> to remove the installed copy, logs, and brew history too.</td></tr>
+    <tr><td><code>curl -s localhost:5150/api/status | jq</code></td><td>Version, dry run, and whether Fellow answered.</td></tr>
+  </table>
+  </div>
+  <p class="aside">While the service is installed it holds port 5150, so a dev server needs another port: <code>PORT=5151 pnpm dev</code>.</p>
+
+  <footer>aiden-studio, Phase 1. Written 12 September 2026. The full notes live in the repo's README under "Run at home".</footer>
+</main>
+</body>
+</html>

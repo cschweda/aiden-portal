@@ -171,6 +171,9 @@ bad configuration is being retried) and is safe to delete at any time.
 The app listens on `127.0.0.1` only. Other devices on your network cannot reach it, by design: there is no
 login. Reaching it from elsewhere is what Phase 2 is about.
 
+A one-page version of the addresses, the laptop tunnel, and the service commands is in
+[`docs/reaching-aiden-studio.html`](docs/reaching-aiden-studio.html); open it in a browser.
+
 ### From a laptop on the same network
 
 Without a login the app must stay on loopback, but a laptop can reach loopback on this Mac through an SSH
