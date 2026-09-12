@@ -48,3 +48,36 @@ export function formatAgo(value: string | number | undefined | null, now: number
   const text = magnitude < 3600 ? `${Math.round(magnitude / 60)} min` : magnitude < 86400 ? `${Math.round(magnitude / 3600)} h` : `${Math.round(magnitude / 86400)} d`
   return seconds > 0 ? `${text} ago` : `in ${text}`
 }
+
+/** Seconds as "42 s", "5 min 40 s", or "1 h 12 min". */
+export function formatDuration(seconds: number | null | undefined): string {
+  if (seconds === null || seconds === undefined || !Number.isFinite(seconds)) return '—'
+  const s = Math.round(seconds)
+  if (s < 60) return `${s} s`
+  if (s < 3600) {
+    const m = Math.floor(s / 60)
+    const r = s % 60
+    return r ? `${m} min ${r} s` : `${m} min`
+  }
+  const h = Math.floor(s / 3600)
+  const m = Math.round((s % 3600) / 60)
+  return m ? `${h} h ${m} min` : `${h} h`
+}
+
+/** Seconds as a clock: "0:30", "12:05", "1:02:30". */
+export function formatClock(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds))
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const r = s % 60
+  return h ? `${h}:${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}` : `${m}:${String(r).padStart(2, '0')}`
+}
+
+/** Hours as "2.5 h" below two days, else "3 d 4 h". */
+export function formatHours(hours: number | null | undefined): string {
+  if (hours === null || hours === undefined || !Number.isFinite(hours)) return '—'
+  if (hours < 48) return `${hours.toFixed(1)} h`
+  const d = Math.floor(hours / 24)
+  const h = Math.round(hours - d * 24)
+  return h ? `${d} d ${h} h` : `${d} d`
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatAgo, formatDateTime, formatLitres, formatLitresFromMl, formatMillilitres, formatTemperature, formatTime, toDate } from '../../../app/utils/format'
+import { formatAgo, formatClock, formatDateTime, formatDuration, formatHours, formatLitres, formatLitresFromMl, formatMillilitres, formatTemperature, formatTime, toDate } from '../../../app/utils/format'
 
 describe('format helpers', () => {
   it('formats temperatures with half degrees', () => {
@@ -49,5 +49,18 @@ describe('format helpers', () => {
     expect(formatAgo(String(Math.floor(now / 1000) - 3600), now)).toBe('1 h ago')
     expect(formatAgo(now + 10 * 60_000, now)).toBe('in 10 min')
     expect(formatAgo(undefined, now)).toBe('—')
+  })
+  it('formats durations, clocks, and hours', () => {
+    expect(formatDuration(42)).toBe('42 s')
+    expect(formatDuration(340)).toBe('5 min 40 s')
+    expect(formatDuration(600)).toBe('10 min')
+    expect(formatDuration(4320)).toBe('1 h 12 min')
+    expect(formatDuration(null)).toBe('—')
+    expect(formatClock(30)).toBe('0:30')
+    expect(formatClock(725)).toBe('12:05')
+    expect(formatClock(3750)).toBe('1:02:30')
+    expect(formatHours(2.5)).toBe('2.5 h')
+    expect(formatHours(76)).toBe('3 d 4 h')
+    expect(formatHours(null)).toBe('—')
   })
 })

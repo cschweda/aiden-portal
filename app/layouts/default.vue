@@ -8,6 +8,7 @@ const items: NavigationMenuItem[] = [
   { label: 'Dashboard', icon: 'i-lucide-gauge', to: '/' },
   { label: 'Profiles', icon: 'i-lucide-sliders-horizontal', to: '/profiles' },
   { label: 'Schedules', icon: 'i-lucide-alarm-clock', to: '/schedules' },
+  { label: 'History', icon: 'i-lucide-history', to: '/history' },
   { label: 'Logs', icon: 'i-lucide-scroll-text', to: '/logs' },
 ]
 </script>

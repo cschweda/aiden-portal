@@ -1,26 +1,41 @@
 <script setup lang="ts">
-import type { DeviceResponse, Profile } from '#shared/types/api'
+import type { DeviceResponse, HistoryResponse, Profile } from '#shared/types/api'
 import { isBrewing } from '../../server/lib/fellow/device'
+import { formatDateTime, formatTime } from '../utils/format'
 
 useHead({ title: 'Dashboard' })
 
 const { refresh: refreshStatus } = useStatus()
 const device = useApiFetch<DeviceResponse>('/api/device', { key: 'device' })
 const profiles = useApiFetch<Profile[]>('/api/profiles', { key: 'profiles', defaultValue: () => [] })
+const history = useApiFetch<HistoryResponse>('/api/history', { key: 'history' })
 
 async function refreshNow() {
-  await Promise.all([device.reload({ fresh: true }), profiles.reload({ fresh: true })])
+  await Promise.all([device.reload({ fresh: true }), profiles.reload({ fresh: true }), history.reload()])
   await refreshStatus()
 }
 
-// While a brew runs, keep the readout current without the user pressing anything. Profiles do not change mid-brew.
+// While a brew runs, keep the readout and the trace current without the user pressing anything.
 let poll: ReturnType<typeof setInterval> | undefined
+let ticks = 0
 onMounted(() => {
   poll = setInterval(() => {
-    if (device.data.value && isBrewing(device.data.value.device)) void device.reload({ fresh: true }).then(() => refreshStatus())
-  }, 15_000)
+    ticks += 1
+    const brewing = (device.data.value && isBrewing(device.data.value.device)) || history.data.value?.current
+    if (!brewing) return
+    void history.reload()
+    if (ticks % 3 === 0) void device.reload({ fresh: true }).then(() => refreshStatus())
+  }, 5_000)
 })
 onBeforeUnmount(() => clearInterval(poll))
+
+const trace = computed(() => {
+  const h = history.data.value
+  if (!h) return null
+  if (h.current) return { title: 'Brewing now', brew: h.current, live: true }
+  if (h.lastTraced) return { title: 'Last brew', brew: h.lastTraced, live: false }
+  return null
+})
 
 // When the readings on screen were fetched, so a stale panel is never mistaken for a live one.
 const readAt = ref<number | null>(null)
@@ -52,12 +67,30 @@ watch(() => device.data.value, (value) => {
 
         <div v-else-if="device.data.value" class="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
           <BrewerReadout :data="device.data.value" />
-          <InstantBrewCard :data="device.data.value" :profiles="profiles.data.value ?? []" @done="refreshNow" />
+          <div class="space-y-6">
+            <InstantBrewCard :data="device.data.value" :profiles="profiles.data.value ?? []" @done="refreshNow" />
+            <DescaleCard v-if="history.data.value" :descale="history.data.value.descale" @marked="history.reload()" />
+          </div>
         </div>
 
         <ApiErrorAlert v-if="profiles.failure.value && !device.failure.value" :failure="profiles.failure.value" what="the profiles" :stale="profiles.stale.value" />
 
         <SensorPanel v-if="device.data.value" :data="device.data.value" :profiles="profiles.data.value ?? []" :read-at="readAt" />
+
+        <ApiErrorAlert v-if="history.failure.value && !device.failure.value" :failure="history.failure.value" what="the brew history" :stale="history.stale.value" />
+        <HistoryStrip v-if="history.data.value" :stats="history.data.value.stats" />
+
+        <section v-if="trace && history.data.value" class="space-y-3">
+          <div class="flex items-baseline justify-between gap-4">
+            <h3 class="text-base font-semibold">
+              {{ trace.title }}
+            </h3>
+            <p class="truncate text-sm text-muted">
+              {{ trace.brew.profileTitle ?? trace.brew.profileId ?? 'selected profile' }} · {{ trace.live ? `started ${formatTime(trace.brew.startedAt)}` : formatDateTime(trace.brew.startedAt) }}
+            </p>
+          </div>
+          <BrewTraceChart :samples="trace.brew.samples" :started-at="trace.brew.startedAt" :interval-s="history.data.value.polling.brewPollSeconds" />
+        </section>
       </div>
     </template>
   </UDashboardPanel>

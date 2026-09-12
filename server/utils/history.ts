@@ -83,6 +83,13 @@ export class HistoryService {
     this.timer = undefined
   }
 
+  /** Reads again soon, so a brew the app just started is traced from its first seconds rather than the next idle tick. */
+  pokeSoon(delayMs = 2_000): void {
+    if (!this.polling.running || this.inFlight) return
+    if (this.timer) clearTimeout(this.timer)
+    this.schedule(delayMs)
+  }
+
   /** One read of the brewer through the tracker. Exposed for tests and for the routes' snapshot after a mutation. */
   async poll(now: number = Date.now()): Promise<Device> {
     const device = await useFellowClient().getDevice({ fresh: true })

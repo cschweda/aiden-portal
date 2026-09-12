@@ -2,6 +2,7 @@ import { setResponseStatus } from 'h3'
 import { brewStartBlockers } from '../../lib/fellow'
 import { defineApiRoute } from '../../utils/api'
 import { useFellowClient } from '../../utils/fellow-client'
+import { useHistory } from '../../utils/history'
 
 /** Fellow does not validate readiness for you, so a fresh device read gates every start. */
 export default defineApiRoute(async (event) => {
@@ -14,6 +15,7 @@ export default defineApiRoute(async (event) => {
   }
   const result = await client.startBrew()
   event.context.logger?.info({ action: 'brew.start', dryRun: client.dryRun }, 'Remote start requested')
+  if (!client.dryRun) useHistory().pokeSoon()
   setResponseStatus(event, 202)
   return { ok: true, result }
 })
