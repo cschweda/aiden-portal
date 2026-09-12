@@ -7,6 +7,11 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+### Changed
+
+- The sensor panel says "Last cycle started" and "Last cycle water": the brewer fills those fields for a descale
+  cycle too (1500 mL, the cycle's start), not only for brews.
+
 ## [0.8.0] - 2026-09-12
 
 ### Added
