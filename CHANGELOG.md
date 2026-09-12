@@ -7,6 +7,36 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-09-12
+
+Fixes from the checkpoint 4 review.
+
+### Fixed
+
+- The installer refuses to run while something else holds the port (a dev server, `pnpm start`, the mock demo),
+  so it can no longer report one of those as the installed service. It waits for the old service to be fully
+  torn down before loading the new one, explains a failed `launchctl bootstrap`, refuses when `aiden.config.ts`
+  is newer than the build, and renders and lints the plist in a temporary file so a bad render never lands in
+  `~/Library/LaunchAgents`.
+- `status.sh` and `logs.sh` read the installed copy's `.env` and `aiden.config.ts`, not the checkout's; IPv6
+  hosts are bracketed; `status.sh` tells "plist present but not loaded" from "not installed" and reports a node
+  binary that has disappeared after an nvm upgrade.
+- `logs.sh` follows across rotation (`tail -F`) and falls back to launchd's log before the app has written one.
+- `uninstall.sh --purge` removes launchd's log directory too, as documented; the installer creates it owner-only.
+- node is resolved through `process.execPath`, so a symlink to a node on an external volume is caught.
+- `&`, `<`, and `>` in a path survive the plist render.
+
+### Added
+
+- `scripts/check-shell.sh`, run by `pnpm lint`: bash syntax for every script, shellcheck when installed, and a
+  render of the launchd template with awkward paths, linted and read back.
+
+### Changed
+
+- README "Run at home": the port is held while installed (`PORT=3001 pnpm dev`), re-install after changing node
+  versions, Login Items, `launchd.log` never rotates, `tail -F`. `docs/PHASE-2.md`: the droplet runs from a
+  release directory, and anonymous visitors need a route middleware, not only the API guard.
+
 ### Removed
 
 - `docs/aiden-studio-build-prompt.v1.md`, the original build prompt kept alongside the rewritten spec. The

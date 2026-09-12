@@ -23,6 +23,8 @@ The simplest design that fits a single owner:
   session cookie, with `NUXT_SESSION_PASSWORD` (32+ characters) in `.env`.
 - One server middleware that requires the session on every `/api` route except the login route and
   `/api/health`, added to the existing pipeline *before* the same-site rule. Never per-route checks.
+  The API is what this protects; the page shells hold no data (every read goes through `/api`), but they would
+  still render for an anonymous visitor, so add a route middleware that sends them to the login page.
 - The login route rate-limited in memory (5 attempts per 15 minutes per client IP), behind an interface so
   it could move to Redis later.
 - The startup guard changes from "loopback only" to "loopback only unless auth is enabled", driven by a new
@@ -36,7 +38,9 @@ table (argon2id hashes, `pnpm user:add <email>`), keeping everything else above.
 
 - **Runtime.** Node 22 and pnpm 10 on the droplet; same `pnpm build`; the same command launchd runs
   (`node --env-file=.env .output/server/index.mjs`) as a systemd unit or a Forge daemon, with
-  `WorkingDirectory` set to the checkout and `Restart=on-failure`, `RestartSec=30`.
+  `WorkingDirectory` set to a release directory (a copy of `.output/` and `.env` refreshed by an install script,
+  as `deploy/local/install.sh` does on the Mac; never the checkout, for the same reason as in Phase 1) and
+  `Restart=on-failure`, `RestartSec=30`.
 - **Bind address.** `HOST` stays `127.0.0.1`. Nginx (via Laravel Forge) listens on 443, terminates TLS with
   a Let's Encrypt certificate, and proxies to `127.0.0.1:3000` with `proxy_set_header Host $host` and
   `X-Forwarded-For $proxy_add_x_forwarded_for`.

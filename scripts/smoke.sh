@@ -5,7 +5,7 @@
 #   scripts/smoke.sh            # uses port 3995 and fake Fellow credentials (one harmless failed login)
 #   PORT=4010 scripts/smoke.sh
 set -u
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 PORT="${PORT:-3995}"
 URL="http://127.0.0.1:${PORT}"
 ENTRY=".output/server/index.mjs"
@@ -26,7 +26,7 @@ ENTRY_ABS="$OLDPWD/$ENTRY"
 echo "Startup guard"
 if HOST=0.0.0.0 node "$ENTRY_ABS" >/dev/null 2>&1; then fail "HOST=0.0.0.0 should refuse to start"; else pass "HOST=0.0.0.0 refused"; fi
 if NITRO_HOST=0.0.0.0 node "$ENTRY_ABS" >/dev/null 2>&1; then fail "NITRO_HOST=0.0.0.0 should refuse to start"; else pass "NITRO_HOST=0.0.0.0 refused"; fi
-if FELLOW_EMAIL= node "$ENTRY_ABS" >/dev/null 2>&1; then fail "missing credentials should refuse to start"; else pass "missing credentials refused"; fi
+if FELLOW_EMAIL='' node "$ENTRY_ABS" >/dev/null 2>&1; then fail "missing credentials should refuse to start"; else pass "missing credentials refused"; fi
 
 echo "Server"
 PORT="$PORT" node "$ENTRY_ABS" > "$SMOKE_LOGS/stdout.txt" 2>&1 &
@@ -65,7 +65,7 @@ check "allowed Origin reaches validation" 400 -X POST -H "Origin: http://127.0.0
 
 echo "Bodies and errors"
 check "malformed JSON" 400 -X POST -H "Origin: http://127.0.0.1:${PORT}" -H 'content-type: application/json' -d '{bad' "$URL/api/profiles"
-grep -q '"error":"bad_request"' /tmp/aiden-smoke.body && pass "malformed JSON uses our envelope" || fail "malformed JSON envelope: $(head -c 120 /tmp/aiden-smoke.body)"
+if grep -q '"error":"bad_request"' /tmp/aiden-smoke.body; then pass "malformed JSON uses our envelope"; else fail "malformed JSON envelope: $(head -c 120 /tmp/aiden-smoke.body)"; fi
 check "malformed JSON on PATCH" 400 -X PATCH -H "Origin: http://127.0.0.1:${PORT}" -H 'content-type: application/json' -d '{bad' "$URL/api/profiles/p1"
 check "__proto__ key" 400 -X POST -H "Origin: http://127.0.0.1:${PORT}" -H 'content-type: application/json' -d '{"__proto__":{"x":1}}' "$URL/api/schedules"
 check "array body" 400 -X POST -H "Origin: http://127.0.0.1:${PORT}" -H 'content-type: application/json' -d '[1]' "$URL/api/profiles"
@@ -75,10 +75,10 @@ check "traversal in id" 400 -X DELETE -H "Origin: http://127.0.0.1:${PORT}" "$UR
 check "unknown API path" 404 "$URL/api/nope"
 check "unsupported method" 404 -X POST -H "Origin: http://127.0.0.1:${PORT}" "$URL/api/profiles/p7"
 check "status" 200 "$URL/api/status"
-grep -q '"dryRun":true' /tmp/aiden-smoke.body && pass "status reports dry run" || fail "status body: $(cat /tmp/aiden-smoke.body)"
+if grep -q '"dryRun":true' /tmp/aiden-smoke.body; then pass "status reports dry run"; else fail "status body: $(cat /tmp/aiden-smoke.body)"; fi
 check "Fellow failure is a 502 with a code" 502 "$URL/api/device"
-grep -q '"error":"fellow_auth_failed"' /tmp/aiden-smoke.body && pass "502 carries the code" || fail "502 body: $(cat /tmp/aiden-smoke.body)"
-grep -q 'not-a-real-password\|smoke@example.com' /tmp/aiden-smoke.body && fail "502 leaked credentials" || pass "502 leaks no credential values"
+if grep -q '"error":"fellow_auth_failed"' /tmp/aiden-smoke.body; then pass "502 carries the code"; else fail "502 body: $(cat /tmp/aiden-smoke.body)"; fi
+if grep -q 'not-a-real-password\|smoke@example.com' /tmp/aiden-smoke.body; then fail "502 leaked credentials"; else pass "502 leaks no credential values"; fi
 
 echo "Logs"
 if [ -L "$SMOKE_LOGS/logs/current.log" ]; then pass "logs/current.log symlink exists"; else fail "no logs/current.log symlink"; fi

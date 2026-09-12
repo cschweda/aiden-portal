@@ -38,9 +38,9 @@
   <key>ProcessType</key>
   <string>Background</string>
 
-  <!-- Only the app's own startup lines and crash traces land here; the app writes its log to logs/current.log in
-       the repo. This file lives under ~/Library/Logs on purpose: launchd refuses to open its stdout file on an
-       external volume (exit code 78, EX_CONFIG), while the app itself reads and writes there without trouble. -->
+  <!-- Only the app's own startup lines and crash traces land here; the app writes its log to logs/current.log
+       under WorkingDirectory. This file lives under ~/Library/Logs on purpose: launchd refuses to open its stdout
+       file on an external volume (exit code 78, EX_CONFIG), and launchd never rotates it (two lines per start). -->
   <key>StandardOutPath</key>
   <string>__LAUNCHD_LOG__</string>
   <key>StandardErrorPath</key>

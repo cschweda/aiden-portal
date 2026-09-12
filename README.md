@@ -108,14 +108,25 @@ the process died within 30 seconds of starting, so a misconfiguration cannot spi
 - **After editing `aiden.config.ts`:** `pnpm build && deploy/local/install.sh` (the file is compiled in).
 - **After editing `.env`:** `deploy/local/install.sh` (it copies the file and restarts the service).
 - **After pulling changes:** `pnpm install && pnpm build && deploy/local/install.sh`.
-- **To stop it:** `deploy/local/uninstall.sh`; add `--purge` to remove the installed copy and its logs too.
-  The checkout is never touched.
+- **To stop it:** `deploy/local/uninstall.sh`; add `--purge` to remove the installed copy, its logs, and launchd's
+  log directory too. The checkout is never touched.
 - **If `node` is not on your login shell's PATH** (nvm, fnm): `AIDEN_NODE=/path/to/node deploy/local/install.sh`.
   Node itself should live on the internal disk for the same reason as the build.
+- **After changing Node versions** (`nvm install`, `nvm uninstall`): `deploy/local/install.sh`. The service is
+  pinned to the absolute path of the node it was installed with; when that binary is gone, launchd starts nothing
+  and logs nothing. `deploy/local/status.sh` says so.
+- **While it is installed, port 3000 is taken.** The installer refuses to run when something else is listening
+  there (`pnpm dev`, `pnpm start`, the mock demo), so it can never mistake one of those for the service. Run the
+  dev server elsewhere meanwhile: `PORT=3001 pnpm dev`.
 - **If it will not start:** `deploy/local/status.sh` shows launchd's last exit code and the last log lines.
   A configuration problem (for example a non-loopback `HOST`, or missing Fellow credentials) is printed in
   `~/Library/Logs/aiden-studio/launchd.log` and retried every 30 seconds until you fix it and run the installer
   again.
+- **If the installer says `launchctl bootstrap` failed:** open System Settings > General > Login Items &
+  Extensions, make sure aiden-studio is switched on, and run the installer again.
+
+launchd never rotates `launchd.log`. It gains two lines per start (a few hundred bytes every 30 seconds while a
+bad configuration is being retried) and is safe to delete at any time.
 
 The app listens on `127.0.0.1` only. Other devices on your network cannot reach it, by design: there is no
 login. Reaching it from elsewhere is what Phase 2 is about.
@@ -128,7 +139,7 @@ login. Reaching it from elsewhere is what Phase 2 is about.
 | `pnpm build` | Production build into `.output/` |
 | `pnpm start` | Run the production build (reads `.env` via `node --env-file`) |
 | `pnpm test` | Full test suite |
-| `pnpm lint` | ESLint |
+| `pnpm lint` | ESLint, then `scripts/check-shell.sh` (bash syntax, shellcheck when installed, a render of the launchd template) |
 | `pnpm typecheck` | `nuxt typecheck` plus the test tree |
 | `scripts/smoke.sh` | Probes a production build for the things Vitest cannot see: guard, headers, Host/CSRF, error shapes, log file |
 | `deploy/local/install.sh`, `status.sh`, `logs.sh`, `uninstall.sh` | The launchd service (see Run at home) |
@@ -172,8 +183,9 @@ never Fellow's response), 500 otherwise. Reads are cached for 30 seconds; `?fres
 ## Logs
 
 In development everything goes to the terminal. In production pino writes JSON lines to
-`logs/aiden.<date>.<n>.log` (owner-only directory), rotates daily or at 50 MB, keeps 14 files, and points
-`logs/current.log` at the active one, so `tail -f logs/current.log` always works. Passwords, tokens, and
+`logs/aiden.<date>.<n>.log` (an owner-only directory under the working directory: the checkout for `pnpm start`,
+the installed copy under launchd), rotates daily or at 50 MB, keeps 14 files, and points `logs/current.log` at
+the active one, so `tail -F logs/current.log` keeps following across rotations. Passwords, tokens, and
 cookies are redacted before they are written. Every request carries an `x-request-id` header that matches
 its log lines. Stdout gets exactly two lines at startup: ours (address, dry run, log path) and Nitro's own
 `Listening on …`; under launchd that is all its stdout file should ever hold, besides crash traces.

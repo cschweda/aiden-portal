@@ -42,3 +42,32 @@
 
 - [ ] ARCHITECTURE: "Deployment" section (launchd, what the app enforces vs. what launchd supervises). CHANGELOG `[0.4.0]`. `package.json` 0.4.0. Spec §9 checkpoint 4 tick and a one-line "Phase 1 complete" note. Plan execution notes. Mention `docs/aiden-studio-build-prompt.v1.md` as safe to delete in the report, not in the repo.
 - [ ] `pnpm lint && pnpm typecheck && pnpm test && pnpm build && scripts/smoke.sh`. Commit `docs: run at home, Phase 2 notes, 0.4.0`, tag `v0.4.0`.
+
+---
+
+## Review and fixes (2026-09-12, v0.4.1)
+
+The checkpoint 4 review (range `ceb57a3..f8f3686`) found no Critical issues and four Important ones, fixed in
+`v0.4.1` together with the cheap Minor ones:
+
+1. The health poll could not tell the service from another server on the port. The installer now refuses while
+   anything answers at the target URL after the old service is gone, so a health answer after bootstrap is ours.
+2. `app_url` read the checkout's `aiden.config.ts`; it now reads the installed copy's `.env` and config (with
+   `NITRO_*` precedence and bracketed IPv6), and the installer refuses when `aiden.config.ts` is newer than the
+   build, so the copy always matches what was compiled in.
+3. Re-install over a running service was unverified and could race `bootout`; the installer now waits until
+   launchd has dropped the job (10 s cap) and explains a failed `bootstrap`.
+4. A node deleted by an nvm upgrade left launchd silent; `status.sh` reads the pinned path from the plist and says
+   when it is gone, and the README says to re-run the installer after changing node versions.
+
+Also: render, lint, then move for the plist, with XML escaping; `--purge` removes the launchd log directory;
+owner-only launchd log directory; `tail -F`; `logs.sh` falls back to the launchd log; node resolved through
+`process.execPath`; `scripts/check-shell.sh` in `pnpm lint`. Documented rather than changed: `launchd.log` is
+not rotated.
+
+Verified live on this Mac against the mock brewer (temporary `.env`, removed afterwards): the installer refused
+while a production run from the checkout held port 3000 (nothing created); refused after `touch aiden.config.ts`;
+installed cleanly (health answered, pid recorded); installed again over the running service (new pid, health
+answered); `status.sh` reported loaded and running with version 0.4.1 and the mock reachable; `logs.sh` followed
+the app log; permissions 700/700/600/700; `uninstall.sh --purge` removed the copy, the plist, and the launchd log
+directory; a stale plist with a missing node produced both warnings from `status.sh`.

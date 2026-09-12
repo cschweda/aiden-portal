@@ -46,7 +46,8 @@ export default defineAidenConfig({
   logging: {
     // fatal | error | warn | info | debug | trace | silent. null = info in production, debug in development.
     level: null,
-    // Production log directory (relative to the repo). Files rotate daily; `current.log` points at today's.
+    // Production log directory, relative to the working directory: the checkout under `pnpm start`, the installed
+    // copy under launchd. Files rotate daily; `current.log` points at today's.
     directory: 'logs',
     // How many daily files to keep.
     keepDays: 14,
