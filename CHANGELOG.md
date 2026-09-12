@@ -7,6 +7,12 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+### Changed
+
+- The repository is public, so nothing in it names this machine: `aiden.config.ts` ships the generic host list and
+  an empty `tailnetUsers`, and the owner's Tailscale name and login live in `.env` through `ALLOWED_HOSTS` and
+  `TAILNET_USERS`. `docs/reaching-aiden-studio.html`, a page of one owner's own addresses, is gone from the repo.
+
 ### Added
 
 - README "Quick start on a Mac": the copy-pasteable path from nothing to the app running under launchd and
@@ -46,7 +52,7 @@ Phase 1.5: the dashboard from every one of your computers, through Tailscale.
 
 ### Added
 
-- The Mac mini's Tailscale name (`cschwedas-mac-mini.taildc8082.ts.net`) is an allowed host, so `tailscale serve --bg 5150` publishes the
+- The host Mac's Tailscale name is an allowed host, so `tailscale serve --bg 5150` publishes the
   dashboard onto your private network with a real certificate while the app stays on loopback. README explains the
   setup for the Mac mini and for other Macs and Windows PCs.
 - `server.tailnetUsers` (or `TAILNET_USERS`): the Tailscale logins allowed to make changes through `tailscale serve`,

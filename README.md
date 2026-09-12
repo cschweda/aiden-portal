@@ -252,9 +252,6 @@ bad configuration is being retried) and is safe to delete at any time.
 The app listens on `127.0.0.1` only. Nothing else on your Wi-Fi reaches it directly, by design: there is no
 login screen. Your own machines reach it through Tailscale, below.
 
-A one-page version of the addresses, the laptop tunnel, and the service commands is in
-[`docs/reaching-aiden-studio.html`](docs/reaching-aiden-studio.html); open it in a browser.
-
 ### From your other computers, with Tailscale (Phase 1.5)
 
 [Tailscale](https://tailscale.com) joins your computers into a private network that only they can see, at home or
