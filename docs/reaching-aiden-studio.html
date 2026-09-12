@@ -213,7 +213,7 @@
     <tr><td>The laptop, with the tunnel</td><td><span class="verdict ok">Yes</span></td><td>SSH carries loopback across, behind the Mac's login.</td></tr>
     <tr><td>Any computer or phone signed in to your Tailscale account</td><td><span class="verdict ok">Yes</span></td><td>Tailscale carries it privately; from home or anywhere else.</td></tr>
     <tr><td>The laptop, without Tailscale or the tunnel</td><td><span class="verdict no">No</span></td><td>Nothing listens on the Wi-Fi interface, by design.</td></tr>
-    <tr><td>Anyone not signed in to your account</td><td><span class="verdict no">No</span></td><td>A public address would need the app's own login first; that is Phase 2.</td></tr>
+    <tr><td>Anyone not signed in to your account</td><td><span class="verdict no">No</span></td><td>A public address would need a login inside the app first. This is built for your own machines, not the public web.</td></tr>
   </table>
   </div>
   <p class="aside">Do not change <code>HOST</code> in <code>.env</code> or <code>server.host</code> in <code>aiden.config.ts</code> to reach it from elsewhere: the startup guard refuses any address other than loopback while there is no login, on purpose. The brewer would otherwise be controllable by anyone on the network.</p>
@@ -232,7 +232,7 @@
   </div>
   <p class="aside">While the service is installed it holds port 5150, so a dev server needs another port: <code>PORT=5151 pnpm dev</code>.</p>
 
-  <footer>aiden-studio, Phase 1.5. Written 12 September 2026, updated the same day for Tailscale. The full notes live in the repo's README under "Run at home".</footer>
+  <footer>aiden-studio, Phase 1.5: your own machines, over Tailscale. Written 12 September 2026, updated the same day for Tailscale. The full notes live in the repo's README under "Run at home".</footer>
 </main>
 </body>
 </html>

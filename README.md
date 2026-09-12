@@ -3,8 +3,9 @@
 A personal web app for controlling a [Fellow Aiden](https://fellowproducts.com/products/aiden) coffee brewer:
 brew profiles, schedules, brew.link import, share links, and remote Instant Brew, from a browser on your own machine.
 
-> **Status:** Phase 1 complete. The app runs at login on your Mac under launchd and is reachable only from
-> that Mac. Phase 2 (a DigitalOcean droplet) is designed in `docs/PHASE-2.md` and not built. See `CHANGELOG.md`.
+> **Status:** Phase 1.5 complete. The app runs at login on your Mac under launchd, listens on loopback only, and
+> is reachable from your own computers and phones over [Tailscale](https://tailscale.com). It is not a public
+> website and is not built to become one. See `CHANGELOG.md`.
 
 ## How it works
 
@@ -12,9 +13,14 @@ Fellow publishes no API. This app talks to the same cloud endpoints the Fellow m
 Fellow account credentials, from a small Node server that runs on your machine. The browser never talks to
 Fellow and never sees those credentials.
 
-- **Phase 1 (now):** runs on your Mac, reachable only at `http://localhost:5150`, no login screen. The only
-  credential anywhere is your Fellow login in `.env`.
-- **Phase 2 (later):** the same build on a DigitalOcean droplet behind Nginx, with an auth layer added then.
+- **Phase 1 — on the Mac.** The server listens on `127.0.0.1:5150` and nowhere else, with no login screen. The
+  only credential anywhere is your Fellow login in `.env`.
+- **Phase 1.5 — your own machines.** Tailscale joins your computers and phones into a private network of their
+  own and publishes the dashboard onto it. The app still listens on loopback; Tailscale is the only door, and it
+  opens for devices signed in to your Tailscale account and nothing else.
+
+That shape is the point, not a stepping stone. Nothing is exposed to the internet and there is no public address.
+Putting this on a public website would need a login inside the app first, which is not what it is for.
 
 ## The app
 
@@ -168,8 +174,8 @@ the process died within 30 seconds of starting, so a misconfiguration cannot spi
 launchd never rotates `launchd.log`. It gains two lines per start (a few hundred bytes every 30 seconds while a
 bad configuration is being retried) and is safe to delete at any time.
 
-The app listens on `127.0.0.1` only. Other devices on your network cannot reach it, by design: there is no
-login. Reaching it from elsewhere is what Phase 2 is about.
+The app listens on `127.0.0.1` only. Nothing else on your Wi-Fi reaches it directly, by design: there is no
+login screen. Your own machines reach it through Tailscale, below.
 
 A one-page version of the addresses, the laptop tunnel, and the service commands is in
 [`docs/reaching-aiden-studio.html`](docs/reaching-aiden-studio.html); open it in a browser.
@@ -232,8 +238,8 @@ ssh -N -L 5150:127.0.0.1:5150 cschweda@cschwedas-Mac-mini.local
 ```
 
 Leave that running and open `http://localhost:5150` on the laptop. The name is this Mac's Bonjour name, shown
-under Sharing; use its IP address if the name does not resolve. Ctrl-C ends the tunnel. A phone, or anything
-outside the network, is what Phase 2 is about.
+under Sharing; use its IP address if the name does not resolve. Ctrl-C ends the tunnel. Tailscale, above, is the
+better answer for phones and for being away from home; this tunnel is the fallback when Tailscale is not installed.
 
 ## Scripts
 
@@ -309,6 +315,46 @@ Newest entry first, open. Older entries are collapsed. Each entry records what w
 found, and what now defends against it (blue). Add a new dated `###` entry at the top and move the previous
 one into the `<details>` block at the bottom.
 
+### 2026-09-12 — Second pass, when the app left the Mac (Phase 1.5)
+
+**Context.** Until now the only way to reach the app was to sit at the Mac, and the first pass said plainly that a
+proxy in front of it would bypass that. Tailscale is now exactly such a proxy: `tailscale serve` accepts the
+connection and speaks to the app from 127.0.0.1, so it looks like the owner. The question for this pass is what
+replaces "you are sitting at the Mac" as the thing being trusted.
+
+**Red — what was tried**
+
+- **Reach the app from the house network.** Port 443 answers on the Tailscale address (100.94.68.74) and is
+  closed on the Wi-Fi address and on loopback. Port 5150 is still bound to 127.0.0.1 alone.
+- **Find the address from outside.** The `ts.net` name does not resolve on public DNS; it exists only inside the
+  tailnet's own resolver. `tailscale funnel`, which would publish it, is never used and is documented as forbidden.
+- **Answer to a borrowed hostname.** The Host allowlist names the `ts.net` host explicitly; every other value is
+  still a 400, so a DNS record someone else points at the machine gets nothing.
+- **Act as the owner from another tailnet device.** `tailscale serve` stamps `Tailscale-User-Login` on every
+  request it forwards. Changes from a login that is not in `server.tailnetUsers` are refused with 403
+  (`tailnet_user_not_allowed`); reads are left alone.
+- **Forge that header from a browser on the Mac.** Browsers cannot set it, and every mutation still has to prove
+  same-origin or carry an allowed Origin, so the same-site rule remains the gate it was.
+
+**Blue — what defends it now**
+
+- **The bind address is unchanged.** The app binds 127.0.0.1 and the startup guard still refuses anything else.
+  Tailscale carries traffic between machines; the app never listens beyond this one.
+- **The tailnet is the authentication.** Joining it means signing in to the owner's Tailscale account.
+  `server.tailnetUsers` narrows that further: a device on the tailnet that is not the owner's login may look at
+  the brewer but not change it.
+- **Every request is attributable.** The Tailscale login and the host it arrived on are logged with each request,
+  and the Logs page's Detail control shows them without a restart.
+- **TLS is real off-machine.** Let's Encrypt issues the certificate for the machine's `ts.net` name, so the
+  plain-http compromises that loopback allowed do not travel with it.
+
+**Accepted for now.** Any signed-in device of the owner's is trusted to read, so an unlocked device that is
+already on the tailnet can see the brewer. A login inside the app is the answer to that, and is only worth
+building if this ever has to be reachable by someone who is not the owner.
+
+<details>
+<summary>Older entries</summary>
+
 ### 2026-09-10 — First pass, after checkpoint 2
 
 **Context.** Phase 1 runs with no login on a loopback-only server, so the threat model is "anything that can
@@ -356,8 +402,8 @@ repeated and extended the probes, then folded into `scripts/smoke.sh` so it runs
 
 - **Loopback only, enforced twice.** The server refuses to start unless the effective bind address is
   loopback, and it sets that address itself from `aiden.config.ts`. The guard sees the bind address only:
-  a proxy in front of it (Tailscale, Nginx) would bypass the whole model, which is why Phase 2 requires an
-  auth layer before anything leaves this machine.
+  a proxy in front of it would bypass the whole model, which is why nothing may be put in front of the app
+  unless it carries an identity check of its own.
 - **Which requests are acted on.** Host allowlist (400) closes DNS rebinding; the same-site rule (403)
   keeps other sites from driving the API at all; mutations must prove same-origin or carry an allowed
   Origin; bodies are capped; ids are validated before they touch a URL; every field of every body is
@@ -376,11 +422,6 @@ repeated and extended the probes, then folded into `scripts/smoke.sh` so it runs
 
 **Accepted for now.** No TLS on loopback (nothing to protect from); the two stdout lines; the dev server's
 HMR and devtools endpoints, which bind to the same loopback address.
-
-<details>
-<summary>Older entries</summary>
-
-None yet.
 
 </details>
 

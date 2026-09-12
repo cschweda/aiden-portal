@@ -7,6 +7,13 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+### Changed
+
+- The README describes the project as it is: Phase 1 on the Mac and Phase 1.5 over Tailscale for the owner's own
+  computers and phones, not a stepping stone to a public site. Every reference to a public Phase 2 deployment is
+  gone, and the red team / blue team log gains a dated entry for the pass that mattered here, when `tailscale serve`
+  became the first thing ever to sit in front of the app.
+
 ## [0.11.2] - 2026-09-12
 
 ### Added
