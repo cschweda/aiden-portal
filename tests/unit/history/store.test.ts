@@ -100,7 +100,8 @@ describe('HistoryStore', () => {
     expect(statSync(join(dir, CLEANINGS_FILE)).mode & 0o777).toBe(0o600)
     const again = new HistoryStore({ directory: dir })
     expect(again.cleanings).toEqual([cycle])
-    expect(again.brews).toEqual([])
+    expect(again.brews).toHaveLength(1)
+    expect(again.lastKnownCycles).toBe(72)
   })
   it('treats an unreadable marker file as never descaled', () => {
     const store = new HistoryStore({ directory: dir })
