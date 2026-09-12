@@ -96,7 +96,7 @@ counters.
 ## Quick start on a Mac
 
 This is what the app was built for: one Mac that stays on, running it under launchd, with Tailscale letting
-your other Macs and PCs open it. Tested on Apple Silicon (macOS 26 on an M-series Mac mini); an Intel Mac is the
+your other Macs and PCs open it. Tested on Apple Silicon (macOS 26, M-series); an Intel Mac is the
 same apart from the Homebrew path noted below. Budget about fifteen minutes, most of it downloads. Every line
 below goes into Terminal.
 
@@ -258,30 +258,31 @@ A one-page version of the addresses, the laptop tunnel, and the service commands
 ### From your other computers, with Tailscale (Phase 1.5)
 
 [Tailscale](https://tailscale.com) joins your computers into a private network that only they can see, at home or
-anywhere else with internet. The Mac mini publishes the dashboard onto that network with `tailscale serve`, which
-forwards to the app on loopback, so the app itself never listens beyond this Mac. Every device signed in to your
-Tailscale account can then open
+anywhere else with internet. The Mac running the app publishes the dashboard onto that network with
+`tailscale serve`, which forwards to the app on loopback, so the app itself never listens beyond that Mac. Every
+device signed in to your Tailscale account can then open
 
 ```
-https://cschwedas-mac-mini.taildc8082.ts.net
+https://<your-mac>.<your-tailnet>.ts.net
 ```
 
-with a real certificate and no port. Use that full name exactly: the short name and the IP addresses the Tailscale
-console also lists do connect, but the certificate is issued for the full name only, so browsers warn on them.
+with a real certificate and no port. `tailscale serve` prints the exact address when you publish; use that full
+name as it gives it. The short name and the IP addresses the Tailscale console also lists do connect, but the
+certificate is issued for the full name only, so browsers warn on them.
 
-**The Mac mini, once.**
+**The Mac that runs it, once.**
 
-1. One Tailscale account for everything (this one signs in with GitHub). Install Tailscale on the Mac mini and sign
-   in. In the admin console at login.tailscale.com: under DNS turn on HTTPS certificates; under Machines, the Mac
-   mini's menu, disable key expiry, so it never silently drops off the network after six months. The first
-   `tailscale serve` also asks you to enable Serve for the node through a link it prints; do that once.
+1. One Tailscale account for every machine. Install Tailscale on that Mac and sign in. In the admin console at
+   login.tailscale.com: under DNS turn on HTTPS certificates; under Machines, that Mac's menu, disable key expiry,
+   so it never silently drops off the network after six months. The first `tailscale serve` also asks you to enable
+   Serve for the node through a link it prints; do that once and run the command again.
 2. Publish the dashboard: `tailscale serve --bg 5150` (on the App Store build the command is
    `/Applications/Tailscale.app/Contents/MacOS/Tailscale`). It persists across restarts; `tailscale serve status`
    shows it, and `tailscale serve --https=443 off` withdraws it.
-3. The app side, already done in this repo: the Mac mini's `ts.net` name is in `server.allowedHosts` in
-   `aiden.config.ts`, and `server.tailnetUsers` lists the logins allowed to make changes (`tailscale serve` stamps
-   the signed-in login on every request; anyone else on the network can look but not change). After editing either,
-   `pnpm build && deploy/local/install.sh`.
+3. The app side: put that Mac's `ts.net` name into `server.allowedHosts` in `aiden.config.ts`, and, if you want to
+   be the only one who can change anything, your Tailscale login into `server.tailnetUsers` (`tailscale serve`
+   stamps the signed-in login on every request; anyone else on the network can look but not change). After editing
+   either, `pnpm build && deploy/local/install.sh`.
 
 **Every other machine.** Install Tailscale, sign in with the same account, open the address. That is all.
 
@@ -291,12 +292,12 @@ console also lists do connect, but the certificate is issued for the full name o
 - **Phone:** the Tailscale app from the App Store or Play Store, same sign-in, same address in the browser.
 
 **Away from home.** It works wherever the machine has internet: Tailscale connects the two devices directly across
-the internet and falls back to its relays when a network blocks that, encrypted either way. The Mac mini has to be
+the internet and falls back to its relays when a network blocks that, encrypted either way. The host Mac has to be
 on, logged in, and running Tailscale, the same conditions the dashboard itself needs.
 
-**If a machine cannot open it.** Check, in order: the Tailscale icon on that machine says connected; the Mac mini
-shows as connected in the admin console; `tailscale serve status` on the Mac mini still lists the address;
-`deploy/local/status.sh` on the Mac mini says the app is running. With the Logs page set to Detailed, every request
+**If a machine cannot open it.** Check, in order: the Tailscale icon on that machine says connected; the host Mac
+shows as connected in the admin console; `tailscale serve status` on the host Mac still lists the address;
+`deploy/local/status.sh` on the host Mac says the app is running. With the Logs page set to Detailed, every request
 shows the address it came in on and the Tailscale login it carried.
 
 Never use `tailscale funnel`, which is the public version, and never change `server.host`: the app stays on
@@ -309,10 +310,10 @@ tunnel, which keeps the brewer behind your Mac's own login. Once, on this Mac: S
 Sharing > Remote Login, on. Then on the laptop:
 
 ```sh
-ssh -N -L 5150:127.0.0.1:5150 cschweda@cschwedas-Mac-mini.local
+ssh -N -L 5150:127.0.0.1:5150 <your-account>@<your-mac>.local
 ```
 
-Leave that running and open `http://localhost:5150` on the laptop. The name is this Mac's Bonjour name, shown
+Leave that running and open `http://localhost:5150` on the laptop. The name is the host Mac's Bonjour name, shown
 under Sharing; use its IP address if the name does not resolve. Ctrl-C ends the tunnel. Tailscale, above, is the
 better answer for phones and for being away from home; this tunnel is the fallback when Tailscale is not installed.
 
