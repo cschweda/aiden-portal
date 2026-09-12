@@ -44,7 +44,7 @@ app_url() {
     \[*) ;;
     *:*) host="[$host]" ;;
   esac
-  printf 'http://%s:%s' "$host" "${port:-3000}"
+  printf 'http://%s:%s' "$host" "${port:-5150}"
 }
 
 # xml_esc VALUE: safe inside a plist <string>. sed_esc VALUE: safe on the replacement side of s/…/…/.

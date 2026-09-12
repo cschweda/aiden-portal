@@ -42,7 +42,7 @@ table (argon2id hashes, `pnpm user:add <email>`), keeping everything else above.
   as `deploy/local/install.sh` does on the Mac; never the checkout, for the same reason as in Phase 1) and
   `Restart=on-failure`, `RestartSec=30`.
 - **Bind address.** `HOST` stays `127.0.0.1`. Nginx (via Laravel Forge) listens on 443, terminates TLS with
-  a Let's Encrypt certificate, and proxies to `127.0.0.1:3000` with `proxy_set_header Host $host` and
+  a Let's Encrypt certificate, and proxies to `127.0.0.1:5150` with `proxy_set_header Host $host` and
   `X-Forwarded-For $proxy_add_x_forwarded_for`.
 - **Hosts.** `ALLOWED_HOSTS=<the droplet's hostname>` (or `server.allowedHosts` in `aiden.config.ts`).
 - **Client IP.** Read `X-Forwarded-For` only when the connection comes from loopback (the proxy), for the
@@ -52,7 +52,7 @@ table (argon2id hashes, `pnpm user:add <email>`), keeping everything else above.
 - **Logs.** pino-roll keeps rotating in `logs/`; Forge's log viewer or `journalctl -u aiden-studio` for the
   process itself.
 - **Access choice.** Either public HTTPS behind the login and rate limiter, or Tailscale-only
-  (`tailscale serve` to 127.0.0.1:3000, or Nginx bound to the tailnet IP). **Auth is required in both.**
+  (`tailscale serve` to 127.0.0.1:5150, or Nginx bound to the tailnet IP). **Auth is required in both.**
 
 ## Pre-flight checklist
 
@@ -60,7 +60,7 @@ table (argon2id hashes, `pnpm user:add <email>`), keeping everything else above.
    "non-loopback host with auth disabled refuses to start".
 2. `pnpm build` on the droplet, `scripts/smoke.sh` green there (it needs the port and host adjusted).
 3. `.env` on the droplet: Fellow credentials, `NUXT_SESSION_PASSWORD`, `ALLOWED_HOSTS`; `chmod 600`.
-4. Nginx config reviewed: TLS only, HTTP redirected to HTTPS, proxy headers set, no exposure of port 3000.
+4. Nginx config reviewed: TLS only, HTTP redirected to HTTPS, proxy headers set, no exposure of port 5150.
 5. First login from a phone over the public address; `/api/health` answers; `logs/current.log` shows the
    request ids from the proxy.
 6. Add a dated entry to the README's red team / blue team log for the droplet pass.

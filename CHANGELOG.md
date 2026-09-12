@@ -9,6 +9,7 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ### Changed
 
+- The default port is 5150 (`server.port` in `aiden.config.ts`); 3000 is busy with other work on the owner's Mac.
 - The readiness blocker says "carafe is not in place (the batch basket brews into it)" when the batch basket is
   detected and only the carafe is missing; "no basket detected" is now reserved for no basket at all.
 

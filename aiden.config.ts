@@ -19,7 +19,7 @@ export default defineAidenConfig({
     // (127.0.0.1, ::1, or localhost); the startup guard refuses anything else. Open the app at
     // http://<host>:<port>. Applies to `pnpm dev` and to the production build alike.
     host: '127.0.0.1',
-    port: 3000,
+    port: 5150,
     // Hostnames the app will answer to, exactly as browsers put them in the Host header (port is
     // ignored, IPv6 goes in brackets). Anything else gets a 400. This closes DNS-rebinding attacks.
     allowedHosts: ['localhost', '127.0.0.1', '[::1]'],

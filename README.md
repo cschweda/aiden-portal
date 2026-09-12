@@ -12,7 +12,7 @@ Fellow publishes no API. This app talks to the same cloud endpoints the Fellow m
 Fellow account credentials, from a small Node server that runs on your machine. The browser never talks to
 Fellow and never sees those credentials.
 
-- **Phase 1 (now):** runs on your Mac, reachable only at `http://localhost:3000`, no login screen. The only
+- **Phase 1 (now):** runs on your Mac, reachable only at `http://localhost:5150`, no login screen. The only
   credential anywhere is your Fellow login in `.env`.
 - **Phase 2 (later):** the same build on a DigitalOcean droplet behind Nginx, with an auth layer added then.
 
@@ -89,7 +89,7 @@ LaunchAgent. It starts when you log in, restarts if it crashes, and writes its o
 ```sh
 pnpm build
 deploy/local/install.sh          # copies the build and .env into place, loads the service, waits for /api/health
-open http://localhost:3000
+open http://localhost:5150
 deploy/local/logs.sh             # follows the app's log (JSON lines, secrets redacted)
 deploy/local/status.sh           # loaded? pid? answering? last log lines
 ```
@@ -115,7 +115,7 @@ the process died within 30 seconds of starting, so a misconfiguration cannot spi
 - **After changing Node versions** (`nvm install`, `nvm uninstall`): `deploy/local/install.sh`. The service is
   pinned to the absolute path of the node it was installed with; when that binary is gone, launchd starts nothing
   and logs nothing. `deploy/local/status.sh` says so.
-- **While it is installed, port 3000 is taken.** The installer refuses to run when something else is listening
+- **While it is installed, port 5150 is taken.** The installer refuses to run when something else is listening
   there (`pnpm dev`, `pnpm start`, the mock demo), so it can never mistake one of those for the service. Run the
   dev server elsewhere meanwhile: `PORT=3001 pnpm dev`.
 - **If it will not start:** `deploy/local/status.sh` shows launchd's last exit code and the last log lines.
@@ -162,7 +162,7 @@ single-run override of the keys below; `.env.sample` documents each one.
 
 Every route lives under `/api` and answers JSON. Mutations are POST, PATCH, or DELETE and must come from
 this site: the browser proves it with `Sec-Fetch-Site: same-origin`; a script or `curl` must send
-`Origin: http://localhost:3000` instead, or it gets a 403.
+`Origin: http://localhost:5150` instead, or it gets a 403.
 
 | Route | Purpose |
 |---|---|
