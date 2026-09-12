@@ -1,6 +1,6 @@
 {
   "name": "aiden-studio",
-  "version": "0.11.2",
+  "version": "0.12.0",
   "description": "Personal web app for controlling a Fellow Aiden coffee brewer",
   "type": "module",
   "private": true,
@@ -19,7 +19,8 @@
     "lint": "eslint . && scripts/check-shell.sh",
     "typecheck": "nuxt typecheck && tsc -p tests --noEmit",
     "postinstall": "nuxt prepare",
-    "mock:fellow": "node scripts/mock-fellow.mjs"
+    "mock:fellow": "node scripts/mock-fellow.mjs",
+    "build:demo": "AIDEN_DEMO=1 nuxt generate"
   },
   "dependencies": {
     "@nuxt/ui": "^4.11.1",

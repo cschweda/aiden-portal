@@ -63,6 +63,34 @@ and run `pnpm dev` (or `pnpm build && pnpm start`). The mock has three profiles,
 brewer, and accepts every mutation; `pnpm mock:fellow -- --flaky` makes every third read fail with a 503
 so you can watch the retries. Leave `FELLOW_BASE_URL` blank to talk to the real Fellow API.
 
+### The demo site
+
+`pnpm build:demo` produces a static site with no server at all: a single-page build whose every `/api` call is
+answered in the browser from sample data in `app/demo/`. It shows the whole app, with an invented brewer, seven
+profiles, three weeks of brews and traces, a descale history, and logs. Nothing is connected to anything: no
+Fellow account, no credentials, no real serial numbers, and a reload starts the sample world over.
+
+```sh
+pnpm build:demo
+npx serve .output/public     # or: cd .output/public && python3 -m http.server 4173
+```
+
+It is not a stripped-down mock. The pages, the components and the brew statistics, descale tally, and phase
+decoding are the same code the real app runs; only the data underneath is invented. Press **Start brew** in the
+demo and the trace fills in over a hundred seconds, phase by phase, and the brew lands in the history.
+
+**On Netlify.** `netlify.toml` in the repo root sets the build command, the publish directory, `AIDEN_DEMO=1`,
+the single-page redirect, and the response headers; the Node version comes from `.nvmrc` and pnpm from the
+`packageManager` field. Point Netlify at the repository and it needs no further configuration. From the CLI:
+
+```sh
+pnpm build:demo
+npx netlify deploy --prod --dir=.output/public
+```
+
+A demo build never includes the server: no Fellow client, no routes, no credentials to leak. The real build is
+unaffected, since `AIDEN_DEMO` is what turns any of it on.
+
 ## Brew history and descale
 
 The service keeps its own record of what the brewer does, because Fellow's API has no history and no maintenance

@@ -30,7 +30,7 @@ const levelItems = [
 const lineItems = [100, 200, 500, 1000].map(n => ({ label: `${n} lines`, value: n }))
 
 const query = computed(() => ({ lines: lines.value, level: level.value === 'all' ? undefined : level.value, requestId: requestId.value || undefined }))
-const { data, refresh, status } = useFetch<LogsResponse>('/api/logs', { key: 'logs', query, server: false })
+const { data, refresh, status } = useAsyncData('logs', () => apiFetch<LogsResponse>('/api/logs', { query: query.value }), { watch: [query], server: false })
 
 // How much gets written, as opposed to how much is shown: changed at runtime, until the service restarts.
 const { call } = useApi()

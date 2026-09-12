@@ -7,6 +7,8 @@ import { checkStartupSafety } from '../utils/startup'
 
 /** Refuses to start off loopback, pins Nitro's bind address to the config, logs the startup line, probes Fellow. */
 export default defineNitroPlugin(() => {
+  // Prerendering happens at build time, where there is no server to protect and no .env to read.
+  if (import.meta.prerender) return
   let config: ReturnType<typeof getConfig>
   try {
     config = getConfig()

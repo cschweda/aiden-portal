@@ -1,12 +1,20 @@
+import { readFileSync } from 'node:fs'
 import aiden from './aiden.config'
+
+// `pnpm build:demo` sets this. A demo build has no server at all: it is a static single-page app whose /api calls
+// are answered in the browser from sample data (app/demo/), so it can be hosted anywhere and shows nobody's brewer.
+const demo = process.env.AIDEN_DEMO === '1' || process.env.AIDEN_DEMO === 'true'
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
-  modules: ['@nuxt/ui', '@nuxt/eslint', 'nuxt-security'],
+  // nuxt-security carries response headers, which a static host serves itself; see netlify.toml.
+  modules: ['@nuxt/ui', '@nuxt/eslint', ...(demo ? [] : ['nuxt-security'])],
   css: ['~/assets/css/main.css'],
-  nitro: { preset: 'node-server' },
+  ssr: !demo,
+  nitro: { preset: demo ? 'static' : 'node-server' },
   // The dev server listens where aiden.config.ts says; the production server is pinned to the same value
   // by server/plugins/00.startup.ts. HOST/PORT in .env still override both.
   devServer: {
@@ -16,6 +24,8 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       app: { name: aiden.app.name, ui: aiden.ui },
+      demo,
+      version,
     },
   },
   app: {

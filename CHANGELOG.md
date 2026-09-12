@@ -7,6 +7,27 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-09-12
+
+A demo anyone can look at.
+
+### Added
+
+- `pnpm build:demo` builds a static, server-free single-page version of the app whose `/api` calls are answered in
+  the browser from sample data in `app/demo/`: an invented brewer, seven profiles, three weeks of brews with traces,
+  a descale history, and logs. The pages and the statistics, descale, and brew-phase logic are the app's own, so the
+  demo behaves like the real thing; pressing Start brew runs a hundred-second brew whose trace fills in live.
+- `netlify.toml`: build command, publish directory, `AIDEN_DEMO=1`, the single-page redirect, cache and security
+  headers. Netlify needs no other configuration; Node comes from `.nvmrc`.
+- A banner on the demo dashboard saying what it is, linking to the source, and offering to start the sample world
+  over.
+
+### Changed
+
+- The app calls its own API through one auto-imported `apiFetch`, which the demo plugin points at the sample world.
+  A normal build never downloads the demo code, and the demo build contains no server, no Fellow client, and no
+  credentials.
+
 ### Changed
 
 - The repository is public, so nothing in it names this machine: `aiden.config.ts` ships the generic host list and

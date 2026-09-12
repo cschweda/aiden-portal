@@ -41,7 +41,7 @@ export function useApiFetch<T>(path: string, options: { key: string, defaultValu
 
   if (import.meta.client) {
     onMounted(() => {
-      const start = () => void load(() => $fetch<T>(path))
+      const start = () => void load(() => apiFetch<T>(path))
       // A prerendered page is not being looked at yet, and the API refuses speculative loads; read when it is shown.
       const doc = document as Document & { prerendering?: boolean }
       if (doc.prerendering) doc.addEventListener('prerenderingchange', start, { once: true })

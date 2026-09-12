@@ -7,7 +7,7 @@ export function useApi() {
 
   async function call<T>(path: string, options: NitroFetchOptions<string> = {}): Promise<T> {
     try {
-      return await $fetch<T>(path, options)
+      return await apiFetch<T>(path, options)
     }
     catch (error) {
       const failure = describeApiError(error)

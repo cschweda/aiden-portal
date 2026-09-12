@@ -6,6 +6,8 @@ import { formatDateTime, formatTime } from '../utils/format'
 
 useHead({ title: 'Dashboard' })
 
+const demo = useRuntimeConfig().public.demo === true
+
 const { refresh: refreshStatus } = useStatus()
 const device = useApiFetch<DeviceResponse>('/api/device', { key: 'device' })
 const profiles = useApiFetch<Profile[]>('/api/profiles', { key: 'profiles', defaultValue: () => [] })
@@ -66,6 +68,7 @@ watch(() => device.data.value, (value) => {
 
     <template #body>
       <div class="mx-auto w-full max-w-5xl space-y-8">
+        <DemoBanner v-if="demo" />
         <ApiErrorAlert v-if="device.failure.value" :failure="device.failure.value" what="the brewer" :stale="device.stale.value" />
         <DescaleBanner v-if="history.data.value" :descale="history.data.value.descale" :cleaning="history.data.value.cleanings.current" :last-cleaning-ended-at="history.data.value.cleanings.lastEndedAt" @marked="history.reload()" />
 
