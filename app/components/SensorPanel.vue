@@ -72,7 +72,6 @@ const groups = computed<Group[]>(() => {
         flag('Carafe', d.carafePresent, 'In place', 'Out', 'success', 'error'),
         flag('Single-serve basket', d.singleBrewBasketPresent, 'In', 'Out', 'success'),
         flag('Batch basket', d.batchBrewBasketPresent, 'In', 'Out', 'success'),
-        flag('Shower head', d.showerHeadPresent, 'Detected', 'Not detected', 'success', 'neutral'),
         text('Firmware', d.firmwareVersion, true),
         flag('Firmware update', d.firmwareUpgradeRequired, 'Required', 'Up to date', 'error', 'success'),
         ...(d.unsynced === undefined

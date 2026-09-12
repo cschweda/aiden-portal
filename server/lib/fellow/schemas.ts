@@ -119,6 +119,7 @@ export const DeviceSchema = z.looseObject({
   brewingWaterTemperatureC: lenientNumber,
   brewingWaterVolumeMl: lenientNumber,
   // Hardware and maintenance
+  /** Reported false on the owner's brewer with the shower head in place, before and after a brew; not shown. */
   showerHeadPresent: lenientBoolean,
   firmwareUpgradeRequired: lenientBoolean,
   unsynced: z.array(z.unknown()).optional().catch(undefined),

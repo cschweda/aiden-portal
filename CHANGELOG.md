@@ -7,6 +7,13 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-09-12
+
+### Removed
+
+- The shower head row of the sensor panel. Fellow reported it as not detected on a brewer whose shower head was in
+  place, before and after a brew, so the flag does not mean what its name says and would mislead troubleshooting.
+
 ## [0.5.0] - 2026-09-12
 
 The first release run against a real brewer.
