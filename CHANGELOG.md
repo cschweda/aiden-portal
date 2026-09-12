@@ -7,6 +7,32 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-12
+
+The first release run against a real brewer.
+
+### Added
+
+- A sensor panel on the dashboard, in place of the profiles list (the Profiles page has them): everything the
+  brewer reports, grouped for troubleshooting. Right now (brew phase decoded from the live state, heater, pump,
+  water temperature, last brew water and end time, cleaning, rinsing), hardware (cloud connection and since when,
+  lid, tank, carafe, both baskets, shower head, firmware and whether an update is due, unsynced changes), totals
+  (brews, water brewed, average per brew), the settings on the brewer itself (Instant Brew profile and water,
+  elevation, units, clock, chime, advanced mode, remote brewing, language, time zone), and identity. Each reading
+  says "—" when Fellow does not report it; the panel shows when it was read.
+- Heater and pump chips in the readout while they are on.
+- The mock brewer reports the same fields, and a live phase code, so the panel can be demonstrated without a brewer.
+
+### Fixed
+
+- Water brewed was shown a thousand times too large: Fellow's `totalWaterVolumeL` is millilitres despite its name.
+- The Wi-Fi address was shown with the literal quotes Fellow wraps it in.
+- Profile summaries read "null°" for the many profiles whose stages differ; Fellow sends `overallTemperature: null`
+  for those, and the summary now shows the pulse temperatures instead ("85°", or "96–92°" when they vary).
+- Opening such a profile in the editor no longer puts null into the temperature field: the first pulse temperature
+  is used, so saving cannot silently send the blank recipe's 94°.
+- The Bluetooth row is gone; Fellow does not report that address.
+
 ## [0.4.1] - 2026-09-12
 
 Fixes from the checkpoint 4 review.

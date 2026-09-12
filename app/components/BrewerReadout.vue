@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { DeviceResponse } from '#shared/types/api'
 import { isBrewing } from '../../server/lib/fellow/device'
-import { formatLitres } from '../utils/format'
 
 const props = defineProps<{ data: DeviceResponse }>()
 
@@ -35,6 +34,8 @@ const chips = computed(() => {
         : d.singleBrewBasketPresent === undefined && d.batchBrewBasketPresent === undefined
           ? { label: 'Basket: unknown', tone: 'neutral' as Tone }
           : { label: 'No basket', tone: 'error' as Tone },
+    ...(d.heaterOn ? [{ label: 'Heater on', tone: 'primary' as Tone }] : []),
+    ...(d.pumpOn ? [{ label: 'Pump on', tone: 'primary' as Tone }] : []),
     ...(d.cleaning ? [{ label: 'Cleaning cycle running', tone: 'neutral' as Tone }] : []),
     ...(d.rinsing ? [{ label: 'Rinse cycle running', tone: 'neutral' as Tone }] : []),
   ]
@@ -72,63 +73,5 @@ const toneClass: Record<Tone, string> = {
       </li>
     </ul>
 
-    <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
-      <div>
-        <dt class="text-muted">
-          Brews
-        </dt>
-        <dd class="tabular text-lg font-medium">
-          {{ data.device.totalBrewingCycles ?? '—' }}
-        </dd>
-      </div>
-      <div>
-        <dt class="text-muted">
-          Water brewed
-        </dt>
-        <dd class="tabular text-lg font-medium">
-          {{ formatLitres(data.device.totalWaterVolumeL) }}
-        </dd>
-      </div>
-      <div>
-        <dt class="text-muted">
-          Firmware
-        </dt>
-        <dd class="font-mono text-sm">
-          {{ data.device.firmwareVersion ?? '—' }}
-        </dd>
-      </div>
-      <div>
-        <dt class="text-muted">
-          Serial
-        </dt>
-        <dd class="font-mono text-sm">
-          {{ data.device.serialNumber ?? '—' }}
-        </dd>
-      </div>
-      <div>
-        <dt class="text-muted">
-          Model
-        </dt>
-        <dd class="font-mono text-sm">
-          {{ data.device.sku ?? '—' }}
-        </dd>
-      </div>
-      <div>
-        <dt class="text-muted">
-          Wi-Fi
-        </dt>
-        <dd class="font-mono text-sm">
-          {{ data.device.wifiMacAddress ?? '—' }}
-        </dd>
-      </div>
-      <div>
-        <dt class="text-muted">
-          Bluetooth
-        </dt>
-        <dd class="font-mono text-sm">
-          {{ data.device.btMacAddress ?? '—' }}
-        </dd>
-      </div>
-    </dl>
   </section>
 </template>

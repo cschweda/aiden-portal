@@ -61,7 +61,7 @@ const state = {
     serialNumber: 'AID-2026-000123',
     sku: 'AIDEN-1',
     firmwareVersion: '1.5.16',
-    wifiMacAddress: 'aa:bb:cc:dd:ee:01',
+    wifiMacAddress: '"aa:bb:cc:dd:ee:01"', // Fellow really does wrap it in quotes
     btMacAddress: 'aa:bb:cc:dd:ee:02',
   },
   live: {
@@ -77,7 +77,27 @@ const state = {
     brewingProfileId: null,
     brewStartTime: null,
     totalBrewingCycles: 142,
-    totalWaterVolumeL: 118.4,
+    totalWaterVolumeL: 118400, // millilitres despite the name, as on the real API
+    heaterOn: false,
+    pumpOn: false,
+    showerHeadPresent: true,
+    brewingWaterTemperatureC: null,
+    brewingWaterVolumeMl: 950,
+    brewEndTime: String(Math.floor(Date.now() / 1000) - 3 * 3600),
+    connectionTimestamp: String(Date.now() - 26 * 3600 * 1000),
+    firmwareUpgradeRequired: false,
+    unsynced: [],
+    ibWaterQuantity: 500,
+    elevation: 180,
+    chimeVolume: 7,
+    metricUnit: true,
+    preciseUnit: false,
+    displayClock: true,
+    displayClock24hrMode: true,
+    isAdvanceMode: false,
+    languageCode: 'en-us',
+    deviceTimezone: 'America/Chicago',
+    enabledFlags: ['base', 'profiles', 'notifications', 'schedules', 'remoteBrewing'],
   },
   profiles: [
     { ...recipe({ title: 'Morning Batch', ratio: 16.5, overallTemperature: 93 }), ...serverFields('p1', { isDefaultProfile: true, instantBrew: true, lastUsedTime: 1_757_400_000_000 }) },
@@ -106,7 +126,17 @@ function device() {
 
 function detail() {
   const { id, displayName } = state.inventory
-  return { id, displayName, ...state.live, brewing: brewing(), state: brewing() ? { phase: 'brew', missing_water: false } : null }
+  const active = brewing()
+  return {
+    id,
+    displayName,
+    ...state.live,
+    brewing: active,
+    heaterOn: active,
+    pumpOn: active,
+    brewingWaterTemperatureC: active ? 93.5 : null,
+    state: active ? { value: 'p1', missing_water: false } : null,
+  }
 }
 
 function json(res, status, body) {

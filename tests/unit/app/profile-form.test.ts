@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ProfileInputSchema } from '../../../server/lib/fellow/schemas'
+import { type ProfileInput, ProfileInputSchema } from '../../../server/lib/fellow/schemas'
 import { blankProfile, describeProfile, PROFILE_LIMITS, syncPulseTemperatures, toProfileInput } from '../../../app/utils/profile-form'
 import { PROFILE_INPUT, PROFILE_P7 } from '../../helpers/fellow-fixtures'
 
@@ -59,6 +59,16 @@ describe('toProfileInput', () => {
     expect(partial.ratio).toBe(17)
     expect(partial.ssPulseTemperatures).toHaveLength(2)
   })
+  it('derives the overall temperature from the first pulse when Fellow reports null, and skips other nulls', () => {
+    const dark = toProfileInput({ ...PROFILE_P7, overallTemperature: null, bloomTemperature: 99, ssPulsesNumber: 3, ssPulseTemperatures: [85, 85, 85], batchPulsesNumber: 1, batchPulseTemperatures: [85], lastUsedTime: null })
+    expect(dark.overallTemperature).toBe(85)
+    expect(dark.ssPulseTemperatures).toEqual([85, 85, 85])
+    expect(dark.bloomTemperature).toBe(99)
+    expect(ProfileInputSchema.safeParse(dark).success).toBe(true)
+    const cold = toProfileInput({ id: 'p3', title: 'Cold', overallTemperature: null, ssPulsesNumber: null, ssPulseTemperatures: null, batchPulsesNumber: null, batchPulseTemperatures: null, bloomTemperature: 99 })
+    expect(cold.overallTemperature).toBe(99)
+    expect(ProfileInputSchema.safeParse(cold).success).toBe(true)
+  })
 })
 
 describe('describeProfile', () => {
@@ -71,5 +81,12 @@ describe('describeProfile', () => {
   })
   it('copes with a partial profile', () => {
     expect(describeProfile({})).toBe('—')
+  })
+  it('falls back to the pulse temperatures when Fellow reports no overall temperature', () => {
+    const noOverall = { ...PROFILE_INPUT, overallTemperature: null } as unknown as Partial<ProfileInput>
+    expect(describeProfile({ ...noOverall, ssPulseTemperatures: [85, 85, 85] })).toContain('· 85° ·')
+    expect(describeProfile({ ...noOverall, ssPulseTemperatures: [96, 92] })).toContain('· 96–92° ·')
+    expect(describeProfile({ ...noOverall, ssPulsesEnabled: false, ssPulseTemperatures: [96, 92], batchPulseTemperatures: [85] })).toContain('· 85° ·')
+    expect(describeProfile({ ratio: 14, overallTemperature: undefined })).toBe('1:14')
   })
 })

@@ -51,14 +51,27 @@ export function syncPulseTemperatures(profile: ProfileInput): ProfileInput {
   }
 }
 
-/** A fetched profile (with server fields) or a partial one, made editable: server fields dropped, gaps filled, arrays synced. */
+/** Fellow leaves `overallTemperature` null when the stages differ; the first pulse temperature is the closest single value. */
+function deriveOverallTemperature(profile: Record<string, unknown>): number | undefined {
+  for (const key of ['ssPulseTemperatures', 'batchPulseTemperatures'] as const) {
+    const temperatures = profile[key]
+    if (Array.isArray(temperatures) && typeof temperatures[0] === 'number') return temperatures[0]
+  }
+  return typeof profile.bloomTemperature === 'number' ? profile.bloomTemperature : undefined
+}
+
+/**
+ * A fetched profile (with server fields) or a partial one, made editable: server fields dropped, null and missing values
+ * replaced by the blank recipe's (a null overall temperature by the first pulse temperature), arrays synced.
+ */
 export function toProfileInput(profile: Record<string, unknown>): ProfileInput {
   const blank = blankProfile()
   const known = stripServerFields(profile)
   const merged: Record<string, unknown> = { ...blank }
   for (const key of Object.keys(blank)) {
-    if (known[key] !== undefined) merged[key] = known[key]
+    if (known[key] !== undefined && known[key] !== null) merged[key] = known[key]
   }
+  if (typeof known.overallTemperature !== 'number') merged.overallTemperature = deriveOverallTemperature(known) ?? blank.overallTemperature
   return syncPulseTemperatures(merged as ProfileInput)
 }
 
@@ -69,11 +82,24 @@ function pulses(enabled: boolean | undefined, count: number | undefined, label: 
   return `${label} ${n} pulse${n === 1 ? '' : 's'}`
 }
 
+/** The single brew temperature, or the pulse temperatures as "96°" / "96–92°" when Fellow reports no overall value. */
+function describeTemperature(profile: Partial<ProfileInput>): string | undefined {
+  if (typeof profile.overallTemperature === 'number') return `${profile.overallTemperature}°`
+  const candidates = profile.ssPulsesEnabled === false
+    ? [profile.batchPulseTemperatures, profile.ssPulseTemperatures]
+    : [profile.ssPulseTemperatures, profile.batchPulseTemperatures]
+  const temperatures = candidates.find(list => Array.isArray(list) && list.length > 0)
+  if (!temperatures) return undefined
+  const first = temperatures[0]
+  const last = temperatures[temperatures.length - 1]
+  return temperatures.every(t => t === first) ? `${first}°` : `${first}–${last}°`
+}
+
 /** One line for lists: "1:16 · 94° · bloom 2:1 30s at 96° · SS 3 pulses · batch 2 pulses". */
 export function describeProfile(profile: Partial<ProfileInput>): string {
   const parts: Array<string | undefined> = [
     profile.ratio === undefined ? undefined : `1:${profile.ratio}`,
-    profile.overallTemperature === undefined ? undefined : `${profile.overallTemperature}°`,
+    describeTemperature(profile),
     profile.bloomEnabled === undefined
       ? undefined
       : profile.bloomEnabled

@@ -24,6 +24,30 @@ export function isBrewing(device: Device): boolean | undefined {
   return typeof device.brewing === 'boolean' ? device.brewing : undefined
 }
 
+export type BrewPhase = 'idle' | 'bloom' | `pulse ${number}` | 'drip finish' | 'paused' | 'brewing' | 'unknown'
+
+const PHASE_CODES: Record<string, BrewPhase> = { b: 'bloom', d: 'drip finish', pa: 'paused' }
+
+/**
+ * The live phase, decoded from the v2 `state` object the way the Home Assistant integration does: `b` bloom,
+ * `p1`…`p10` pulse, `d` drip finish, `pa` paused, null idle. A state object with no recognisable code still means a
+ * brew is running (see `isBrewing`), so it reads 'brewing'. Without a `state` field the older `brewing` flag decides.
+ */
+export function brewPhase(device: Device): BrewPhase {
+  if (device.state === undefined) {
+    if (device.brewing === true) return 'brewing'
+    return device.brewing === false ? 'idle' : 'unknown'
+  }
+  if (device.state === null) return 'idle'
+  const value = typeof device.state === 'object' && !Array.isArray(device.state)
+    ? (device.state as Record<string, unknown>).value
+    : undefined
+  if (typeof value !== 'string') return 'brewing'
+  const pulse = /^p([1-9]|10)$/.exec(value)
+  if (pulse) return `pulse ${Number(pulse[1])}`
+  return PHASE_CODES[value] ?? 'brewing'
+}
+
 /** Combines the top-level `missingWater` flag with the nested live-state indicator. Undefined when unreported. */
 export function isMissingWater(device: Device): boolean | undefined {
   const topLevel = device.missingWater

@@ -132,6 +132,49 @@ describe('response schemas are lenient', () => {
     expect(device.totalBrewingCycles).toBeUndefined()
     expect(device.firmwareVersion).toBeUndefined()
   })
+  it('strips the quotes Fellow puts around the Wi-Fi address', () => {
+    expect(DeviceSchema.parse({ id: 'd1', wifiMacAddress: '"aa:bb:cc:dd:ee:ff"' }).wifiMacAddress).toBe('aa:bb:cc:dd:ee:ff')
+    expect(DeviceSchema.parse({ id: 'd1', wifiMacAddress: 'aa:bb:cc:dd:ee:ff' }).wifiMacAddress).toBe('aa:bb:cc:dd:ee:ff')
+    expect(DeviceSchema.parse({ id: 'd1', wifiMacAddress: 7 }).wifiMacAddress).toBeUndefined()
+  })
+  it('keeps the live readings, settings, and timestamps Fellow sends, and turns nulls into absences', () => {
+    const device = DeviceSchema.parse({
+      id: 'd1',
+      heaterOn: true,
+      pumpOn: false,
+      brewingWaterTemperatureC: null,
+      brewingWaterVolumeMl: 825,
+      brewEndTime: '1789213533',
+      connectionTimestamp: 1789199401998,
+      showerHeadPresent: false,
+      firmwareUpgradeRequired: false,
+      unsynced: [],
+      ibWaterQuantity: 300,
+      elevation: 238,
+      chimeVolume: 10,
+      metricUnit: true,
+      preciseUnit: false,
+      displayClock: true,
+      displayClock24hrMode: false,
+      isAdvanceMode: false,
+      languageCode: 'en-us',
+      deviceTimezone: 'CST6CDT',
+      wifiSsid: null,
+      localIpAddress: null,
+      enabledFlags: ['base', 'remoteBrewing'],
+    })
+    expect(device.heaterOn).toBe(true)
+    expect(device.brewingWaterTemperatureC).toBeUndefined()
+    expect(device.brewEndTime).toBe('1789213533')
+    expect(device.connectionTimestamp).toBe(1789199401998)
+    expect(device.unsynced).toEqual([])
+    expect(device.enabledFlags).toEqual(['base', 'remoteBrewing'])
+    expect(device.wifiSsid).toBeUndefined()
+    expect(device.elevation).toBe(238)
+  })
+  it('drops a malformed enabledFlags list rather than failing the read', () => {
+    expect(DeviceSchema.parse({ id: 'd1', enabledFlags: 'remoteBrewing' }).enabledFlags).toBeUndefined()
+  })
 })
 
 describe('id schemas', () => {

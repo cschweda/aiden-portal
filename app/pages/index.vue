@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { DeviceResponse, Profile } from '#shared/types/api'
 import { isBrewing } from '../../server/lib/fellow/device'
-import { describeProfile } from '../utils/profile-form'
 
 useHead({ title: 'Dashboard' })
 
@@ -23,7 +22,11 @@ onMounted(() => {
 })
 onBeforeUnmount(() => clearInterval(poll))
 
-const quickProfiles = computed(() => (profiles.data.value ?? []).slice(0, 6))
+// When the readings on screen were fetched, so a stale panel is never mistaken for a live one.
+const readAt = ref<number | null>(null)
+watch(() => device.data.value, (value) => {
+  if (value) readAt.value = Date.now()
+})
 </script>
 
 <template>
@@ -54,27 +57,7 @@ const quickProfiles = computed(() => (profiles.data.value ?? []).slice(0, 6))
 
         <ApiErrorAlert v-if="profiles.failure.value && !device.failure.value" :failure="profiles.failure.value" what="the profiles" :stale="profiles.stale.value" />
 
-        <section v-if="quickProfiles.length" class="space-y-3">
-          <div class="flex items-baseline justify-between">
-            <h3 class="text-base font-semibold">
-              Profiles
-            </h3>
-            <UButton to="/profiles" variant="link" color="neutral" label="Manage" trailing-icon="i-lucide-chevron-right" size="sm" />
-          </div>
-          <ul class="divide-y divide-default rounded-lg border border-default">
-            <li v-for="profile in quickProfiles" :key="profile.id" class="flex items-center justify-between gap-4 px-4 py-3">
-              <div class="min-w-0">
-                <p class="truncate font-medium">
-                  {{ profile.title }}
-                </p>
-                <p class="truncate text-sm text-muted">
-                  {{ describeProfile(profile) }}
-                </p>
-              </div>
-              <span class="font-mono text-xs text-muted">{{ profile.id }}</span>
-            </li>
-          </ul>
-        </section>
+        <SensorPanel v-if="device.data.value" :data="device.data.value" :profiles="profiles.data.value ?? []" :read-at="readAt" />
       </div>
     </template>
   </UDashboardPanel>

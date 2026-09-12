@@ -77,6 +77,11 @@ export type SchedulePatch = z.infer<typeof SchedulePatchSchema>
 const lenientBoolean = z.boolean().optional().catch(undefined)
 const lenientString = z.string().optional().catch(undefined)
 const lenientNumber = z.number().optional().catch(undefined)
+/** Epoch timestamps arrive as numbers or numeric strings, in seconds or milliseconds; `toDate` in the UI normalises them. */
+const lenientEpoch = z.union([z.number(), z.string()]).optional().catch(undefined)
+const lenientStringList = z.array(z.string()).optional().catch(undefined)
+/** Fellow wraps this value in literal double quotes (`"\"aa:bb…\""`); they are not part of the address. */
+const quotedString = z.preprocess(value => (typeof value === 'string' ? value.replace(/^"+|"+$/g, '') : value), lenientString)
 
 /** Fields that only the account-wide device list reports; the per-device detail route omits them. */
 export const DEVICE_INVENTORY_FIELDS = ['id', 'displayName', 'serialNumber', 'wifiMacAddress', 'btMacAddress', 'sku', 'firmwareVersion'] as const
@@ -87,7 +92,7 @@ export const DeviceSchema = z.looseObject({
   serialNumber: lenientString,
   sku: lenientString,
   firmwareVersion: lenientString,
-  wifiMacAddress: lenientString,
+  wifiMacAddress: quotedString,
   btMacAddress: lenientString,
   isConnected: lenientBoolean,
   brewing: lenientBoolean,
@@ -100,10 +105,41 @@ export const DeviceSchema = z.looseObject({
   batchBrewBasketPresent: lenientBoolean,
   ibSelectedProfileId: lenientString,
   brewingProfileId: lenientString,
-  brewStartTime: lenientNumber,
+  brewStartTime: lenientEpoch,
+  /** Fellow advances this while idle too, so it is only ever shown, never subtracted from `brewStartTime`. */
+  brewEndTime: lenientEpoch,
+  connectionTimestamp: lenientEpoch,
   totalBrewingCycles: lenientNumber,
+  /** Millilitres despite the name (the Home Assistant integration divides by 1000 too). */
   totalWaterVolumeL: lenientNumber,
-  /** Live brew state object while a brew is in progress; null or absent when idle. Shape unknown. */
+  // Live readings
+  heaterOn: lenientBoolean,
+  pumpOn: lenientBoolean,
+  brewError: lenientBoolean,
+  brewingWaterTemperatureC: lenientNumber,
+  brewingWaterVolumeMl: lenientNumber,
+  // Hardware and maintenance
+  showerHeadPresent: lenientBoolean,
+  firmwareUpgradeRequired: lenientBoolean,
+  unsynced: z.array(z.unknown()).optional().catch(undefined),
+  // Settings as configured on the brewer itself
+  ibWaterQuantity: lenientNumber,
+  elevation: lenientNumber,
+  chimeVolume: lenientNumber,
+  metricUnit: lenientBoolean,
+  preciseUnit: lenientBoolean,
+  displayClock: lenientBoolean,
+  displayClock24hrMode: lenientBoolean,
+  isAdvanceMode: lenientBoolean,
+  languageCode: lenientString,
+  deviceTimezone: lenientString,
+  wifiSsid: lenientString,
+  localIpAddress: lenientString,
+  enabledFlags: lenientStringList,
+  /**
+   * Live brew state while a brew is in progress; null when idle. Per the Home Assistant integration it carries
+   * `{ value: 'b' | 'p1'…'p10' | 'd' | 'pa' }` (bloom, pulse n, drip finish, paused); `brewPhase` decodes it. UNVERIFIED here.
+   */
   state: z.unknown().optional(),
 })
 export const ProfileSchema = z.looseObject({ id: z.string(), title: z.string() })

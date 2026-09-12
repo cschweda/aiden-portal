@@ -112,5 +112,7 @@ Everything below is inferred, not observed against a live brewer. Each is marked
 | Drop types | `brew-link.ts` | `aiden` is the default drop type; other values are passed through untouched. |
 | Device detail id | `client.ts` `fetchDeviceDetail` | The per-device route may omit `id`; a missing id is filled from discovery, a different id is rejected. |
 | Schedule id format | `schemas.ts` `ScheduleIdSchema` | Ids look like `s0`; anything URL-safe is accepted before it is put in a path, nothing else. |
-| Live `state` object | `device.ts` | Non-null means a brew is in progress; `missing_water` may appear inside it. |
+| Live `state` object | `device.ts` | Non-null means a brew is in progress; `missing_water` may appear inside it. `brewPhase` decodes `state.value` as the Home Assistant integration does (`b` bloom, `p1`…`p10` pulse, `d` drip finish, `pa` paused); not yet observed here during a brew. |
+| `showerHeadPresent` | `SensorPanel.vue` | Read as "detected"; the owner's idle brewer reported `false` with the shower head in place, so the sensor's meaning is unclear. |
+| `brewEndTime` | `SensorPanel.vue` | Shown as the last brew's end; Fellow also advances it while idle, so it is never subtracted from `brewStartTime`. |
 | Production logger | `logger.ts` | The pino-roll transport is exercised only by `scripts/smoke.sh`, never by Vitest. |

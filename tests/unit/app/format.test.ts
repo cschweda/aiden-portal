@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatLitres, formatTemperature, formatTime } from '../../../app/utils/format'
+import { formatAgo, formatDateTime, formatLitres, formatLitresFromMl, formatMillilitres, formatTemperature, formatTime, toDate } from '../../../app/utils/format'
 
 describe('format helpers', () => {
   it('formats temperatures with half degrees', () => {
@@ -17,5 +17,37 @@ describe('format helpers', () => {
     expect(formatTime('2026-09-10T12:34:56Z')).toMatch(/^\d{2}:\d{2}:\d{2}$/)
     expect(formatTime(undefined)).toBe('—')
     expect(formatTime('garbage')).toBe('—')
+  })
+  it('formats millilitres whole and millilitre totals in litres', () => {
+    expect(formatMillilitres(825)).toBe('825 mL')
+    expect(formatMillilitres(908.14)).toBe('908 mL')
+    expect(formatMillilitres(undefined)).toBe('—')
+    expect(formatLitresFromMl(63570)).toBe('63.6 L')
+    expect(formatLitresFromMl(undefined)).toBe('—')
+  })
+  it('reads epoch seconds, epoch milliseconds, numeric strings, and date strings', () => {
+    expect(toDate(1789213533)?.getTime()).toBe(1789213533000)
+    expect(toDate('1789213533')?.getTime()).toBe(1789213533000)
+    expect(toDate('1789199401998')?.getTime()).toBe(1789199401998)
+    expect(toDate(1789199401998)?.getTime()).toBe(1789199401998)
+    expect(toDate('2026-09-12T10:00:00Z')?.toISOString()).toBe('2026-09-12T10:00:00.000Z')
+    expect(toDate(undefined)).toBeUndefined()
+    expect(toDate(null)).toBeUndefined()
+    expect(toDate('')).toBeUndefined()
+    expect(toDate('soon')).toBeUndefined()
+  })
+  it('formats a date and time without seconds', () => {
+    expect(formatDateTime(1789213533)).toMatch(/^\d{1,2}\s\w{3,5},?\s\d{2}:\d{2}$/)
+    expect(formatDateTime('garbage')).toBe('—')
+  })
+  it('says how long ago, coarsely', () => {
+    const now = 1_800_000_000_000
+    expect(formatAgo(now - 20_000, now)).toBe('just now')
+    expect(formatAgo(now - 5 * 60_000, now)).toBe('5 min ago')
+    expect(formatAgo(now - 2 * 3_600_000, now)).toBe('2 h ago')
+    expect(formatAgo(now - 3 * 86_400_000, now)).toBe('3 d ago')
+    expect(formatAgo(String(Math.floor(now / 1000) - 3600), now)).toBe('1 h ago')
+    expect(formatAgo(now + 10 * 60_000, now)).toBe('in 10 min')
+    expect(formatAgo(undefined, now)).toBe('—')
   })
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { brewStartBlockers, canStartBrew, isBrewing, isMissingWater, supportsRemoteStart } from '../../../server/lib/fellow/device'
+import { brewPhase, brewStartBlockers, canStartBrew, isBrewing, isMissingWater, supportsRemoteStart } from '../../../server/lib/fellow/device'
 
 const READY = {
   id: 'dev-123',
@@ -116,5 +116,25 @@ describe('brewStartBlockers', () => {
     expect(brewStartBlockers({ ...READY, brewing: undefined })).toEqual(['brew state is unknown'])
     expect(brewStartBlockers({ ...READY, missingWater: undefined })).toEqual(['water level is unknown'])
     expect(brewStartBlockers({ ...READY, firmwareVersion: undefined })).toEqual(['firmware version is unknown'])
+  })
+})
+
+describe('brewPhase', () => {
+  it.each([
+    [{ state: null }, 'idle'],
+    [{ state: { value: 'b' } }, 'bloom'],
+    [{ state: { value: 'p1' } }, 'pulse 1'],
+    [{ state: { value: 'p10' } }, 'pulse 10'],
+    [{ state: { value: 'd' } }, 'drip finish'],
+    [{ state: { value: 'pa' } }, 'paused'],
+    [{ state: { value: 'p11' } }, 'brewing'],
+    [{ state: { value: 'zz' } }, 'brewing'],
+    [{ state: { phase: 'brew' } }, 'brewing'],
+    [{ state: 'odd' }, 'brewing'],
+    [{ brewing: true }, 'brewing'],
+    [{ brewing: false }, 'idle'],
+    [{}, 'unknown'],
+  ])('%j → %s', (fields, expected) => {
+    expect(brewPhase({ id: 'd', ...fields })).toBe(expected)
   })
 })
