@@ -7,6 +7,16 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-09-12
+
+### Fixed
+
+- An empty brew log is seeded with the last brew the brewer still reports (start time, water, selected profile), so
+  the day's earlier brew shows up when the service starts watching mid-day instead of only brews after that point.
+- The brewer's `brewEndTime` advances on its own while idle (it moved four hours with no brew), so it is no longer
+  shown on the sensor panel ("Last brew started" is, from the stable `brewStartTime`), unwatched brews only believe
+  it within three hours of their start, and stats bucket brews by the day they started.
+
 ## [0.7.1] - 2026-09-12
 
 ### Changed

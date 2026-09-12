@@ -56,7 +56,7 @@ const groups = computed<Group[]>(() => {
           ? unreported('Water temperature')
           : { label: 'Water temperature', value: formatTemperature(d.brewingWaterTemperatureC) },
         text('Last brew water', d.brewingWaterVolumeMl === undefined ? undefined : formatMillilitres(d.brewingWaterVolumeMl)),
-        when('Last brew ended', d.brewEndTime),
+        when('Last brew started', d.brewStartTime),
         flag('Cleaning', d.cleaning, 'Running', 'No', 'primary'),
         flag('Rinsing', d.rinsing, 'Running', 'No', 'primary'),
         ...(d.brewError === undefined ? [] : [flag('Brew error', d.brewError, 'Yes', 'None', 'error', 'success')]),

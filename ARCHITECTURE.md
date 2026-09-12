@@ -128,7 +128,7 @@ Everything below is inferred, not observed against a live brewer. Each is marked
 | Schedule id format | `schemas.ts` `ScheduleIdSchema` | Ids look like `s0`; anything URL-safe is accepted before it is put in a path, nothing else. |
 | Live `state` object | `device.ts` | Non-null means a brew is in progress; `missing_water` may appear inside it. `brewPhase` decodes `state.value` as the Home Assistant integration does (`b` bloom, `p1`…`p10` pulse, `d` drip finish, `pa` paused); not yet observed here during a brew. |
 | `showerHeadPresent` | `schemas.ts` | Parsed but not shown: the owner's brewer reported `false` with the shower head in place, before and after a brew, so the flag does not mean what its name says. |
-| `brewEndTime` | `SensorPanel.vue` | Shown as the last brew's end; Fellow also advances it while idle, so it is never subtracted from `brewStartTime`. |
+| `brewEndTime` | `history/tracker.ts` | Observed advancing four hours while idle with the brew counter unchanged, so it is not shown; for a brew the poller did not watch it is believed only within three hours of `brewStartTime`, which stayed put all day. Stats bucket brews by start time. |
 | Production logger | `logger.ts` | The pino-roll transport is exercised only by `scripts/smoke.sh`, never by Vitest. |
 | Brew counter timing | `history/tracker.ts` | `totalBrewingCycles` is assumed to rise when a brew completes (the mock does the same). If it rises at the start instead, watched brews still count, because the baseline is the last idle read. |
 | Profile attribution | `history/tracker.ts` | `ibSelectedProfileId` at the first brewing read is recorded as the brew's profile. Fellow never reports which profile ran; the UI says "selected profile". |

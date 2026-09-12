@@ -44,16 +44,17 @@ export function periodStarts(now: number): { day: number, week: number, month: n
 }
 
 export function computeStats(records: readonly BrewRecord[], now: number = Date.now()): HistoryStats {
-  const past = records.filter(r => r.endedAt <= now).sort((a, b) => a.endedAt - b.endedAt)
+  // A brew belongs to the day it started; end times of unwatched brews are the least reliable field.
+  const past = records.filter(r => r.startedAt <= now).sort((a, b) => a.startedAt - b.startedAt)
   const starts = periodStarts(now)
-  const since = (from: number) => past.filter(r => r.endedAt >= from)
+  const since = (from: number) => past.filter(r => r.startedAt >= from)
 
   const counted = past.filter(r => r.counted)
   const recent = counted.slice(-30)
   const gaps: number[] = []
   // Brews inferred from one counter jump share a timestamp; a gap under a minute is not a real interval.
   for (let i = 1; i < recent.length; i++) {
-    const gapMs = recent[i]!.endedAt - recent[i - 1]!.endedAt
+    const gapMs = recent[i]!.startedAt - recent[i - 1]!.startedAt
     if (gapMs >= 60_000) gaps.push(gapMs / (60 * 60_000))
   }
 
@@ -62,8 +63,8 @@ export function computeStats(records: readonly BrewRecord[], now: number = Date.
     const key = r.profileId ?? ''
     const entry = byProfile.get(key) ?? { profileId: r.profileId, title: r.profileTitle, brews: 0, latest: 0 }
     entry.brews += 1
-    if (r.endedAt >= entry.latest) {
-      entry.latest = r.endedAt
+    if (r.startedAt >= entry.latest) {
+      entry.latest = r.startedAt
       entry.title = r.profileTitle ?? entry.title
     }
     byProfile.set(key, entry)
@@ -74,11 +75,11 @@ export function computeStats(records: readonly BrewRecord[], now: number = Date.
     today: sum(since(starts.day)),
     thisWeek: sum(since(starts.week)),
     thisMonth: sum(since(starts.month)),
-    logged: { ...sum(past), since: past[0]?.endedAt ?? null },
+    logged: { ...sum(past), since: past[0]?.startedAt ?? null },
     averageDurationS: mean(counted.filter(r => r.observed && r.durationS !== null).map(r => r.durationS as number)),
     averageBetweenBrewsH: mean(gaps),
     favouriteProfile: favourite ? { profileId: favourite.profileId, title: favourite.title, brews: favourite.brews } : null,
-    lastBrewAt: past[past.length - 1]?.endedAt ?? null,
+    lastBrewAt: past[past.length - 1]?.startedAt ?? null,
   }
 }
 
@@ -89,9 +90,9 @@ export function computeStats(records: readonly BrewRecord[], now: number = Date.
  */
 export function litresPerDay(records: readonly BrewRecord[], now: number, windowDays = 30): number | null {
   const from = now - windowDays * DAY_MS
-  const inWindow = records.filter(r => r.endedAt >= from && r.endedAt <= now && r.waterMl !== null)
+  const inWindow = records.filter(r => r.startedAt >= from && r.startedAt <= now && r.waterMl !== null)
   if (inWindow.length < 3) return null
-  const logStart = Math.min(...records.map(r => r.endedAt))
+  const logStart = Math.min(...records.map(r => r.startedAt))
   const spanDays = (now - Math.max(logStart, from)) / DAY_MS
   if (spanDays < 3) return null
   const litres = inWindow.reduce((total, r) => total + (r.waterMl ?? 0), 0) / 1000

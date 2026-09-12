@@ -28,6 +28,8 @@ export interface TrackerOptions {
   baselineCycles?: number | null
   /** Inferred brews recorded from one counter jump; anything beyond is dropped. */
   maxInferredPerPoll?: number
+  /** With an empty log, record the last brew the brewer still reports (its end time, water, selected profile) on the first idle read. */
+  seedLastBrew?: boolean
 }
 
 export type TitleLookup = (profileId: string) => string | undefined
@@ -38,6 +40,12 @@ const START_WINDOW_MS = 5 * 60_000
 export const MAX_BREW_MS = 24 * 60 * 60_000
 /** Samples kept per brew; beyond this every other sample is dropped, halving the resolution of a very long steep. */
 export const MAX_SAMPLES = 2000
+/**
+ * The brewer's `brewEndTime` advances on its own while idle (seen moving four hours with no brew), so for a brew the
+ * poller did not watch it is believed only within this long after `brewStartTime`; otherwise the end is unknown and
+ * set to the start.
+ */
+const UNWATCHED_END_WINDOW_MS = 3 * 60 * 60_000
 
 /**
  * Turns successive device reads into brew events. Pure apart from the clock values it is given.
@@ -50,11 +58,13 @@ export class BrewTracker {
   private sawIdle = false
   /** A brew was completed without a counter reading; the next idle read's +1 belongs to it, not to a missed brew. */
   private pendingIncrement = false
+  private seedPending: boolean
   private readonly maxInferred: number
 
   constructor(options: TrackerOptions = {}) {
     this.idleCycles = options.baselineCycles ?? null
     this.maxInferred = options.maxInferredPerPoll ?? 5
+    this.seedPending = options.seedLastBrew ?? false
   }
 
   get currentBrew(): CurrentBrew | null {
@@ -100,6 +110,30 @@ export class BrewTracker {
     }
 
     this.sawIdle = true
+    if (this.seedPending && !this.current && this.idleCycles === null) {
+      this.seedPending = false
+      const startedAt = plausibleEpoch(device.brewStartTime, 0, now)
+      if (startedAt !== undefined) {
+        const endedAt = plausibleEpoch(device.brewEndTime, startedAt, Math.min(now, startedAt + UNWATCHED_END_WINDOW_MS)) ?? startedAt
+        const profileId = device.ibSelectedProfileId ?? null
+        events.push({
+          type: 'inferred',
+          record: {
+            id: `s${cycles ?? 0}-${startedAt}`,
+            startedAt,
+            endedAt,
+            durationS: null,
+            waterMl: device.brewingWaterVolumeMl ?? null,
+            profileId,
+            profileTitle: profileId ? titleOf?.(profileId) ?? null : null,
+            observed: false,
+            counted: true,
+            cyclesAfter: cycles ?? null,
+            samples: [],
+          },
+        })
+      }
+    }
     if (this.current) {
       events.push({ type: 'completed', record: this.complete(this.current, device, now, cycles) })
       this.current = null
@@ -107,8 +141,8 @@ export class BrewTracker {
     }
     else if (this.idleCycles !== null && cycles !== undefined && cycles > this.idleCycles) {
       const missing = Math.min(cycles - this.idleCycles - (this.pendingIncrement ? 1 : 0), this.maxInferred)
-      const endedAt = plausibleEpoch(device.brewEndTime, 0, now) ?? now
-      const startedAt = plausibleEpoch(device.brewStartTime, 0, endedAt) ?? endedAt
+      const startedAt = plausibleEpoch(device.brewStartTime, 0, now) ?? now
+      const endedAt = plausibleEpoch(device.brewEndTime, startedAt, Math.min(now, startedAt + UNWATCHED_END_WINDOW_MS)) ?? startedAt
       for (let i = 0; i < missing; i++) {
         const cyclesAfter = cycles - missing + i + 1
         const last = i === missing - 1

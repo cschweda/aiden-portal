@@ -106,7 +106,7 @@ export const DeviceSchema = z.looseObject({
   ibSelectedProfileId: lenientString,
   brewingProfileId: lenientString,
   brewStartTime: lenientEpoch,
-  /** Fellow advances this while idle too, so it is only ever shown, never subtracted from `brewStartTime`. */
+  /** Advances on its own while the brewer is idle (seen moving four hours with no brew), so it is never shown and only believed within three hours of `brewStartTime`. */
   brewEndTime: lenientEpoch,
   connectionTimestamp: lenientEpoch,
   totalBrewingCycles: lenientNumber,

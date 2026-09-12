@@ -31,7 +31,10 @@ export class HistoryService {
   constructor(private readonly config: AppConfig) {
     this.store = new HistoryStore({ directory: config.history.directory })
     this.store.load()
-    this.tracker = new BrewTracker({ baselineCycles: this.store.lastBrew?.cyclesAfter ?? null })
+    this.tracker = new BrewTracker({
+      baselineCycles: this.store.lastBrew?.cyclesAfter ?? null,
+      seedLastBrew: this.store.brews.length === 0 && !this.store.loadError,
+    })
     this.polling = {
       enabled: config.history.enabled,
       running: false,

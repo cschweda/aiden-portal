@@ -61,6 +61,8 @@ describe('BrewTracker', () => {
     const records = events.map(e => (e.type === 'inferred' ? e.record : null))
     expect(records[0]).toMatchObject({ cyclesAfter: 71, waterMl: null, observed: false, counted: true, durationS: null, profileTitle: 'Medium Roast' })
     expect(records[1]).toMatchObject({ cyclesAfter: 72, waterMl: 825, startedAt: T0 + 100_000, endedAt: T0 + 400_000, samples: [] })
+    const drifted = new BrewTracker({ baselineCycles: 70 }).observe(idle(71, { brewStartTime: String((T0 - 6 * 3_600_000) / 1000), brewEndTime: String((T0 - 1000) / 1000) }), T0)
+    expect(drifted[0]).toMatchObject({ type: 'inferred', record: { startedAt: T0 - 6 * 3_600_000, endedAt: T0 - 6 * 3_600_000 } })
     expect(tracker.baselineCycles).toBe(72)
   })
   it('caps a burst of inferred brews at five and still moves the baseline', () => {
@@ -76,6 +78,21 @@ describe('BrewTracker', () => {
     const events = tracker.observe(idle(71), T0)
     expect(events).toHaveLength(1)
     expect(events[0]).toMatchObject({ type: 'inferred', record: { cyclesAfter: 71 } })
+  })
+  it('seeds an empty log with the last brew the brewer still reports, once', () => {
+    const tracker = new BrewTracker({ seedLastBrew: true })
+    const events = tracker.observe(idle(70, { brewStartTime: String((T0 - 400_000) / 1000), brewEndTime: String((T0 - 60_000) / 1000) }), T0, titles)
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({ type: 'inferred', record: { startedAt: T0 - 400_000, endedAt: T0 - 60_000, waterMl: 825, profileTitle: 'Medium Roast', observed: false, counted: true, cyclesAfter: 70, durationS: null } })
+    const drifted = new BrewTracker({ seedLastBrew: true }).observe(idle(70, { brewStartTime: String((T0 - 5 * 3_600_000) / 1000), brewEndTime: String((T0 - 60_000) / 1000) }), T0)
+    expect(drifted[0]).toMatchObject({ type: 'inferred', record: { startedAt: T0 - 5 * 3_600_000, endedAt: T0 - 5 * 3_600_000 } })
+    expect(tracker.observe(idle(70, { brewEndTime: String((T0 - 60_000) / 1000) }), T0 + 60_000)).toEqual([])
+    expect(tracker.baselineCycles).toBe(70)
+  })
+  it('does not seed without a reported start time, or when the log already has brews', () => {
+    expect(new BrewTracker({ seedLastBrew: true }).observe(idle(70), T0)).toEqual([])
+    expect(new BrewTracker({ seedLastBrew: false }).observe(idle(70, { brewStartTime: String((T0 - 60_000) / 1000) }), T0)).toEqual([])
+    expect(new BrewTracker({ seedLastBrew: true, baselineCycles: 69 }).observe(idle(70, { brewStartTime: String((T0 - 60_000) / 1000) }), T0).map(e => e.type)).toEqual(['inferred'])
   })
   it('takes the first idle read as the baseline when there is none', () => {
     const tracker = new BrewTracker()
