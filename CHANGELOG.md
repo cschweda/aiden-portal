@@ -7,6 +7,15 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+### Fixed
+
+- README accuracy, checked against the code rather than by eye: the status line and the logging section said the
+  Mac when either a Mac or Ubuntu will do; the API table was missing `GET /api/logs` and the configuration table
+  `FELLOW_BASE_URL`; the scripts table lacked `build:demo` and `mock:fellow` and described a check that has since
+  grown to cover both service templates; the screenshot tables ran together, so the third rendered as stray rows;
+  the project layout did not mention `app/demo/`; and the two longest table cells were one sentence each. The
+  remaining `aiden-studio` name, the launchd label, now explains itself.
+
 ## [0.13.1] - 2026-09-12
 
 ### Fixed

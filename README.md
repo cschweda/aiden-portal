@@ -3,9 +3,9 @@
 A personal web app for controlling a [Fellow Aiden](https://fellowproducts.com/products/aiden) coffee brewer:
 brew profiles, schedules, brew.link import, share links, and remote Instant Brew, from a browser on your own machine.
 
-> **Status:** Phase 1.5 complete. The app runs at login on your Mac under launchd, listens on loopback only, and
-> is reachable from your own computers and phones over [Tailscale](https://tailscale.com). It is not a public
-> website and is not built to become one. See `CHANGELOG.md`.
+> **Status:** Phase 1.5 complete. The app runs as a service on a Mac (launchd) or on Ubuntu 24.04 or newer
+> (systemd), listens on loopback only, and is reachable from your own computers and phones over
+> [Tailscale](https://tailscale.com). It is not a public website and is not built to become one. See `CHANGELOG.md`.
 
 > **Demo:** **[aiden-portal.netlify.app](https://aiden-portal.netlify.app)** — the whole interface, running on
 > invented data. It is not connected to a brewer, to Fellow, or to anything else, so nothing you press there
@@ -18,8 +18,9 @@ Fellow publishes no API. This app talks to the same cloud endpoints the Fellow m
 Fellow account credentials, from a small Node server that runs on your machine. The browser never talks to
 Fellow and never sees those credentials.
 
-- **Phase 1 — on the Mac.** The server listens on `127.0.0.1:5150` and nowhere else, with no login screen. The
-  only credential anywhere is your Fellow login in `.env`.
+- **Phase 1 — on one machine.** The server listens on `127.0.0.1:5150` and nowhere else, with no login screen,
+  on whichever machine you keep on: a Mac or an Ubuntu box. The only credential anywhere is your Fellow login
+  in `.env`.
 - **Phase 1.5 — your own machines.** Tailscale joins your computers and phones into a private network of their
   own and publishes the dashboard onto it. The app still listens on loopback; Tailscale is the only door, and it
   opens for devices signed in to your Tailscale account and nothing else.
@@ -35,11 +36,11 @@ sideways is the log table, inside its own frame.
 
 | Page | What it does |
 |---|---|
-| Dashboard | The brewer's state as one word (Ready, Brewing, Offline, Not ready) with every reported flag underneath, the reasons a brew cannot start, the **Start brew** button, which is enabled only when the brewer says it is ready and asks before it sends, and a sensor panel with everything the brewer reports, grouped for troubleshooting: the live phase, heater, pump, and water temperature; lid, tank, carafe, baskets, and shower head; brew and water totals; the settings on the brewer itself; and its identity; a descale banner with the Mark descaled button when descaling is due or close; brews and water today, this week, and this month; and the trace of the brew running now, or the last one. |
+| Dashboard | Top to bottom: a descale banner, with its **Mark descaled** button, when descaling is due or close. The brewer's state as one word (Ready, Brewing, Offline, Not ready), the flags behind that word, and the reasons a brew cannot start. **Start brew**, enabled only when the brewer says it is ready, which asks before it sends. A sensor panel with everything the brewer reports, grouped for troubleshooting: the live phase, heater, pump and water temperature; lid, tank, carafe and baskets; brew and water totals; the settings on the brewer itself; and its identity. Brews and water for today, this week and this month. The trace of the brew running now, or of the last one. |
 | Profiles | Every profile on the brewer with a one-line recipe summary. Create, edit, delete, share (a brew.link URL to copy), and import from a brew.link. The editor exposes every variable in its exact steps: ratio and temperature sliders in halves, bloom, and per-pulse temperatures that follow the pulse count. |
 | Schedules | Each schedule with its time in the brewer's local time, days, water, and profile; pause or resume with the switch, delete, or add one with the day chips and time picker. |
 | History | Brews and water by day, week, and month; average brew length and time between brews; the most used profile; every logged brew, with its trace on demand; the descale tally with its estimate and Mark descaled button, and when the brewer was descaled; and what the background reads are doing. |
-| Logs | The production log file, newest first, filterable by level and by request id (click any id). Each row expands to the full record. |
+| Logs | The production log file, newest first, filterable by level and by request id (click any id); each row expands to the full record. The **Detail** control changes how much the running service writes, from warnings only to everything, until it restarts. |
 
 Failed calls show a toast with the server's error code, never a blank failure. The `?new=1` query on the
 profiles and schedules pages opens the create form directly.
@@ -51,9 +52,10 @@ profiles and schedules pages opens the create form directly.
 | Schedules | Logs |
 |---|---|
 | ![Schedules](docs/screenshots/schedules.png) | ![Logs](docs/screenshots/logs.png) |
-| History | |
-|---|---|
-| ![History](docs/screenshots/history.png) | |
+
+| History |
+|---|
+| ![History](docs/screenshots/history.png) |
 
 (Screenshots taken against the mock brewer. In development the log viewer explains that logs go to the terminal; the production build writes the file it reads.)
 
@@ -329,7 +331,8 @@ listen anywhere but loopback, and the reason is printed where that platform keep
   there, so they can never mistake a dev server for the service. Run the dev server elsewhere meanwhile:
   `PORT=5151 pnpm dev`.
 - **macOS only:** if the installer says `launchctl bootstrap` failed, open System Settings > General > Login Items &
-  Extensions, make sure aiden-studio is switched on, and run the installer again. launchd never rotates its own log;
+  Extensions, make sure aiden-studio is switched on (the launchd label keeps the project's old name, so an
+  existing install and its brew history are not orphaned), and run the installer again. launchd never rotates its own log;
   it gains two lines per start and is safe to delete.
 - **Ubuntu only:** `systemctl --user status aiden-portal` and `journalctl --user -u aiden-portal -f` are the direct
   equivalents of the status and logs scripts if you prefer them.
@@ -396,8 +399,10 @@ fallback when Tailscale is not installed.
 | `pnpm build` | Production build into `.output/` |
 | `pnpm start` | Run the production build (reads `.env` via `node --env-file`) |
 | `pnpm test` | Full test suite |
-| `pnpm lint` | ESLint, then `scripts/check-shell.sh` (bash syntax, shellcheck when installed, a render of the launchd template) |
+| `pnpm lint` | ESLint, then `scripts/check-shell.sh` (bash syntax, shellcheck when installed, and a render of both service templates) |
 | `pnpm typecheck` | `nuxt typecheck` plus the test tree |
+| `pnpm build:demo` | The static demo, with sample data and no server, into `.output/public` |
+| `pnpm mock:fellow` | An in-memory Fellow API on `127.0.0.1:3900`, for development without a brewer |
 | `scripts/smoke.sh` | Probes a production build for the things Vitest cannot see: guard, headers, Host/CSRF, error shapes, log file |
 | `deploy/macos/*.sh`, `deploy/linux/*.sh` | Install, status, logs, uninstall for the launchd and systemd services (see Run at home) |
 
@@ -415,6 +420,7 @@ single-run override of the keys below; `.env.sample` documents each one.
 | `ALLOWED_HOSTS` | Overrides `server.allowedHosts` (hostnames only, as they appear in the `Host` header). |
 | `TAILNET_USERS` | Overrides `server.tailnetUsers` (comma-separated Tailscale logins allowed to make changes). |
 | `LOG_LEVEL` | Overrides `logging.level`. |
+| `FELLOW_BASE_URL` | Points the app at the mock brewer instead of Fellow. Only https, or plain http on a loopback address, is accepted. |
 | `HISTORY_ENABLED` | `false` stops the background reads that feed the brew log, the trace, and the descale tally. |
 | `HISTORY_DIRECTORY` | Overrides `history.directory` (where `brews.jsonl` and `descale.json` are written). |
 
@@ -436,6 +442,7 @@ this site: the browser proves it with `Sec-Fetch-Site: same-origin`; a script or
 | `GET /api/schedules?fresh=1`, `POST /api/schedules` | list, create |
 | `PATCH /api/schedules/:id`, `DELETE /api/schedules/:id` | update (for example `{ "enabled": false }`), delete |
 | `POST /api/brew/start` | starts the configured Instant Brew, or 409 with the reasons it cannot |
+| `GET /api/logs` | the tail of the production log; `lines`, `level` and `requestId` narrow it |
 | `PATCH /api/logs/level` | body `{ level }`; switches the log level until the service restarts |
 | `GET /api/history` | stats, the descale tally, the brew running now with its samples, the last traced brew, recent brews, the poller's state |
 | `GET /api/history/brews/:id` | one logged brew with its trace samples |
@@ -448,13 +455,14 @@ never Fellow's response), 500 otherwise. Reads are cached for 30 seconds; `?fres
 
 In development everything goes to the terminal. In production pino writes JSON lines to
 `logs/aiden.<date>.<n>.log` (an owner-only directory under the working directory: the checkout for `pnpm start`,
-the installed copy under launchd), rotates daily or at 50 MB, keeps 14 files, and points `logs/current.log` at
+the installed copy under launchd or systemd), rotates daily or at 50 MB, keeps 14 files, and points `logs/current.log` at
 the active one, so `tail -F logs/current.log` keeps following across rotations. Passwords, tokens, and
 cookies are redacted before they are written. Every request carries an `x-request-id` header that matches
 its log lines. The Logs page's Detail control switches the level being written (quiet, normal, detailed,
 everything) until the service restarts; the persistent default is `logging.level` in `aiden.config.ts` or
 `LOG_LEVEL` in `.env`. Stdout gets exactly two lines at startup: ours (address, dry run, log path) and Nitro's own
-`Listening on …`; under launchd that is all its stdout file should ever hold, besides crash traces.
+`Listening on …`. That is all the supervisor ever captures, besides a crash trace: launchd keeps it in
+`~/Library/Logs/aiden-studio/launchd.log`, systemd in the journal.
 
 ## Red team / blue team log
 
@@ -620,6 +628,7 @@ HMR and devtools endpoints, which bind to the same loopback address.
 - `server/api/` — thin Nuxt server routes over the client; `server/middleware/` is the request pipeline.
 - `app/` — the Nuxt UI front end: `pages/`, `components/`, `composables/`, and `utils/` (pure, unit-tested logic such as the profile form rules and time conversion).
 - `tests/` — Vitest, with msw standing in for Fellow.
+- `app/demo/` — the sample world the static demo answers from; loaded only in a demo build.
 - `scripts/mock-fellow.mjs` — an in-memory Fellow API for development and demos.
 - `deploy/` — running it as a service: `macos/` (launchd) and `linux/` (systemd), over shared helpers in `deploy/common.sh`.
 
