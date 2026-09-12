@@ -30,6 +30,8 @@ const EnvSchema = z.object({
   NITRO_PORT: port.optional(),
   PORT: port.optional(),
   NODE_ENV: z.string().optional(),
+  HISTORY_ENABLED: z.stringbool().optional(),
+  HISTORY_DIRECTORY: z.string().min(1).optional(),
 })
 
 export interface AppConfig {
@@ -52,6 +54,9 @@ export interface AppConfig {
   allowedHosts: string[]
   logging: { level: LogLevel, directory: string, keepDays: number, maxFileMb: number }
   ui: AidenConfig['ui']
+  /** The brew log, the descale marker, and the poller that feeds them. */
+  history: { enabled: boolean, directory: string, idlePollSeconds: number, brewPollSeconds: number }
+  maintenance: AidenConfig['maintenance']
   isProduction: boolean
 }
 
@@ -116,6 +121,13 @@ export function parseEnv(env: Record<string, string | undefined>, aiden: AidenCo
       maxFileMb: aiden.logging.maxFileMb,
     },
     ui: { ...aiden.ui },
+    history: {
+      enabled: raw.HISTORY_ENABLED ?? true,
+      directory: raw.HISTORY_DIRECTORY ?? aiden.history.directory,
+      idlePollSeconds: aiden.history.idlePollSeconds,
+      brewPollSeconds: aiden.history.brewPollSeconds,
+    },
+    maintenance: { ...aiden.maintenance },
     isProduction,
   }
 }

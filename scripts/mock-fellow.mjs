@@ -55,6 +55,7 @@ const state = {
   nextSchedule: 3,
   gets: 0,
   brewingUntil: 0,
+  brewStartedAt: 0,
   inventory: {
     id: DEVICE_ID,
     displayName: 'Kitchen Aiden',
@@ -127,15 +128,19 @@ function device() {
 function detail() {
   const { id, displayName } = state.inventory
   const active = brewing()
+  // A 20-second brew that walks through bloom, two pulses, and drip finish, with the water cooling a little.
+  const elapsed = active ? Date.now() - state.brewStartedAt : 0
+  const phase = elapsed < 5_000 ? 'b' : elapsed < 10_000 ? 'p1' : elapsed < 15_000 ? 'p2' : 'd'
+  const temperature = active ? Math.round((phase === 'b' ? 96 : phase === 'd' ? 90 : 94 - elapsed / 10_000) * 2) / 2 : null
   return {
     id,
     displayName,
     ...state.live,
     brewing: active,
-    heaterOn: active,
+    heaterOn: active && phase !== 'd',
     pumpOn: active,
-    brewingWaterTemperatureC: active ? 93.5 : null,
-    state: active ? { value: 'p1', missing_water: false } : null,
+    brewingWaterTemperatureC: temperature,
+    state: active ? { value: phase, missing_water: false } : null,
   }
 }
 
@@ -198,9 +203,17 @@ const server = createServer(async (req, res) => {
   if (method === 'PATCH' && path === `/devices/${DEVICE_ID}/start`) {
     if (url.searchParams.get('confirm') !== 'true') return json(res, 400, { message: 'confirm required' })
     state.brewingUntil = Date.now() + 20_000
+    state.brewStartedAt = Date.now()
     state.live.brewingProfileId = state.live.ibSelectedProfileId
-    state.live.brewStartTime = Math.floor(Date.now() / 1000)
-    state.live.totalBrewingCycles += 1
+    state.live.brewStartTime = String(Math.floor(Date.now() / 1000))
+    // The counter and the totals move when the brew completes, as the Home Assistant integration observed.
+    setTimeout(() => {
+      state.live.totalBrewingCycles += 1
+      state.live.totalWaterVolumeL += state.live.ibWaterQuantity
+      state.live.brewingWaterVolumeMl = state.live.ibWaterQuantity
+      state.live.brewEndTime = String(Math.floor(Date.now() / 1000))
+      state.live.brewingProfileId = null
+    }, 20_000).unref()
     return json(res, 200, { status: 'started', profileId: state.live.ibSelectedProfileId })
   }
   if (method === 'PATCH' && path === `/devices/${DEVICE_ID}`) {

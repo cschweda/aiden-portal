@@ -61,4 +61,25 @@ export default defineAidenConfig({
     // Ask for confirmation before a remote Instant Brew start.
     confirmBrewStart: true,
   },
+
+  history: {
+    // The brew log (brews.jsonl) and the descale marker (descale.json), relative to the working directory, like
+    // `logging.directory`. Under launchd that is the installed copy; a reinstall keeps it, `uninstall.sh --purge`
+    // removes it.
+    directory: 'data',
+    // The service reads the brewer this often while it is idle, to notice brews and keep the dashboard fresh.
+    // 60 is about 1,500 reads a day against an unofficial API. HISTORY_ENABLED=false in .env stops the polling.
+    idlePollSeconds: 60,
+    // And this often during a brew, which sets the resolution of the brew trace.
+    brewPollSeconds: 5,
+  },
+
+  maintenance: {
+    // The descale tally counts litres and brews since you last pressed "Mark descaled". Fellow publishes no
+    // number; the Aiden decides on its own. 60 L suits moderately hard water; Chicago's lake water is on the hard
+    // side, so lower it if the brewer prompts you sooner than the tally does.
+    descaleAfterLitres: 60,
+    // A brew-count threshold as well, if you prefer counting brews; 0 turns it off.
+    descaleAfterBrews: 0,
+  },
 })

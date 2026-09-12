@@ -14,4 +14,6 @@ export const AIDEN: AidenConfig = {
   },
   logging: { level: null, directory: 'logs', keepDays: 14, maxFileMb: 50 },
   ui: { colorMode: 'dark', confirmBrewStart: true },
+  history: { directory: 'data', idlePollSeconds: 60, brewPollSeconds: 5 },
+  maintenance: { descaleAfterLitres: 60, descaleAfterBrews: 0 },
 }

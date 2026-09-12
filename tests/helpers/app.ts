@@ -1,7 +1,10 @@
 import { createApp, createRouter, toWebHandler } from 'h3'
 import brewStart from '../../server/api/brew/start.post'
+import descaleMark from '../../server/api/descale.post'
 import device from '../../server/api/device.get'
 import health from '../../server/api/health.get'
+import historyGet from '../../server/api/history.get'
+import historyBrew from '../../server/api/history/brews/[id].get'
 import logs from '../../server/api/logs.get'
 import profileDelete from '../../server/api/profiles/[id].delete'
 import profileUpdate from '../../server/api/profiles/[id].patch'
@@ -21,6 +24,7 @@ import csrf from '../../server/middleware/02.csrf'
 import bodyLimit from '../../server/middleware/03.body-limit'
 import { resetConfigForTests } from '../../server/utils/config'
 import { resetFellowClientForTests } from '../../server/utils/fellow-client'
+import { resetHistoryForTests } from '../../server/utils/history'
 import { resetLoggerForTests } from '../../server/utils/logger'
 
 const BASE_ENV: Record<string, string> = {
@@ -34,11 +38,12 @@ const BASE_ENV: Record<string, string> = {
 /** A complete, known environment plus fresh config, logger, and Fellow client singletons. */
 export function useTestEnv(overrides: Record<string, string> = {}): void {
   // Assigning undefined would store the string 'undefined'; the property has to go.
-  for (const key of ['ALLOWED_HOSTS', 'FELLOW_TIMEZONE', 'PORT', 'NODE_ENV', 'NITRO_HOST', 'NITRO_PORT', 'LOG_LEVEL']) Reflect.deleteProperty(process.env, key)
+  for (const key of ['ALLOWED_HOSTS', 'FELLOW_TIMEZONE', 'PORT', 'NODE_ENV', 'NITRO_HOST', 'NITRO_PORT', 'LOG_LEVEL', 'HISTORY_ENABLED', 'HISTORY_DIRECTORY']) Reflect.deleteProperty(process.env, key)
   Object.assign(process.env, BASE_ENV, overrides)
   resetConfigForTests()
   resetLoggerForTests()
   resetFellowClientForTests()
+  resetHistoryForTests()
 }
 
 // Route tests assert on loosely typed JSON; `any` keeps them readable.
@@ -72,6 +77,9 @@ export function createTestApp() {
   router.patch('/api/schedules/:id', scheduleUpdate)
   router.delete('/api/schedules/:id', scheduleDelete)
   router.post('/api/brew/start', brewStart)
+  router.get('/api/history', historyGet)
+  router.get('/api/history/brews/:id', historyBrew)
+  router.post('/api/descale', descaleMark)
   router.use('/api/**', notFound)
   app.use(router)
   const handler = toWebHandler(app)

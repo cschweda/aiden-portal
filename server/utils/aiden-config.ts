@@ -50,6 +50,20 @@ export const AidenConfigSchema = z.strictObject({
     /** Ask before sending a remote Instant Brew start. */
     confirmBrewStart: z.boolean(),
   }),
+  history: z.strictObject({
+    /** Where the brew log and the descale marker live, relative to the working directory. */
+    directory: z.string().min(1),
+    /** How often the service reads the brewer while it is idle. */
+    idlePollSeconds: z.int().min(15).max(3600),
+    /** How often it reads during a brew, for the trace. */
+    brewPollSeconds: z.int().min(2).max(60),
+  }),
+  maintenance: z.strictObject({
+    /** Litres brewed since the last descale at which the tally reads due. */
+    descaleAfterLitres: z.number().positive(),
+    /** Brews since the last descale at which the tally reads due; 0 turns this threshold off. */
+    descaleAfterBrews: z.int().min(0),
+  }),
 })
 
 export type AidenConfig = z.infer<typeof AidenConfigSchema>

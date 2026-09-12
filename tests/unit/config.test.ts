@@ -24,8 +24,17 @@ describe('parseEnv', () => {
       allowedHosts: ['localhost', '127.0.0.1', '[::1]'],
       logging: { level: 'debug', directory: 'logs', keepDays: 14, maxFileMb: 50 },
       ui: { colorMode: 'dark', confirmBrewStart: true },
+      history: { enabled: true, directory: 'data', idlePollSeconds: 60, brewPollSeconds: 5 },
+      maintenance: { descaleAfterLitres: 60, descaleAfterBrews: 0 },
       isProduction: false,
     })
+  })
+
+  it('lets HISTORY_ENABLED stop the poller and HISTORY_DIRECTORY move the data', () => {
+    const config = parseEnv({ ...MINIMAL, HISTORY_ENABLED: 'false', HISTORY_DIRECTORY: '/tmp/aiden-test-data' }, AIDEN)
+    expect(config.history.enabled).toBe(false)
+    expect(config.history.directory).toBe('/tmp/aiden-test-data')
+    expect(parseEnv({ ...MINIMAL, HISTORY_ENABLED: '', HISTORY_DIRECTORY: '' }, AIDEN).history).toEqual({ enabled: true, directory: 'data', idlePollSeconds: 60, brewPollSeconds: 5 })
   })
 
   it('lets the documented environment keys override the file', () => {

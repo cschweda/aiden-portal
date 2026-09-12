@@ -15,6 +15,8 @@ describe('defineAidenConfig', () => {
   it('rejects nonsense numbers with the path in the message', () => {
     expect(() => defineAidenConfig({ ...AIDEN, logging: { ...AIDEN.logging, keepDays: 0 } })).toThrow(/logging\.keepDays/)
     expect(() => defineAidenConfig({ ...AIDEN, server: { ...AIDEN.server, port: 70_000 } })).toThrow(/server\.port/)
+    expect(() => defineAidenConfig({ ...AIDEN, history: { ...AIDEN.history, idlePollSeconds: 5 } })).toThrow(/history\.idlePollSeconds/)
+    expect(() => defineAidenConfig({ ...AIDEN, maintenance: { ...AIDEN.maintenance, descaleAfterLitres: 0 } })).toThrow(/maintenance\.descaleAfterLitres/)
   })
   it('the real aiden.config.ts loads and keeps the app on loopback', async () => {
     const { default: real } = await import('../../aiden.config')
