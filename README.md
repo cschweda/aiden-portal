@@ -176,25 +176,47 @@ A one-page version of the addresses, the laptop tunnel, and the service commands
 
 ### From your other computers, with Tailscale (Phase 1.5)
 
-[Tailscale](https://tailscale.com) joins your computers into a private network that only they can see. The Mac
-mini publishes the dashboard onto that network with `tailscale serve`, which forwards to the app on loopback,
-so the app itself never listens beyond this Mac. Every device signed in to your Tailscale account can then open
+[Tailscale](https://tailscale.com) joins your computers into a private network that only they can see, at home or
+anywhere else with internet. The Mac mini publishes the dashboard onto that network with `tailscale serve`, which
+forwards to the app on loopback, so the app itself never listens beyond this Mac. Every device signed in to your
+Tailscale account can then open
 
 ```
 https://cschwedas-mac-mini.taildc8082.ts.net
 ```
 
-from anywhere, phone included, with a real certificate. Setting it up:
+with a real certificate and no port. Use that full name exactly: the short name and the IP addresses the Tailscale
+console also lists do connect, but the certificate is issued for the full name only, so browsers warn on them.
 
-1. One Tailscale account for everything. On the Mac mini: install Tailscale, sign in; in the admin console under
-   DNS turn on HTTPS certificates, and under Machines disable key expiry for the Mac mini so it never silently
-   drops off after six months.
-2. On the Mac mini, once (it persists across restarts): `tailscale serve --bg 5150`. On the App Store build the
-   command is `/Applications/Tailscale.app/Contents/MacOS/Tailscale`.
-3. Add the Mac mini's `ts.net` name to `server.allowedHosts` in `aiden.config.ts`; optionally list the logins
-   allowed to make changes in `server.tailnetUsers` (`tailscale serve` stamps the signed-in login on every request,
-   and the app logs it). Rebuild and reinstall.
-4. On every other computer, Mac or Windows: install Tailscale, sign in with the same account, open the address.
+**The Mac mini, once.**
+
+1. One Tailscale account for everything (this one signs in with GitHub). Install Tailscale on the Mac mini and sign
+   in. In the admin console at login.tailscale.com: under DNS turn on HTTPS certificates; under Machines, the Mac
+   mini's menu, disable key expiry, so it never silently drops off the network after six months. The first
+   `tailscale serve` also asks you to enable Serve for the node through a link it prints; do that once.
+2. Publish the dashboard: `tailscale serve --bg 5150` (on the App Store build the command is
+   `/Applications/Tailscale.app/Contents/MacOS/Tailscale`). It persists across restarts; `tailscale serve status`
+   shows it, and `tailscale serve --https=443 off` withdraws it.
+3. The app side, already done in this repo: the Mac mini's `ts.net` name is in `server.allowedHosts` in
+   `aiden.config.ts`, and `server.tailnetUsers` lists the logins allowed to make changes (`tailscale serve` stamps
+   the signed-in login on every request; anyone else on the network can look but not change). After editing either,
+   `pnpm build && deploy/local/install.sh`.
+
+**Every other machine.** Install Tailscale, sign in with the same account, open the address. That is all.
+
+- **Mac:** the Mac App Store, or the download at tailscale.com; sign in from the menu bar icon.
+- **Windows:** the installer at tailscale.com; approve the one prompt about changing network settings; sign in from
+  the system tray icon.
+- **Phone:** the Tailscale app from the App Store or Play Store, same sign-in, same address in the browser.
+
+**Away from home.** It works wherever the machine has internet: Tailscale connects the two devices directly across
+the internet and falls back to its relays when a network blocks that, encrypted either way. The Mac mini has to be
+on, logged in, and running Tailscale, the same conditions the dashboard itself needs.
+
+**If a machine cannot open it.** Check, in order: the Tailscale icon on that machine says connected; the Mac mini
+shows as connected in the admin console; `tailscale serve status` on the Mac mini still lists the address;
+`deploy/local/status.sh` on the Mac mini says the app is running. With the Logs page set to Detailed, every request
+shows the address it came in on and the Tailscale login it carried.
 
 Never use `tailscale funnel`, which is the public version, and never change `server.host`: the app stays on
 loopback and Tailscale is the only door.
