@@ -32,6 +32,31 @@ const lineItems = [100, 200, 500, 1000].map(n => ({ label: `${n} lines`, value: 
 const query = computed(() => ({ lines: lines.value, level: level.value === 'all' ? undefined : level.value, requestId: requestId.value || undefined }))
 const { data, refresh, status } = useFetch<LogsResponse>('/api/logs', { key: 'logs', query, server: false })
 
+// How much gets written, as opposed to how much is shown: changed at runtime, until the service restarts.
+const { call } = useApi()
+const toast = useToast()
+const detailItems = [
+  { label: 'Quiet (warnings and errors)', value: 'warn' },
+  { label: 'Normal (info)', value: 'info' },
+  { label: 'Detailed (debug)', value: 'debug' },
+  { label: 'Everything (trace)', value: 'trace' },
+]
+const detail = ref<string | null>(null)
+watch(() => data.value?.level, (value) => {
+  if (value) detail.value = detailItems.some(item => item.value === value) ? value : null
+}, { immediate: true })
+async function setDetail(value: string) {
+  if (!value || value === data.value?.level) return
+  try {
+    await call('/api/logs/level', { method: 'PATCH', body: { level: value } })
+    toast.add({ title: `Log detail: ${detailItems.find(item => item.value === value)?.label ?? value}`, description: 'Until the service restarts; the default lives in aiden.config.ts.', color: 'success', icon: 'i-lucide-check' })
+    await refresh()
+  }
+  catch {
+    detail.value = data.value?.level ?? null
+  }
+}
+
 const levelColor: Record<string, 'neutral' | 'primary' | 'warning' | 'error'> = {
   trace: 'neutral',
   debug: 'neutral',
@@ -88,6 +113,8 @@ const expanded = ref<Record<string, boolean>>({})
             </template>
           </UInput>
           <span v-if="data" class="ml-auto text-sm text-muted">{{ data.records.length }} shown</span>
+          <span class="text-sm text-muted">Detail</span>
+          <USelect :model-value="detail ?? undefined" :items="detailItems" value-key="value" placeholder="Log detail" class="w-56" @update:model-value="setDetail" />
         </div>
 
         <UAlert

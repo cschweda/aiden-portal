@@ -210,6 +210,7 @@ this site: the browser proves it with `Sec-Fetch-Site: same-origin`; a script or
 | `GET /api/schedules?fresh=1`, `POST /api/schedules` | list, create |
 | `PATCH /api/schedules/:id`, `DELETE /api/schedules/:id` | update (for example `{ "enabled": false }`), delete |
 | `POST /api/brew/start` | starts the configured Instant Brew, or 409 with the reasons it cannot |
+| `PATCH /api/logs/level` | body `{ level }`; switches the log level until the service restarts |
 | `GET /api/history` | stats, the descale tally, the brew running now with its samples, the last traced brew, recent brews, the poller's state |
 | `GET /api/history/brews/:id` | one logged brew with its trace samples |
 | `POST /api/descale` | records that the brewer was descaled now; the tally restarts from its current totals |
@@ -224,7 +225,9 @@ In development everything goes to the terminal. In production pino writes JSON l
 the installed copy under launchd), rotates daily or at 50 MB, keeps 14 files, and points `logs/current.log` at
 the active one, so `tail -F logs/current.log` keeps following across rotations. Passwords, tokens, and
 cookies are redacted before they are written. Every request carries an `x-request-id` header that matches
-its log lines. Stdout gets exactly two lines at startup: ours (address, dry run, log path) and Nitro's own
+its log lines. The Logs page's Detail control switches the level being written (quiet, normal, detailed,
+everything) until the service restarts; the persistent default is `logging.level` in `aiden.config.ts` or
+`LOG_LEVEL` in `.env`. Stdout gets exactly two lines at startup: ours (address, dry run, log path) and Nitro's own
 `Listening on …`; under launchd that is all its stdout file should ever hold, besides crash traces.
 
 ## Red team / blue team log

@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { defineApiRoute } from '../utils/api'
 import { getConfig } from '../utils/config'
 import { LEVEL_NAMES, readLogTail } from '../utils/log-reader'
-import { currentLogFile } from '../utils/logger'
+import { currentLogFile, currentLogLevel } from '../utils/logger'
 
 const LogsQuery = z.object({
   lines: z.coerce.number().int().min(1).max(1000).default(200),
@@ -17,7 +17,8 @@ export default defineApiRoute(async (event) => {
   const query = LogsQuery.parse(raw)
   const config = getConfig()
   const file = currentLogFile(config)
-  if (!config.isProduction) return { available: false, production: false, file, records: [] }
+  const level = currentLogLevel()
+  if (!config.isProduction) return { available: false, production: false, file, level, records: [] }
   const { available, records } = await readLogTail(file, { lines: query.lines, minLevel: query.level, requestId: query.requestId })
-  return { available, production: true, file, records }
+  return { available, production: true, file, level, records }
 })

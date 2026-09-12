@@ -9,6 +9,7 @@ import health from '../../server/api/health.get'
 import historyGet from '../../server/api/history.get'
 import historyBrew from '../../server/api/history/brews/[id].get'
 import logs from '../../server/api/logs.get'
+import logsLevel from '../../server/api/logs/level.patch'
 import profileDelete from '../../server/api/profiles/[id].delete'
 import profileUpdate from '../../server/api/profiles/[id].patch'
 import profileShare from '../../server/api/profiles/[id]/share.post'
@@ -73,6 +74,7 @@ export function createTestApp() {
   router.get('/api/health', health)
   router.get('/api/status', status)
   router.get('/api/logs', logs)
+  router.patch('/api/logs/level', logsLevel)
   router.get('/api/device', device)
   router.get('/api/profiles', profilesList)
   router.post('/api/profiles', profileCreate)

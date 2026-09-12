@@ -7,6 +7,14 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-12
+
+### Added
+
+- A Detail control on the Logs page that switches the log level being written (quiet, normal, detailed,
+  everything) for the running service, until it restarts; `PATCH /api/logs/level`. The persistent default stays in
+  `aiden.config.ts` or `LOG_LEVEL`. `GET /api/logs` reports the level in force.
+
 ## [0.7.2] - 2026-09-12
 
 ### Fixed

@@ -1,5 +1,6 @@
 import type { Device, Profile, Schedule } from '../../server/lib/fellow/schemas'
 import type { BrewRecord, BrewSummary, CurrentBrew, DescaleMarker, DescaleStatus, HistorySnapshot, HistoryStats, PollerState, TraceSample } from '../../server/lib/history'
+import type { LogLevel } from '../../server/utils/aiden-config'
 import type { LogRecord } from '../../server/utils/log-reader'
 
 export type { Device, Profile, Schedule }
@@ -22,9 +23,13 @@ export interface DeviceResponse {
 
 export type LogRecordView = LogRecord
 
+export type { LogLevel }
+
 export interface LogsResponse {
   available: boolean
   production: boolean
   file: string
+  /** The level being written right now. */
+  level: LogLevel
   records: LogRecordView[]
 }
