@@ -29,7 +29,7 @@ const traced = computed(() => selected.value ?? history.data.value?.lastTraced ?
 let poll: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
   poll = setInterval(() => {
-    if (history.data.value?.current) void history.reload()
+    if (history.data.value?.current || history.data.value?.cleanings.current) void history.reload()
   }, 5_000)
 })
 onBeforeUnmount(() => clearInterval(poll))
@@ -159,6 +159,57 @@ const pollingLine = computed(() => {
             <div class="max-w-md">
               <DescaleCard :descale="history.data.value.descale" @marked="history.reload()" />
             </div>
+            <div class="grid gap-4 sm:grid-cols-3">
+              <div class="rounded-lg border border-default px-4 py-3">
+                <p class="text-sm text-muted">
+                  Cleaning cycles seen
+                </p>
+                <p class="tabular text-2xl font-semibold">
+                  {{ history.data.value.cleanings.count }}
+                </p>
+                <p class="text-xs text-muted">
+                  {{ history.data.value.cleanings.current ? `one running since ${formatTime(history.data.value.cleanings.current.startedAt)}` : 'none running' }}
+                </p>
+              </div>
+              <div class="rounded-lg border border-default px-4 py-3">
+                <p class="text-sm text-muted">
+                  Last cycle ended
+                </p>
+                <p class="tabular text-2xl font-semibold">
+                  {{ history.data.value.cleanings.lastEndedAt ? formatAgo(history.data.value.cleanings.lastEndedAt) : '—' }}
+                </p>
+                <p class="text-xs text-muted">
+                  {{ history.data.value.cleanings.lastEndedAt ? formatDateTime(history.data.value.cleanings.lastEndedAt) : 'no cycle seen yet' }}
+                </p>
+              </div>
+              <div class="rounded-lg border border-default px-4 py-3">
+                <p class="text-sm text-muted">
+                  Average cycle
+                </p>
+                <p class="tabular text-2xl font-semibold">
+                  {{ formatDuration(history.data.value.cleanings.averageDurationS) }}
+                </p>
+                <p class="text-xs text-muted">
+                  cycles watched from the start
+                </p>
+              </div>
+            </div>
+            <ul v-if="history.data.value.cleanings.recent.length" class="divide-y divide-default rounded-lg border border-default text-sm">
+              <li v-for="cycle in history.data.value.cleanings.recent" :key="cycle.id" class="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2">
+                <span class="tabular w-36 shrink-0">{{ formatDateTime(cycle.startedAt) }}</span>
+                <span class="w-16">{{ cycle.kind === 'clean' ? 'Descale' : 'Rinse' }}</span>
+                <span class="tabular w-24 text-muted">{{ formatDuration(cycle.durationS) }}</span>
+                <span class="tabular w-20 text-muted">{{ formatMillilitres(cycle.waterMl ?? undefined) }}</span>
+                <span class="text-xs text-muted">ended {{ formatTime(cycle.endedAt) }}<template v-if="cycle.cyclesDelta"> · counted as {{ cycle.cyclesDelta }} brew{{ cycle.cyclesDelta === 1 ? '' : 's' }} by the brewer</template></span>
+                <UBadge v-if="!cycle.observedStart" label="Seen mid-way" color="neutral" variant="subtle" size="sm" />
+              </li>
+            </ul>
+            <p class="text-xs text-muted">
+              Marked descaled:
+            </p>
+            <p v-if="!history.data.value.descaleHistory.length" class="text-sm text-muted">
+              Never marked yet.
+            </p>
             <ul v-if="history.data.value.descaleHistory.length" class="divide-y divide-default rounded-lg border border-default text-sm">
               <li v-for="mark in [...history.data.value.descaleHistory].reverse()" :key="mark.at" class="flex flex-wrap gap-x-4 px-4 py-2">
                 <span class="tabular w-36">{{ formatDateTime(mark.at) }}</span>

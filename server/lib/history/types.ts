@@ -28,6 +28,31 @@ export interface BrewRecord {
   samples: TraceSample[]
 }
 
+export type CleaningKind = 'clean' | 'rinse'
+
+export interface CleaningSample {
+  t: number
+  heaterOn?: boolean
+  pumpOn?: boolean
+}
+
+/** A cleaning (descale) or rinse cycle the brewer reported, with the counters' movement across it. */
+export interface CleaningRecord {
+  id: string
+  kind: CleaningKind
+  startedAt: number
+  endedAt: number
+  /** Seconds; null when the cycle was first seen already running without a usable start time. */
+  durationS: number | null
+  /** The brewer's water figure for the cycle (`brewingWaterVolumeMl`, 1500 for a descale). */
+  waterMl: number | null
+  /** How far `totalBrewingCycles` and `totalWaterVolumeL` moved across the cycle, when both ends were known. */
+  cyclesDelta: number | null
+  waterDeltaMl: number | null
+  observedStart: boolean
+  samples: CleaningSample[]
+}
+
 export interface DescaleMarker {
   at: number
   brews: number | null

@@ -1,7 +1,7 @@
 import { brewPhase, isBrewing } from '../fellow/device'
 import type { Device } from '../fellow/schemas'
 import { plausibleEpoch } from './time'
-import type { BrewRecord, TraceSample } from './types'
+import type { BrewRecord, CleaningKind, CleaningRecord, CleaningSample, TraceSample } from './types'
 
 /** How the start time was learned. Only a brew whose start was seen (or reported by the brewer) gets a trusted duration. */
 export type StartOrigin = 'transition' | 'device' | 'first-read'
@@ -17,11 +17,24 @@ export interface CurrentBrew {
   samples: TraceSample[]
 }
 
+export interface CurrentCleaning {
+  id: string
+  kind: CleaningKind
+  startedAt: number
+  startOrigin: StartOrigin
+  cyclesBefore: number | null
+  waterBefore: number | null
+  samples: CleaningSample[]
+}
+
 export type BrewEvent
   = { type: 'started', brew: CurrentBrew }
     | { type: 'sample', brew: CurrentBrew }
     | { type: 'completed', record: BrewRecord }
     | { type: 'inferred', record: BrewRecord }
+    | { type: 'cleaningStarted', cleaning: CurrentCleaning }
+    | { type: 'cleaningSample', cleaning: CurrentCleaning }
+    | { type: 'cleaningCompleted', record: CleaningRecord }
 
 export interface TrackerOptions {
   /** The brew counter as last seen before this process started (the last stored record's `cyclesAfter`). */
@@ -36,6 +49,10 @@ export type TitleLookup = (profileId: string) => string | undefined
 
 /** Five minutes: the device's own start time is used only when it is at most this stale. */
 const START_WINDOW_MS = 5 * 60_000
+/** A descale runs for the better part of an hour, so its reported start is believed up to two hours back. */
+const CLEANING_START_WINDOW_MS = 2 * 60 * 60_000
+/** A cleaning cycle still running after this long is a stuck flag; it is closed and watching starts over. */
+export const MAX_CLEANING_MS = 6 * 60 * 60_000
 /** A brew still running after a day is a stuck state, not a brew; it is closed uncounted and watching starts over. */
 export const MAX_BREW_MS = 24 * 60 * 60_000
 /** Samples kept per brew; beyond this every other sample is dropped, halving the resolution of a very long steep. */
@@ -54,6 +71,7 @@ const UNWATCHED_END_WINDOW_MS = 3 * 60 * 60_000
  */
 export class BrewTracker {
   private current: CurrentBrew | null = null
+  private currentCleaning: CurrentCleaning | null = null
   private idleCycles: number | null
   private sawIdle = false
   /** A brew was completed without a counter reading; the next idle read's +1 belongs to it, not to a missed brew. */
@@ -71,6 +89,10 @@ export class BrewTracker {
     return this.current
   }
 
+  get currentCleaningCycle(): CurrentCleaning | null {
+    return this.currentCleaning
+  }
+
   /** The brew counter the tracker will compare the next idle read against. */
   get baselineCycles(): number | null {
     return this.idleCycles
@@ -81,6 +103,48 @@ export class BrewTracker {
     if (brewing === undefined) return []
     const cycles = typeof device.totalBrewingCycles === 'number' ? device.totalBrewingCycles : undefined
     const events: BrewEvent[] = []
+
+    // A cleaning or rinse cycle: the brewer sets `brewing` too, so brews are not tracked while it runs, and any
+    // movement of the counters across the cycle belongs to the cycle, never to an inferred brew.
+    const cleaningKind: CleaningKind | null = device.cleaning === true ? 'clean' : device.rinsing === true ? 'rinse' : null
+    if (cleaningKind) {
+      if (this.current) {
+        events.push({ type: 'completed', record: this.complete(this.current, device, now, undefined) })
+        this.current = null
+      }
+      if (this.currentCleaning && now - this.currentCleaning.startedAt > MAX_CLEANING_MS) {
+        events.push({ type: 'cleaningCompleted', record: this.completeCleaning(this.currentCleaning, device, now) })
+        this.currentCleaning = null
+      }
+      if (!this.currentCleaning) {
+        const deviceStart = plausibleEpoch(device.brewStartTime, now - CLEANING_START_WINDOW_MS, now)
+        const startedAt = deviceStart ?? now
+        this.currentCleaning = {
+          id: `c${startedAt}`,
+          kind: cleaningKind,
+          startedAt,
+          startOrigin: deviceStart !== undefined ? 'device' : this.sawIdle ? 'transition' : 'first-read',
+          cyclesBefore: this.idleCycles ?? cycles ?? null,
+          waterBefore: typeof device.totalWaterVolumeL === 'number' ? device.totalWaterVolumeL : null,
+          samples: [],
+        }
+        events.push({ type: 'cleaningStarted', cleaning: this.currentCleaning })
+      }
+      const sample: CleaningSample = { t: now }
+      if (typeof device.heaterOn === 'boolean') sample.heaterOn = device.heaterOn
+      if (typeof device.pumpOn === 'boolean') sample.pumpOn = device.pumpOn
+      this.currentCleaning.samples.push(sample)
+      if (this.currentCleaning.samples.length > MAX_SAMPLES) this.currentCleaning.samples = this.currentCleaning.samples.filter((_, i) => i % 2 === 0)
+      events.push({ type: 'cleaningSample', cleaning: this.currentCleaning })
+      return events
+    }
+    if (this.currentCleaning) {
+      events.push({ type: 'cleaningCompleted', record: this.completeCleaning(this.currentCleaning, device, now) })
+      this.currentCleaning = null
+      // Whatever the counters did across the cycle is the cycle's; the next read starts from here.
+      if (cycles !== undefined) this.idleCycles = cycles
+      this.pendingIncrement = false
+    }
 
     if (brewing) {
       if (this.current && now - this.current.startedAt > MAX_BREW_MS) {
@@ -170,6 +234,24 @@ export class BrewTracker {
       this.pendingIncrement = false
     }
     return events
+  }
+
+  private completeCleaning(cleaning: CurrentCleaning, device: Device, now: number): CleaningRecord {
+    const cycles = typeof device.totalBrewingCycles === 'number' ? device.totalBrewingCycles : null
+    const water = typeof device.totalWaterVolumeL === 'number' ? device.totalWaterVolumeL : null
+    const observedStart = cleaning.startOrigin !== 'first-read'
+    return {
+      id: cleaning.id,
+      kind: cleaning.kind,
+      startedAt: cleaning.startedAt,
+      endedAt: now,
+      durationS: observedStart ? Math.max(0, Math.round((now - cleaning.startedAt) / 1000)) : null,
+      waterMl: device.brewingWaterVolumeMl ?? null,
+      cyclesDelta: cycles !== null && cleaning.cyclesBefore !== null ? cycles - cleaning.cyclesBefore : null,
+      waterDeltaMl: water !== null && cleaning.waterBefore !== null ? water - cleaning.waterBefore : null,
+      observedStart,
+      samples: cleaning.samples,
+    }
   }
 
   private complete(brew: CurrentBrew, device: Device, now: number, cycles: number | undefined): BrewRecord {

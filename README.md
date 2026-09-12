@@ -74,6 +74,11 @@ counters.
   profile ran, so the log records the one that was selected on the brewer and the UI says so.
 - **Where it lives.** `data/` sits next to `logs/` in the working directory: the checkout for `pnpm start`, the
   installed copy under launchd. A reinstall keeps it; `uninstall.sh --purge` removes it. Nothing leaves this Mac.
+- **Cleaning cycles.** The brewer announces a descale or rinse while it runs (and borrows the brew fields for it:
+  1500 mL, a start time, `brewing: true`), so each cycle is logged to `data/cleanings.jsonl` with its start, end,
+  duration, water, and how far the brew and water totals moved across it; a cycle never counts as a brew. The
+  History page lists them, and the dashboard shows a banner while one runs and offers Mark descaled when one has
+  just finished.
 - **The descale tally.** Brews and litres since you pressed Mark descaled, a bar that turns amber at 80% and red at
   100% of `maintenance.descaleAfterLitres` (60 L to start; add `descaleAfterBrews` to count brews as well), and an
   estimate of the due date from the litres per day in the log, or since the last mark while the log is young. Until

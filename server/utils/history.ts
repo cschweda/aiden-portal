@@ -1,7 +1,7 @@
 import { FellowError } from '../lib/fellow'
 import type { Device } from '../lib/fellow/schemas'
 import { BrewTracker, computeStats, descaleStatus, HistoryStore, summarise } from '../lib/history'
-import type { CurrentBrew, DescaleMarker, DescaleStatus, HistorySnapshot, PollerState } from '../lib/history'
+import type { CleaningRecord, CurrentBrew, DescaleMarker, DescaleStatus, HistorySnapshot, PollerState } from '../lib/history'
 import { type AppConfig, getConfig } from './config'
 import { useFellowClient } from './fellow-client'
 import { useLogger } from './logger'
@@ -100,6 +100,26 @@ export class HistoryService {
       else if (event.type === 'completed' || event.type === 'inferred') {
         this.persist(event.record, event.type === 'completed' ? 'Brew logged' : 'Brew inferred from the brew counter')
       }
+      else if (event.type === 'cleaningStarted') {
+        logger.info({ kind: event.cleaning.kind, startOrigin: event.cleaning.startOrigin }, 'Cleaning cycle started')
+      }
+      else if (event.type === 'cleaningCompleted') {
+        this.persistCleaning(event.record)
+      }
+    }
+  }
+
+  private persistCleaning(record: CleaningRecord): void {
+    const logger = useLogger()
+    const fields = { cleaningId: record.id, kind: record.kind, durationS: record.durationS, waterMl: record.waterMl, cyclesDelta: record.cyclesDelta, waterDeltaMl: record.waterDeltaMl }
+    try {
+      this.store.appendCleaning(record)
+      logger.info(fields, 'Cleaning cycle logged')
+    }
+    catch (error) {
+      this.storeFailures += 1
+      this.polling.lastError = error instanceof Error ? error.message : String(error)
+      logger.error({ ...fields, err: this.polling.lastError }, 'Cleaning cycle could not be written to the history file')
     }
   }
 
@@ -140,6 +160,19 @@ export class HistoryService {
       polling: { ...this.polling },
       skippedLines: this.store.skippedLines,
       storeError: this.store.loadError,
+      cleanings: this.cleaningSummary(),
+    }
+  }
+
+  private cleaningSummary(): HistorySnapshot['cleanings'] {
+    const all = this.store.cleanings
+    const durations = all.map(c => c.durationS).filter((d): d is number => d !== null)
+    return {
+      current: this.tracker.currentCleaningCycle,
+      recent: all.slice(-20).reverse(),
+      count: all.length,
+      averageDurationS: durations.length ? durations.reduce((a, b) => a + b, 0) / durations.length : null,
+      lastEndedAt: all[all.length - 1]?.endedAt ?? null,
     }
   }
 
@@ -180,7 +213,7 @@ export class HistoryService {
       if (this.polling.failures > 0) logger.info({ failures: this.polling.failures }, 'History polling recovered')
       this.polling.failures = 0
       if (this.storeFailures === 0) this.polling.lastError = this.store.loadError
-      const current = this.tracker.currentBrew
+      const current = this.tracker.currentBrew ?? this.tracker.currentCleaningCycle
       if (current) {
         const seconds = Date.now() - current.startedAt > LONG_BREW_MS ? this.config.history.idlePollSeconds : this.config.history.brewPollSeconds
         delayMs = seconds * 1000

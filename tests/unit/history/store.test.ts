@@ -2,8 +2,8 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, st
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { BREWS_FILE, DESCALE_FILE, HistoryStore } from '../../../server/lib/history'
-import type { BrewRecord } from '../../../server/lib/history'
+import { BREWS_FILE, CLEANINGS_FILE, DESCALE_FILE, HistoryStore } from '../../../server/lib/history'
+import type { BrewRecord, CleaningRecord } from '../../../server/lib/history'
 
 const record = (overrides: Partial<BrewRecord> = {}): BrewRecord => ({
   id: 'b1',
@@ -89,6 +89,15 @@ describe('HistoryStore', () => {
     expect(store.loadError).toMatch(/ENOTDIR|EEXIST|not a directory/i)
     expect(store.brews).toEqual([])
     expect(() => store.appendBrew(record())).toThrow(/unusable/)
+  })
+  it('keeps cleaning cycles in their own file and reads them back', () => {
+    const store = new HistoryStore({ directory: dir })
+    const cycle: CleaningRecord = { id: 'c1', kind: 'clean', startedAt: 1_000, endedAt: 1_800_000, durationS: 1799, waterMl: 1500, cyclesDelta: 1, waterDeltaMl: 1500, observedStart: true, samples: [{ t: 1_000, heaterOn: true, pumpOn: true }] }
+    store.appendCleaning(cycle)
+    expect(statSync(join(dir, CLEANINGS_FILE)).mode & 0o777).toBe(0o600)
+    const again = new HistoryStore({ directory: dir })
+    expect(again.cleanings).toEqual([cycle])
+    expect(again.brews).toEqual([])
   })
   it('treats an unreadable marker file as never descaled', () => {
     const store = new HistoryStore({ directory: dir })

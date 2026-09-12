@@ -1,16 +1,36 @@
 <script setup lang="ts">
-import type { DescaleStatus } from '#shared/types/api'
-import { formatDate, formatDateTime } from '../utils/format'
+import type { CurrentCleaning, DescaleStatus } from '#shared/types/api'
+import { formatAgo, formatDate, formatDateTime, formatTime } from '../utils/format'
 
-const props = defineProps<{ descale: DescaleStatus }>()
+const props = defineProps<{ descale: DescaleStatus, cleaning?: CurrentCleaning | null, lastCleaningEndedAt?: number | null }>()
 const emit = defineEmits<{ marked: [] }>()
 const { confirming, marking, mark } = useDescaleMark(() => emit('marked'))
 
-const shown = computed(() => props.descale.level === 'amber' || props.descale.level === 'red')
-const color = computed(() => (props.descale.level === 'red' ? 'error' : 'warning'))
-const title = computed(() => (props.descale.level === 'red' ? 'Descale now' : 'Descale soon'))
+/** A cycle that ended after the last mark (or with no mark) within the last day is worth a prompt. */
+const finishedUnmarked = computed(() => {
+  const ended = props.lastCleaningEndedAt ?? null
+  if (ended === null || Date.now() - ended > 86_400_000) return false
+  return (props.descale.markedAt ?? 0) < ended
+})
+type Mode = 'running' | 'finished' | 'due' | 'hidden'
+const mode = computed<Mode>(() => {
+  if (props.cleaning?.kind === 'clean') return 'running'
+  if (finishedUnmarked.value) return 'finished'
+  if (props.descale.level === 'amber' || props.descale.level === 'red') return 'due'
+  return 'hidden'
+})
+const shown = computed(() => mode.value !== 'hidden')
+const color = computed(() => (mode.value === 'running' ? 'info' : mode.value === 'finished' ? 'success' : props.descale.level === 'red' ? 'error' : 'warning'))
+const icon = computed(() => (mode.value === 'running' ? 'i-lucide-loader-circle' : 'i-lucide-droplets'))
+const title = computed(() => {
+  if (mode.value === 'running') return 'Descale cycle running'
+  if (mode.value === 'finished') return 'Descale cycle finished'
+  return props.descale.level === 'red' ? 'Descale now' : 'Descale soon'
+})
 const description = computed(() => {
   const d = props.descale
+  if (mode.value === 'running' && props.cleaning) return `Started ${formatTime(props.cleaning.startedAt)} (${formatAgo(props.cleaning.startedAt)}). Mark it descaled once the brewer is done.`
+  if (mode.value === 'finished' && props.lastCleaningEndedAt) return `Ended ${formatTime(props.lastCleaningEndedAt)} (${formatAgo(props.lastCleaningEndedAt)}). If that was a descale, mark it so the tally restarts.`
   const litres = d.litresSince === null ? '—' : d.litresSince.toFixed(1)
   const since = d.markedAt ? `since ${formatDateTime(d.markedAt)}` : 'since the brewer\'s first brew, never marked'
   const brews = d.brewsSince === null ? '' : ` and ${d.brewsSince} brew${d.brewsSince === 1 ? '' : 's'}`
@@ -19,7 +39,7 @@ const description = computed(() => {
     : ''
   return `${litres} of ${d.thresholdLitres} L${brews} ${since}.${pace}`
 })
-const actions = computed(() => [{
+const actions = computed(() => mode.value === 'running' ? [] : [{
   label: 'Mark descaled',
   icon: 'i-lucide-droplets',
   color: 'neutral' as const,
@@ -30,7 +50,7 @@ const actions = computed(() => [{
 
 <template>
   <div v-if="shown">
-    <UAlert :color="color" variant="subtle" icon="i-lucide-droplets" :title="title" :description="description" :actions="actions" orientation="horizontal" />
+    <UAlert :color="color" variant="subtle" :icon="icon" :title="title" :description="description" :actions="actions" orientation="horizontal" />
     <ConfirmModal
       v-model:open="confirming"
       title="Mark the brewer as descaled?"

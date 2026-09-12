@@ -21,7 +21,7 @@ let ticks = 0
 onMounted(() => {
   poll = setInterval(() => {
     ticks += 1
-    const brewing = (device.data.value && isBrewing(device.data.value.device)) || history.data.value?.current
+    const brewing = (device.data.value && isBrewing(device.data.value.device)) || history.data.value?.current || history.data.value?.cleanings.current
     if (!brewing) return
     void history.reload()
     if (ticks % 3 === 0) void device.reload({ fresh: true }).then(() => refreshStatus())
@@ -58,7 +58,7 @@ watch(() => device.data.value, (value) => {
     <template #body>
       <div class="mx-auto w-full max-w-5xl space-y-8">
         <ApiErrorAlert v-if="device.failure.value" :failure="device.failure.value" what="the brewer" :stale="device.stale.value" />
-        <DescaleBanner v-if="history.data.value" :descale="history.data.value.descale" @marked="history.reload()" />
+        <DescaleBanner v-if="history.data.value" :descale="history.data.value.descale" :cleaning="history.data.value.cleanings.current" :last-cleaning-ended-at="history.data.value.cleanings.lastEndedAt" @marked="history.reload()" />
 
         <div v-if="device.loading.value && !device.data.value" class="space-y-4">
           <USkeleton class="h-4 w-32" />

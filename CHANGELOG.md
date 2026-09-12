@@ -7,6 +7,16 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-12
+
+### Added
+
+- Cleaning cycles: a descale or rinse the brewer announces is logged to `data/cleanings.jsonl` with its start, end,
+  duration, water, and the movement of the brew and water totals across it. The History page has a Descale section
+  with the cycles seen, the last one, the average length, and the list; the dashboard banner says when a cycle is
+  running and offers Mark descaled once one has finished. A cycle never counts as a brew, and the brewing flag the
+  brewer raises during a cycle no longer risks a phantom brew.
+
 ### Changed
 
 - The sensor panel says "Last cycle started" and "Last cycle water": the brewer fills those fields for a descale

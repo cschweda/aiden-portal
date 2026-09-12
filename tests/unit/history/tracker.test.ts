@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BrewTracker, MAX_BREW_MS, MAX_SAMPLES } from '../../../server/lib/history'
+import { BrewTracker, MAX_BREW_MS, MAX_CLEANING_MS, MAX_SAMPLES } from '../../../server/lib/history'
 import type { Device } from '../../../server/lib/fellow/schemas'
 
 const T0 = 1_789_200_000_000
@@ -145,5 +145,57 @@ describe('BrewTracker', () => {
     const count = tracker.currentBrew?.samples.length ?? 0
     expect(count).toBeLessThanOrEqual(MAX_SAMPLES)
     expect(count).toBeGreaterThan(MAX_SAMPLES / 2 - 1)
+  })
+})
+
+describe('BrewTracker cleaning cycles', () => {
+  const cleaning = (extra: Partial<Device> = {}): Device => ({ id: 'd', cleaning: true, brewing: true, state: null, heaterOn: true, pumpOn: true, totalBrewingCycles: 70, totalWaterVolumeL: 63_570, brewingWaterVolumeMl: 1500, ...extra })
+
+  it('tracks a descale from idle to idle, with the counters\' movement and the water figure', () => {
+    const tracker = new BrewTracker()
+    tracker.observe(idle(70, { totalWaterVolumeL: 63_570 }), T0)
+    const started = tracker.observe(cleaning(), T0 + 60_000)
+    expect(started.map(e => e.type)).toEqual(['cleaningStarted', 'cleaningSample'])
+    expect(tracker.currentCleaningCycle).toMatchObject({ kind: 'clean', startedAt: T0 + 60_000, startOrigin: 'transition', cyclesBefore: 70, waterBefore: 63_570 })
+    expect(tracker.currentBrew).toBeNull()
+    tracker.observe(cleaning({ heaterOn: false, pumpOn: false }), T0 + 65_000)
+    const [done] = tracker.observe(idle(71, { totalWaterVolumeL: 65_070, brewingWaterVolumeMl: 1500 }), T0 + 1_800_000)
+    expect(done).toMatchObject({ type: 'cleaningCompleted', record: { kind: 'clean', durationS: 1740, waterMl: 1500, cyclesDelta: 1, waterDeltaMl: 1500, observedStart: true } })
+    expect((done as { record: { samples: unknown[] } }).record.samples).toHaveLength(2)
+    expect(tracker.currentCleaningCycle).toBeNull()
+    // The counter rise belonged to the cycle: nothing is inferred afterwards, and the baseline moved on.
+    expect(tracker.observe(idle(71), T0 + 1_860_000)).toEqual([])
+    expect(tracker.baselineCycles).toBe(71)
+  })
+  it('believes the brewer\'s start time for a cycle first seen mid-way, up to two hours back', () => {
+    const tracker = new BrewTracker()
+    const [event] = tracker.observe(cleaning({ brewStartTime: String((T0 - 90 * 60_000) / 1000) }), T0)
+    expect(event).toMatchObject({ type: 'cleaningStarted', cleaning: { startedAt: T0 - 90 * 60_000, startOrigin: 'device' } })
+    const stale = new BrewTracker().observe(cleaning({ brewStartTime: String((T0 - 3 * 3_600_000) / 1000) }), T0)
+    expect(stale[0]).toMatchObject({ type: 'cleaningStarted', cleaning: { startedAt: T0, startOrigin: 'first-read' } })
+  })
+  it('never starts a brew from the brewing flag while a cycle runs, even without a state field', () => {
+    const tracker = new BrewTracker()
+    tracker.observe(idle(70), T0)
+    tracker.observe(cleaning({ state: undefined }), T0 + 1_000)
+    expect(tracker.currentBrew).toBeNull()
+    expect(tracker.currentCleaningCycle?.kind).toBe('clean')
+    const [event] = tracker.observe(idle(70), T0 + 2_000)
+    expect(event?.type).toBe('cleaningCompleted')
+  })
+  it('closes a brew that was running when a cycle starts, and a cycle that runs for six hours', () => {
+    const tracker = new BrewTracker()
+    tracker.observe(idle(70), T0)
+    tracker.observe(brewing('p1'), T0 + 1_000)
+    const events = tracker.observe(cleaning(), T0 + 2_000)
+    expect(events.map(e => e.type)).toEqual(['completed', 'cleaningStarted', 'cleaningSample'])
+    const stuck = tracker.observe(cleaning(), T0 + 2_000 + MAX_CLEANING_MS + 1)
+    expect(stuck.map(e => e.type)).toEqual(['cleaningCompleted', 'cleaningStarted', 'cleaningSample'])
+  })
+  it('treats a rinse as its own kind', () => {
+    const tracker = new BrewTracker()
+    tracker.observe(idle(70), T0)
+    const [event] = tracker.observe(cleaning({ cleaning: false, rinsing: true }), T0 + 1_000)
+    expect(event).toMatchObject({ type: 'cleaningStarted', cleaning: { kind: 'rinse' } })
   })
 })

@@ -1,10 +1,11 @@
 import { appendFileSync, closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, readSync, renameSync, statSync, writeSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod'
-import type { BrewRecord, DescaleMarker, DescaleState } from './types'
+import type { BrewRecord, CleaningRecord, DescaleMarker, DescaleState } from './types'
 
 export const BREWS_FILE = 'brews.jsonl'
 export const DESCALE_FILE = 'descale.json'
+export const CLEANINGS_FILE = 'cleanings.jsonl'
 
 const SampleSchema = z.looseObject({ t: z.number(), phase: z.string(), temperatureC: z.number().optional(), heaterOn: z.boolean().optional(), pumpOn: z.boolean().optional() })
 const RecordSchema = z.looseObject({
@@ -19,6 +20,18 @@ const RecordSchema = z.looseObject({
   counted: z.boolean().default(false),
   cyclesAfter: z.number().nullable().default(null),
   samples: z.array(SampleSchema).default([]),
+})
+const CleaningSchema = z.looseObject({
+  id: z.string().min(1),
+  kind: z.enum(['clean', 'rinse']).default('clean'),
+  startedAt: z.number(),
+  endedAt: z.number(),
+  durationS: z.number().nullable().default(null),
+  waterMl: z.number().nullable().default(null),
+  cyclesDelta: z.number().nullable().default(null),
+  waterDeltaMl: z.number().nullable().default(null),
+  observedStart: z.boolean().default(false),
+  samples: z.array(z.looseObject({ t: z.number(), heaterOn: z.boolean().optional(), pumpOn: z.boolean().optional() })).default([]),
 })
 const MarkerSchema = z.looseObject({ at: z.number(), brews: z.number().nullable().default(null), waterMl: z.number().nullable().default(null) })
 const DescaleSchema = z.looseObject({ current: MarkerSchema.nullable().default(null), history: z.array(MarkerSchema).default([]) })
@@ -39,6 +52,7 @@ export class HistoryStore {
   readonly directory: string
   private readonly keep: number
   private records: BrewRecord[] = []
+  private cleaningRecords: CleaningRecord[] = []
   private descale: DescaleState = { current: null, history: [] }
   private skipped = 0
   private loaded = false
@@ -54,6 +68,7 @@ export class HistoryStore {
     this.loaded = true
     this.error = null
     this.records = []
+    this.cleaningRecords = []
     this.descale = { current: null, history: [] }
     this.skipped = 0
     try {
@@ -62,6 +77,7 @@ export class HistoryStore {
       const mode = statSync(this.directory).mode & 0o777
       this.shared = existed && (mode & 0o077) !== 0
       this.readBrews()
+      this.readCleanings()
       this.readDescale()
     }
     catch (caught) {
@@ -85,6 +101,24 @@ export class HistoryStore {
       }
     }
     this.records = records.slice(-this.keep)
+  }
+
+  private readCleanings(): void {
+    const path = join(this.directory, CLEANINGS_FILE)
+    if (!existsSync(path)) return
+    const records: CleaningRecord[] = []
+    for (const line of readFileSync(path, 'utf8').split('\n')) {
+      if (line.trim() === '') continue
+      try {
+        const parsed = CleaningSchema.safeParse(JSON.parse(line))
+        if (parsed.success) records.push(parsed.data as CleaningRecord)
+        else this.skipped++
+      }
+      catch {
+        this.skipped++
+      }
+    }
+    this.cleaningRecords = records.slice(-200)
   }
 
   private readDescale(): void {
@@ -121,6 +155,11 @@ export class HistoryStore {
     return this.records[this.records.length - 1] ?? null
   }
 
+  get cleanings(): readonly CleaningRecord[] {
+    this.ensureLoaded()
+    return this.cleaningRecords
+  }
+
   get descaleState(): DescaleState {
     this.ensureLoaded()
     return this.descale
@@ -140,6 +179,15 @@ export class HistoryStore {
     appendFileSync(path, `${prefix}${JSON.stringify(record)}\n`, { mode: 0o600 })
     this.records.push(record)
     if (this.records.length > this.keep) this.records.splice(0, this.records.length - this.keep)
+  }
+
+  appendCleaning(record: CleaningRecord): void {
+    this.assertWritable()
+    const path = join(this.directory, CLEANINGS_FILE)
+    const prefix = endsWithNewline(path) ? '' : '\n'
+    appendFileSync(path, `${prefix}${JSON.stringify(record)}\n`, { mode: 0o600 })
+    this.cleaningRecords.push(record)
+    if (this.cleaningRecords.length > 200) this.cleaningRecords.splice(0, this.cleaningRecords.length - 200)
   }
 
   markDescaled(marker: DescaleMarker): DescaleState {

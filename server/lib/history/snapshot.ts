@@ -1,7 +1,7 @@
 import type { DescaleStatus } from './descale'
 import type { HistoryStats } from './stats'
-import type { CurrentBrew } from './tracker'
-import type { BrewRecord, DescaleMarker } from './types'
+import type { CurrentBrew, CurrentCleaning } from './tracker'
+import type { BrewRecord, CleaningRecord, DescaleMarker } from './types'
 
 export interface PollerState {
   enabled: boolean
@@ -29,6 +29,15 @@ export interface HistorySnapshot {
   skippedLines: number
   /** Why the data directory cannot be used, or null. */
   storeError: string | null
+  cleanings: {
+    /** The cleaning or rinse cycle running now. */
+    current: CurrentCleaning | null
+    /** Newest first. */
+    recent: CleaningRecord[]
+    count: number
+    averageDurationS: number | null
+    lastEndedAt: number | null
+  }
 }
 
 export function summarise(record: BrewRecord): BrewSummary {
