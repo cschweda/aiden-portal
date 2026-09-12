@@ -129,12 +129,14 @@ counters.
   estimate of the due date from the litres per day in the log, or since the last mark while the log is young. Until
   the first mark the tally counts from the brewer's lifetime totals. Marking writes only to `data/descale.json`.
 
-## Quick start on a Mac
+## Quick start
 
-This is what the app was built for: one Mac that stays on, running it under launchd, with Tailscale letting
-your other Macs and PCs open it. Tested on Apple Silicon (macOS 26, M-series); an Intel Mac is the
-same apart from the Homebrew path noted below. Budget about fifteen minutes, most of it downloads. Every line
-below goes into Terminal.
+Two pathways to the same result: the app running as a service that starts itself, reachable from your other
+computers over Tailscale. Pick the one that matches the machine that will stay on. Every line goes into a terminal.
+
+### On a Mac
+
+Tested on Apple Silicon (macOS 26, M-series); an Intel Mac differs only in the Homebrew path noted below.
 
 **1. Node 22 and pnpm.**
 
@@ -149,8 +151,8 @@ node -v   # v22.x
 pnpm -v   # 10.x
 ```
 
-Already an nvm user? `nvm install 22 && nvm use 22`, then `corepack enable pnpm`. Node must be on the internal
-disk: launchd will not start one that lives on an external volume.
+Already an nvm user? `nvm install 22 && nvm use 22`, then `corepack enable pnpm`. Node must live on the internal
+disk: launchd will not start one from an external volume.
 
 **2. The app and your Fellow login.**
 
@@ -163,8 +165,6 @@ chmod 600 .env     # it is about to hold your real Fellow password
 nano .env          # fill in FELLOW_EMAIL and FELLOW_PASSWORD: the login you use in the Fellow phone app
 ```
 
-The repository is private, so the clone asks for a GitHub account that can read it.
-
 **3. See it work, without touching the brewer.**
 
 ```sh
@@ -172,25 +172,24 @@ pnpm dev
 ```
 
 Open `http://localhost:5150`. `fellow.dryRun` starts out `true`, so reads are live but every change is logged
-instead of sent: the header shows a DRY RUN badge. Ctrl-C stops it.
+instead of sent, and the header shows a DRY RUN badge. Ctrl-C stops it.
 
 **4. Run it for real, at login.**
 
 ```sh
-# writes are real from here on; leave this line out to stay in dry run
-printf 'FELLOW_DRY_RUN=false\n' >> .env
+printf 'FELLOW_DRY_RUN=false\n' >> .env    # leave this out to stay in dry run
 
 pnpm build
-deploy/local/install.sh
+deploy/macos/install.sh
 open http://localhost:5150
-deploy/local/status.sh      # loaded? running? answering?
+deploy/macos/status.sh
 ```
 
-The installer copies the build and `.env` into `~/Library/Application Support/aiden-studio` and registers a
-launchd agent that starts at login and restarts on a crash. Run those last two commands again after any change
-to the code, to `aiden.config.ts`, or to `.env`.
+The installer copies the build and `.env` into `~/Library/Application Support/aiden-studio` and registers a launchd
+agent that starts at login and restarts on a crash. Run those two commands again after any change to the code, to
+`aiden.config.ts`, or to `.env`.
 
-**5. Reach it from your other Macs and PCs.**
+**5. Reach it from your other machines.**
 
 ```sh
 brew install --cask tailscale
@@ -198,157 +197,194 @@ open -a Tailscale        # sign in with the account every machine will use
 ```
 
 In the Tailscale admin console, once: under **DNS** turn on HTTPS certificates, and under **Machines** open this
-Mac's menu and disable key expiry, so it never quietly drops off after six months. Then publish the dashboard:
+Mac's menu and disable key expiry. Then publish the dashboard:
 
 ```sh
 alias ts=/Applications/Tailscale.app/Contents/MacOS/Tailscale
 ts serve --bg 5150
 ```
 
-The first run prints a link to enable Serve for this machine; open it, approve, and run the command again. It
-then prints the address, `https://<this-mac>.<your-tailnet>.ts.net`. Put that hostname into
-`server.allowedHosts` in `aiden.config.ts`, and your Tailscale login (`ts status` shows it) into
-`server.tailnetUsers` if you want to be the only one who can change anything, then rebuild:
+The first run prints a link to enable Serve for this machine; open it, approve, and run the command again. It then
+prints the address, `https://<this-mac>.<your-tailnet>.ts.net`. Finish as described under **Both pathways** below.
+
+### On Ubuntu 24.04 or newer
+
+Server or desktop; the service is a systemd user unit either way. Run it as the ordinary user who will own the app,
+not as root.
+
+**1. Node 22 and pnpm.**
 
 ```sh
-pnpm build && deploy/local/install.sh
+sudo apt update && sudo apt install -y curl git rsync
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+sudo corepack enable pnpm
+node -v   # v22.x
+pnpm -v   # 10.x
 ```
 
-On every other machine, Mac or Windows: install Tailscale, sign in with the same account, open that `https://`
-address. Nothing else to configure, and it works away from home too. The app itself never listens beyond
-`127.0.0.1`; Tailscale is the only door.
+Ubuntu's own `nodejs` package is older than 22, which is why this adds the NodeSource repository. `nvm install 22`
+works just as well if you prefer a version manager; the installer records whichever node it finds.
 
-Two files configure the app:
+**2. The app and your Fellow login.**
 
-- **`.env`** (git-ignored, copied from the heavily commented `.env.sample`) holds the secrets: your Fellow
-  email and password. It may also override a handful of settings for one run; leave those blank normally.
-- **`aiden.config.ts`** (committed, at the repo root) is the single source of truth for everything else:
-  bind address and port, dry run, cache and retry tuning, Fellow's API URL, logging, and UI defaults. Edit
-  it and rebuild; it is compiled into each `pnpm dev` and `pnpm build`.
+```sh
+git clone https://github.com/cschweda/aiden-portal.git ~/aiden-portal
+cd ~/aiden-portal
+pnpm install
+cp .env.sample .env
+chmod 600 .env
+nano .env          # FELLOW_EMAIL and FELLOW_PASSWORD
+```
 
-`fellow.dryRun` starts out `true`: every profile, schedule, and brew-start change is logged instead of sent to
-Fellow, and the UI shows a DRY RUN badge. Reads still go through. Flip it once you trust the app.
+**3. See it work, without touching the brewer.**
 
-`pnpm install` needs no build-script approvals. The few dependencies whose install scripts pnpm 10 skips are
-listed, with reasons, in `pnpm-workspace.yaml`, as is the one dependency override.
+```sh
+pnpm dev
+```
+
+`http://localhost:5150` from that machine's own browser, or through the SSH tunnel below if it is headless. Dry run
+is on, so nothing reaches the brewer. Ctrl-C stops it.
+
+**4. Run it for real, at boot.**
+
+```sh
+printf 'FELLOW_DRY_RUN=false\n' >> .env    # leave this out to stay in dry run
+
+pnpm build
+deploy/linux/install.sh
+deploy/linux/status.sh
+```
+
+The installer copies the build and `.env` into `~/.local/share/aiden-portal`, writes a systemd user unit, starts it,
+and enables lingering so it runs whether or not you are logged in. On a headless box, if `systemctl --user` cannot
+reach a manager, run `sudo loginctl enable-linger $USER`, log in again, and repeat. Run those two commands again
+after any change to the code, to `aiden.config.ts`, or to `.env`.
+
+**5. Reach it from your other machines.**
+
+```sh
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up                        # prints a link; open it and sign in
+sudo tailscale set --operator=$USER      # so tailscale commands need no sudo from here on
+```
+
+In the Tailscale admin console, once: under **DNS** turn on HTTPS certificates, and under **Machines** open this
+machine's menu and disable key expiry. Then publish the dashboard:
+
+```sh
+tailscale serve --bg 5150
+```
+
+The first run prints a link to enable Serve for this machine; open it, approve, and run the command again. It then
+prints the address, `https://<this-machine>.<your-tailnet>.ts.net`. Tailscale itself runs as a system service and
+comes back after a reboot with no further work.
+
+### Both pathways: finish the Tailscale setup
+
+Put the `ts.net` name the previous step printed into `server.allowedHosts` in `aiden.config.ts`, and, if you want to
+be the only one who can change anything, your Tailscale login into `server.tailnetUsers` (`tailscale serve` stamps
+the signed-in login on every request, and the app logs it). Keep both out of git by setting `ALLOWED_HOSTS` and
+`TAILNET_USERS` in `.env` instead. Then rebuild and reinstall:
+
+```sh
+pnpm build && deploy/macos/install.sh      # or deploy/linux/install.sh
+```
+
+On every other machine, Mac, Windows, or phone: install Tailscale, sign in with the same account, open that
+`https://` address. Nothing else to configure, and it works away from home too.
 
 ## Run at home
 
-Once `.env` holds your Fellow login and `aiden.config.ts` says what you want, install the app as a launchd
-LaunchAgent. It starts when you log in, restarts if it crashes, and writes its own rotating log.
+The service runs from an installed copy of the build, never from the checkout: a rebuild or a git operation must
+never touch a running service, and on macOS an unattended process cannot read a removable volume at all, which is
+what a checkout on an external disk is. Both installers copy `.output/`, `.env`, and `aiden.config.ts` into place
+and leave `data/` and `logs/` alone, so brew history survives every reinstall.
 
-```sh
-pnpm build
-deploy/local/install.sh          # copies the build and .env into place, loads the service, waits for /api/health
-open http://localhost:5150
-deploy/local/logs.sh             # follows the app's log (JSON lines, secrets redacted)
-deploy/local/status.sh           # loaded? pid? answering? last log lines
-```
+| | macOS | Ubuntu |
+|---|---|---|
+| Supervisor | launchd user agent | systemd user unit |
+| Install or refresh | `deploy/macos/install.sh` | `deploy/linux/install.sh` |
+| Is it running? | `deploy/macos/status.sh` | `deploy/linux/status.sh` |
+| Follow the app log | `deploy/macos/logs.sh` | `deploy/linux/logs.sh` |
+| Stop and remove | `deploy/macos/uninstall.sh` | `deploy/linux/uninstall.sh` |
+| Installed copy | `~/Library/Application Support/aiden-studio` | `~/.local/share/aiden-portal` |
+| The supervisor's own log | `~/Library/Logs/aiden-studio/launchd.log` | `journalctl --user -u aiden-portal` |
+| Starts by itself | at login | at boot, with lingering enabled |
 
-What the installer does: it copies `.output/` and `.env` to `~/Library/Application Support/aiden-studio`
-and runs the service from there, not from this checkout. Two reasons: macOS does not let an unattended
-process read a removable volume, so a checkout on an external SSD cannot be run by launchd directly; and a
-rebuild or a git operation in the checkout should never touch a running service. The app's rotating log
-lives next to that copy, in `~/Library/Application Support/aiden-studio/logs/current.log`; launchd's own
-stdout for the job (the startup lines and any crash trace) goes to `~/Library/Logs/aiden-studio/launchd.log`.
+Add `--purge` to either uninstaller to remove the installed copy, its logs, and the brew history too. The checkout
+is never touched.
 
-What launchd does: starts the installed build at login with `node --env-file=.env`, restarts it after any
-non-zero exit (a crash, or the startup guard refusing a bad configuration), and waits 30 seconds first if
-the process died within 30 seconds of starting, so a misconfiguration cannot spin.
+Both supervisors restart the app after a crash or a refused configuration, and wait 30 seconds before trying again,
+so a misconfiguration cannot spin. The app enforces its own configuration: the startup guard exits rather than
+listen anywhere but loopback, and the reason is printed where that platform keeps the service's output.
 
-- **After editing `aiden.config.ts`:** `pnpm build && deploy/local/install.sh` (the file is compiled in).
-- **After editing `.env`:** `deploy/local/install.sh` (it copies the file and restarts the service).
-- **After pulling changes:** `pnpm install && pnpm build && deploy/local/install.sh`.
-- **To stop it:** `deploy/local/uninstall.sh`; add `--purge` to remove the installed copy, its logs, and launchd's
-  log directory too. The checkout is never touched.
-- **If `node` is not on your login shell's PATH** (nvm, fnm): `AIDEN_NODE=/path/to/node deploy/local/install.sh`.
-  Node itself should live on the internal disk for the same reason as the build.
-- **After changing Node versions** (`nvm install`, `nvm uninstall`): `deploy/local/install.sh`. The service is
-  pinned to the absolute path of the node it was installed with; when that binary is gone, launchd starts nothing
-  and logs nothing. `deploy/local/status.sh` says so.
-- **A friendlier address:** `http://aiden.localhost:5150` works with no setup at all; macOS resolves every
-  `*.localhost` name to this machine instantly, and it is an allowed host. `aiden.local` is allowed too, but
-  `.local` belongs to Bonjour on macOS: it needs both `127.0.0.1 aiden.local` and `::1 aiden.local` in
-  `/etc/hosts` (with only the IPv4 line every lookup waits five seconds for Bonjour first). Either name
-  reaches this Mac only. Browsers treat `localhost` names as secure, so the share dialog's copy button works
-  there; on `aiden.local` it shows the link for you to copy by hand.
-- **While it is installed, port 5150 is taken.** The installer refuses to run when something else is listening
-  there (`pnpm dev`, `pnpm start`, the mock demo), so it can never mistake one of those for the service. Run the
-  dev server elsewhere meanwhile: `PORT=3001 pnpm dev`.
-- **If it will not start:** `deploy/local/status.sh` shows launchd's last exit code and the last log lines.
-  A configuration problem (for example a non-loopback `HOST`, or missing Fellow credentials) is printed in
-  `~/Library/Logs/aiden-studio/launchd.log` and retried every 30 seconds until you fix it and run the installer
-  again.
-- **If the installer says `launchctl bootstrap` failed:** open System Settings > General > Login Items &
-  Extensions, make sure aiden-studio is switched on, and run the installer again.
+- **After editing `aiden.config.ts`:** rebuild and reinstall; it is compiled into the build.
+- **After editing `.env`:** reinstall; the installer copies the file.
+- **After changing Node versions:** reinstall. The service is pinned to the absolute path of the node it was
+  installed with, and `status.sh` says so when that binary disappears.
+- **While it is installed, port 5150 is taken.** The installers refuse to run when something else is listening
+  there, so they can never mistake a dev server for the service. Run the dev server elsewhere meanwhile:
+  `PORT=5151 pnpm dev`.
+- **macOS only:** if the installer says `launchctl bootstrap` failed, open System Settings > General > Login Items &
+  Extensions, make sure aiden-studio is switched on, and run the installer again. launchd never rotates its own log;
+  it gains two lines per start and is safe to delete.
+- **Ubuntu only:** `systemctl --user status aiden-portal` and `journalctl --user -u aiden-portal -f` are the direct
+  equivalents of the status and logs scripts if you prefer them.
 
-launchd never rotates `launchd.log`. It gains two lines per start (a few hundred bytes every 30 seconds while a
-bad configuration is being retried) and is safe to delete at any time.
-
-The app listens on `127.0.0.1` only. Nothing else on your Wi-Fi reaches it directly, by design: there is no
-login screen. Your own machines reach it through Tailscale, below.
+The app listens on `127.0.0.1` only. Nothing else on your Wi-Fi reaches it directly, by design: there is no login
+screen. Your own machines reach it through Tailscale, below.
 
 ### From your other computers, with Tailscale (Phase 1.5)
 
 [Tailscale](https://tailscale.com) joins your computers into a private network that only they can see, at home or
-anywhere else with internet. The Mac running the app publishes the dashboard onto that network with
-`tailscale serve`, which forwards to the app on loopback, so the app itself never listens beyond that Mac. Every
+anywhere else with internet. The machine running the app publishes the dashboard onto that network with
+`tailscale serve`, which forwards to the app on loopback, so the app itself never listens beyond that machine. Every
 device signed in to your Tailscale account can then open
 
 ```
-https://<your-mac>.<your-tailnet>.ts.net
+https://<your-machine>.<your-tailnet>.ts.net
 ```
 
-with a real certificate and no port. `tailscale serve` prints the exact address when you publish; use that full
-name as it gives it. The short name and the IP addresses the Tailscale console also lists do connect, but the
-certificate is issued for the full name only, so browsers warn on them.
+with a real certificate and no port. `tailscale serve` prints the exact address when you publish; use that full name
+as it gives it. The short name and the IP addresses the Tailscale console also lists do connect, but the certificate
+is issued for the full name only, so browsers warn on them.
 
-**The Mac that runs it, once.**
-
-1. One Tailscale account for every machine. Install Tailscale on that Mac and sign in. In the admin console at
-   login.tailscale.com: under DNS turn on HTTPS certificates; under Machines, that Mac's menu, disable key expiry,
-   so it never silently drops off the network after six months. The first `tailscale serve` also asks you to enable
-   Serve for the node through a link it prints; do that once and run the command again.
-2. Publish the dashboard: `tailscale serve --bg 5150` (on the App Store build the command is
-   `/Applications/Tailscale.app/Contents/MacOS/Tailscale`). It persists across restarts; `tailscale serve status`
-   shows it, and `tailscale serve --https=443 off` withdraws it.
-3. The app side: put that Mac's `ts.net` name into `server.allowedHosts` in `aiden.config.ts`, and, if you want to
-   be the only one who can change anything, your Tailscale login into `server.tailnetUsers` (`tailscale serve`
-   stamps the signed-in login on every request; anyone else on the network can look but not change). After editing
-   either, `pnpm build && deploy/local/install.sh`.
-
-**Every other machine.** Install Tailscale, sign in with the same account, open the address. That is all.
+The setup is in the quick start above, for both platforms. On every other machine: install Tailscale, sign in with
+the same account, open the address. That is all.
 
 - **Mac:** the Mac App Store, or the download at tailscale.com; sign in from the menu bar icon.
 - **Windows:** the installer at tailscale.com; approve the one prompt about changing network settings; sign in from
   the system tray icon.
+- **Linux:** `curl -fsSL https://tailscale.com/install.sh | sh` then `sudo tailscale up`.
 - **Phone:** the Tailscale app from the App Store or Play Store, same sign-in, same address in the browser.
 
 **Away from home.** It works wherever the machine has internet: Tailscale connects the two devices directly across
-the internet and falls back to its relays when a network blocks that, encrypted either way. The host Mac has to be
-on, logged in, and running Tailscale, the same conditions the dashboard itself needs.
+the internet and falls back to its relays when a network blocks that, encrypted either way. The host machine has to
+be on and running Tailscale, the same conditions the dashboard itself needs.
 
-**If a machine cannot open it.** Check, in order: the Tailscale icon on that machine says connected; the host Mac
-shows as connected in the admin console; `tailscale serve status` on the host Mac still lists the address;
-`deploy/local/status.sh` on the host Mac says the app is running. With the Logs page set to Detailed, every request
-shows the address it came in on and the Tailscale login it carried.
+**If a machine cannot open it.** Check, in order: the Tailscale icon on that machine says connected; the host shows
+as connected in the admin console; `tailscale serve status` on the host still lists the address; the host's
+`status.sh` says the app is running. With the Logs page set to Detailed, every request shows the address it came in
+on and the Tailscale login it carried.
 
-Never use `tailscale funnel`, which is the public version, and never change `server.host`: the app stays on
-loopback and Tailscale is the only door.
+Never use `tailscale funnel`, which is the public version, and never change `server.host`: the app stays on loopback
+and Tailscale is the only door.
 
-### Without Tailscale: an SSH tunnel from a laptop on the same network
+### Without Tailscale: an SSH tunnel from a machine on the same network
 
-Without a login the app must stay on loopback, but a laptop can reach loopback on this Mac through an SSH
-tunnel, which keeps the brewer behind your Mac's own login. Once, on this Mac: System Settings > General >
-Sharing > Remote Login, on. Then on the laptop:
+Without a login the app must stay on loopback, but another machine can reach that loopback through an SSH tunnel,
+which keeps the brewer behind the host's own login. Enable remote login on the host first: on macOS, System
+Settings > General > Sharing > Remote Login; on Ubuntu, `sudo apt install -y openssh-server`. Then, from the other
+machine:
 
 ```sh
-ssh -N -L 5150:127.0.0.1:5150 <your-account>@<your-mac>.local
+ssh -N -L 5150:127.0.0.1:5150 <your-account>@<your-host>.local
 ```
 
-Leave that running and open `http://localhost:5150` on the laptop. The name is the host Mac's Bonjour name, shown
-under Sharing; use its IP address if the name does not resolve. Ctrl-C ends the tunnel. Tailscale, above, is the
-better answer for phones and for being away from home; this tunnel is the fallback when Tailscale is not installed.
+Leave that running and open `http://localhost:5150`. Use the host's IP address if the name does not resolve. Ctrl-C
+ends the tunnel. Tailscale, above, is the better answer for phones and for being away from home; this tunnel is the
+fallback when Tailscale is not installed.
 
 ## Scripts
 
@@ -361,7 +397,7 @@ better answer for phones and for being away from home; this tunnel is the fallba
 | `pnpm lint` | ESLint, then `scripts/check-shell.sh` (bash syntax, shellcheck when installed, a render of the launchd template) |
 | `pnpm typecheck` | `nuxt typecheck` plus the test tree |
 | `scripts/smoke.sh` | Probes a production build for the things Vitest cannot see: guard, headers, Host/CSRF, error shapes, log file |
-| `deploy/local/install.sh`, `status.sh`, `logs.sh`, `uninstall.sh` | The launchd service (see Run at home) |
+| `deploy/macos/*.sh`, `deploy/linux/*.sh` | Install, status, logs, uninstall for the launchd and systemd services (see Run at home) |
 
 ## Configuration
 
@@ -583,7 +619,7 @@ HMR and devtools endpoints, which bind to the same loopback address.
 - `app/` — the Nuxt UI front end: `pages/`, `components/`, `composables/`, and `utils/` (pure, unit-tested logic such as the profile form rules and time conversion).
 - `tests/` — Vitest, with msw standing in for Fellow.
 - `scripts/mock-fellow.mjs` — an in-memory Fellow API for development and demos.
-- `deploy/local/` — the launchd LaunchAgent template and its install, status, logs, and uninstall scripts.
+- `deploy/` — running it as a service: `macos/` (launchd) and `linux/` (systemd), over shared helpers in `deploy/common.sh`.
 
 See `ARCHITECTURE.md` for the layer split and the list of API behaviors that are inferred rather than verified.
 

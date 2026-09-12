@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Installs (or refreshes) aiden-studio as a launchd LaunchAgent for the current user: copies the production build
+# Installs (or refreshes) aiden-portal as a launchd LaunchAgent for the current user: copies the production build
 # and .env to ~/Library/Application Support/aiden-studio, loads the service, and waits for it to answer. It starts
 # at login, restarts on crash, and logs to its own directory. Run it again after every `pnpm build`, every .env
 # change, and every change of node version.
 #
-#   deploy/local/install.sh
-#   AIDEN_NODE=/opt/homebrew/bin/node deploy/local/install.sh   # if node is not on this shell's PATH
+#   deploy/macos/install.sh
+#   AIDEN_NODE=/opt/homebrew/bin/node deploy/macos/install.sh   # if node is not on this shell's PATH
 set -euo pipefail
-# shellcheck source=deploy/local/common.sh
+# shellcheck source=deploy/macos/common.sh
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 fail() { echo "install: $*" >&2; exit 1; }
@@ -18,17 +18,11 @@ answers() { curl -s -o /dev/null --max-time 2 "$1/api/health"; }   # any HTTP an
 [ "$REPO/aiden.config.ts" -nt "$REPO/.output/server/index.mjs" ] \
   && fail "aiden.config.ts changed after the last build (it is compiled in); run: pnpm build"
 [ -f "$REPO/.env" ] || fail "no .env in $REPO; copy .env.sample to .env and fill in FELLOW_EMAIL and FELLOW_PASSWORD"
-mode=$(stat -f '%Lp' "$REPO/.env")
+mode=$(file_mode "$REPO/.env")
 [ "$mode" = "600" ] || echo "install: warning: .env is mode $mode and holds your Fellow password; run: chmod 600 .env"
 
 # launchd runs the job with no shell and no PATH, so the plist needs node's absolute path with symlinks resolved.
-# Node reports its own (process.execPath), which also proves the binary runs.
-NODE="${AIDEN_NODE:-$(command -v node || true)}"
-[ -n "$NODE" ] || fail "node was not found on PATH; set AIDEN_NODE=/path/to/node"
-real_node=$("$NODE" -p 'process.execPath' 2>/dev/null) || fail "cannot run node at $NODE; set AIDEN_NODE=/path/to/node"
-NODE="$real_node"
-major=$("$NODE" -p 'process.versions.node.split(".")[0]')
-[ "$major" -ge 22 ] || fail "node at $NODE is v$major; aiden-studio needs Node 22"
+NODE=$(resolve_node "${AIDEN_NODE:-}") || exit 1
 case "$NODE" in
   /Volumes/*) echo "install: warning: node lives on an external volume ($NODE); macOS may not let launchd start it. Prefer a node installed on the internal disk." ;;
 esac
@@ -66,12 +60,12 @@ echo "install: loaded $PLIST (node: $NODE)"
 
 for _ in $(seq 1 40); do
   if curl -sf "$url/api/health" > /dev/null 2>&1; then
-    echo "install: aiden-studio is running at $url"
-    echo "install: app log: $APP_HOME/logs/current.log (deploy/local/logs.sh follows it); launchd log: $LAUNCHD_LOG"
+    echo "install: aiden-portal is running at $url"
+    echo "install: app log: $APP_HOME/logs/current.log (deploy/macos/logs.sh follows it); launchd log: $LAUNCHD_LOG"
     exit 0
   fi
   sleep 0.5
 done
 echo "install: the service is installed, but $url/api/health did not answer within 20 s" >&2
-echo "install: run deploy/local/status.sh; a configuration problem is printed in $LAUNCHD_LOG and retried every 30 s" >&2
+echo "install: run deploy/macos/status.sh; a configuration problem is printed in $LAUNCHD_LOG and retried every 30 s" >&2
 exit 1

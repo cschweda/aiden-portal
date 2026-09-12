@@ -7,6 +7,26 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-09-12
+
+Ubuntu as a host, beside the Mac.
+
+### Added
+
+- `deploy/linux/`: a systemd user service with the same shape as the launchd one — install, status, logs, and
+  uninstall scripts, an installed copy under `~/.local/share/aiden-portal`, restart on failure with a 30-second
+  wait, and lingering so it runs whether or not you are logged in. The unit runs with no privileges,
+  `ProtectSystem=strict`, and its own directory as the only writable path.
+- README: two quick-start pathways, macOS and Ubuntu 24.04 or newer, each ending with Tailscale, including
+  installing Tailscale on Linux and publishing the dashboard from it.
+
+### Changed
+
+- `deploy/local/` is now `deploy/macos/`, and both platforms share `deploy/common.sh` for reading the app's URL out
+  of `.env` and `aiden.config.ts`, resolving node's real path, and checking permissions on either BSD or GNU `stat`.
+- `pnpm lint` renders and checks both service templates: the plist still lints and reads back on macOS, and the
+  systemd unit is verified by `systemd-analyze` where it exists and key by key everywhere else.
+
 ### Fixed
 
 - The deployed demo was a blank page: the Content-Security-Policy in `netlify.toml` blocked the inline script a

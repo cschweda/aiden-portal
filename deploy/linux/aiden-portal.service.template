@@ -1,0 +1,32 @@
+# Rendered by deploy/linux/install.sh into ~/.config/systemd/user/; the placeholders become absolute paths.
+# No secrets live here: the app reads .env itself through node's --env-file, relative to WorkingDirectory.
+[Unit]
+Description=aiden-portal, a personal web app for a Fellow Aiden brewer
+Documentation=https://github.com/cschweda/aiden-portal
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+WorkingDirectory=__APP_HOME__
+ExecStart=__NODE__ --env-file=.env .output/server/index.mjs
+Environment=NODE_ENV=production
+# Restart after a crash or a refused configuration, but never faster than every 30 seconds, so a misconfiguration
+# cannot spin. A clean stop (systemctl stop) is not a failure and is not restarted.
+Restart=on-failure
+RestartSec=30
+TimeoutStopSec=10
+# Everything it writes is owner-only, as the app also insists for its own log and data directories.
+UMask=0077
+# It needs no privileges and writes nowhere but its own directory.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=__APP_HOME__
+
+[Install]
+WantedBy=default.target

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Shows whether the LaunchAgent is installed, loaded, and running, whether the app answers, and the last log lines.
 set -uo pipefail
-# shellcheck source=deploy/local/common.sh
+# shellcheck source=deploy/macos/common.sh
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 if info=$(launchctl print "$DOMAIN/$LABEL" 2>/dev/null); then
@@ -10,9 +10,9 @@ if info=$(launchctl print "$DOMAIN/$LABEL" 2>/dev/null); then
   last=$(printf '%s\n' "$info" | grep -E 'last exit (code|reason)' | head -1 | sed -E 's/^[[:space:]]+//')
   echo "status: $LABEL is loaded; state: ${state:-?}; pid: ${pid:-none}; ${last:-no exit recorded}"
 elif [ -f "$PLIST" ]; then
-  echo "status: $LABEL has a plist at $PLIST but is not loaded (switched off in System Settings > General > Login Items & Extensions? run deploy/local/install.sh)"
+  echo "status: $LABEL has a plist at $PLIST but is not loaded (switched off in System Settings > General > Login Items & Extensions? run deploy/macos/install.sh)"
 else
-  echo "status: $LABEL is not installed (run deploy/local/install.sh)"
+  echo "status: $LABEL is not installed (run deploy/macos/install.sh)"
 fi
 
 # The plist pins the absolute path of the node the service was installed with. nvm and fnm delete old versions on
@@ -20,7 +20,7 @@ fi
 if [ -f "$PLIST" ]; then
   node=$(/usr/libexec/PlistBuddy -c 'Print :ProgramArguments:0' "$PLIST" 2>/dev/null || true)
   if [ -n "$node" ] && [ ! -x "$node" ]; then
-    echo "status: node at $node is gone (changed node versions?); run deploy/local/install.sh to pin the current one"
+    echo "status: node at $node is gone (changed node versions?); run deploy/macos/install.sh to pin the current one"
   fi
 fi
 

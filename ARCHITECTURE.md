@@ -87,10 +87,14 @@ timestamps and no duration; `state.value` decodes to the phase. Routes: `GET /ap
 
 ## Deployment
 
-`deploy/local/install.sh` copies `.output/` and `.env` to `~/Library/Application Support/aiden-studio`,
-renders `com.cschweda.aiden-studio.plist.template` into `~/Library/LaunchAgents/` with an absolute node path
-and that directory as `WorkingDirectory`, loads it, and waits for `/api/health`. launchd starts the job at
-login and restarts it after any non-zero exit, throttled to 30 seconds. The division of labour: the app
+Two supervisors, one shape. `deploy/macos/install.sh` copies `.output/`, `.env`, and `aiden.config.ts` to
+`~/Library/Application Support/aiden-studio`, renders the LaunchAgent template into `~/Library/LaunchAgents/`
+with an absolute node path and that directory as `WorkingDirectory`, loads it, and waits for `/api/health`;
+launchd starts the job at login and restarts it after any non-zero exit, throttled to 30 seconds.
+`deploy/linux/install.sh` does the same into `~/.local/share/aiden-portal` with a systemd user unit
+(`Restart=on-failure`, `RestartSec=30`, `ProtectSystem=strict` with the app's own directory as the only writable
+path) and enables lingering so it runs without a login. `deploy/common.sh` holds what both need: reading the
+effective URL out of `.env` and `aiden.config.ts`, resolving node's real path, and the permission check. The division of labour: the app
 enforces its own configuration (the guard exits 1 on a bad one), pins its bind address, rotates its own log
 under its `logs/`, and redacts secrets; launchd only supervises, and its own stdout for the job goes to
 `~/Library/Logs/aiden-studio/launchd.log`. Running from an installed copy rather than the checkout is what
