@@ -7,7 +7,9 @@ const props = withDefaults(defineProps<{
   startedAt: number
   /** Seconds between samples, which sets how far the last band extends. */
   intervalS?: number
-}>(), { intervalS: 5 })
+  /** Expected total length, so a live trace's axis spans the whole brew from the start. */
+  expectedS?: number | null
+}>(), { intervalS: 5, expectedS: null })
 
 const HEIGHT = 220
 const PAD = { top: 28, right: 12, bottom: 28, left: 40 }
@@ -29,7 +31,7 @@ onBeforeUnmount(() => observer?.disconnect())
 const elapsed = (t: number) => (t - props.startedAt) / 1000
 const spanS = computed(() => {
   const last = props.samples[props.samples.length - 1]
-  return Math.max(last ? elapsed(last.t) + props.intervalS : props.intervalS * 4, 30)
+  return Math.max(last ? elapsed(last.t) + props.intervalS : props.intervalS * 4, props.expectedS ?? 0, 30)
 })
 const temperatures = computed(() => props.samples.map(s => s.temperatureC).filter((c): c is number => typeof c === 'number'))
 const yDomain = computed<[number, number]>(() => {

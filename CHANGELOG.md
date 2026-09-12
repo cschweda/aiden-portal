@@ -7,6 +7,16 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-09-12
+
+### Added
+
+- A countdown on the live brew trace: about how long is left, measured from the profile's previous watched brews
+  when the log has them and worked out from the recipe until then; the trace's axis spans the expected brew from
+  the start. Fellow does not expose the brewer's own countdown.
+- README: reaching the dashboard from a laptop on the same network through an SSH tunnel, with the app staying on
+  loopback.
+
 ## [0.9.0] - 2026-09-12
 
 ### Added

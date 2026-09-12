@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DeviceResponse, HistoryResponse, Profile } from '#shared/types/api'
 import { isBrewing } from '../../server/lib/fellow/device'
+import { describeCountdown } from '../utils/countdown'
 import { formatDateTime, formatTime } from '../utils/format'
 
 useHead({ title: 'Dashboard' })
@@ -29,13 +30,21 @@ onMounted(() => {
 })
 onBeforeUnmount(() => clearInterval(poll))
 
+const now = ref(Date.now())
+let clock: ReturnType<typeof setInterval> | undefined
+onMounted(() => {
+  clock = setInterval(() => (now.value = Date.now()), 1_000)
+})
+onBeforeUnmount(() => clearInterval(clock))
+
 const trace = computed(() => {
   const h = history.data.value
   if (!h) return null
-  if (h.current) return { title: 'Brewing now', brew: h.current, live: true }
-  if (h.lastTraced) return { title: 'Last brew', brew: h.lastTraced, live: false }
+  if (h.current) return { title: 'Brewing now', brew: h.current, live: true, expected: h.current.expected }
+  if (h.lastTraced) return { title: 'Last brew', brew: h.lastTraced, live: false, expected: null }
   return null
 })
+const countdown = computed(() => (trace.value?.live ? describeCountdown(trace.value.expected, (now.value - trace.value.brew.startedAt) / 1000) : ''))
 
 // When the readings on screen were fetched, so a stale panel is never mistaken for a live one.
 const readAt = ref<number | null>(null)
@@ -84,10 +93,10 @@ watch(() => device.data.value, (value) => {
               {{ trace.title }}
             </h3>
             <p class="truncate text-sm text-muted">
-              {{ trace.brew.profileTitle ?? trace.brew.profileId ?? 'selected profile' }} · {{ trace.live ? `started ${formatTime(trace.brew.startedAt)}` : formatDateTime(trace.brew.startedAt) }}
+              {{ trace.brew.profileTitle ?? trace.brew.profileId ?? 'selected profile' }} · {{ trace.live ? `started ${formatTime(trace.brew.startedAt)}` : formatDateTime(trace.brew.startedAt) }}<template v-if="countdown"> · {{ countdown }}</template>
             </p>
           </div>
-          <BrewTraceChart :samples="trace.brew.samples" :started-at="trace.brew.startedAt" :interval-s="history.data.value.polling.brewPollSeconds" />
+          <BrewTraceChart :samples="trace.brew.samples" :started-at="trace.brew.startedAt" :interval-s="history.data.value.polling.brewPollSeconds" :expected-s="trace.expected?.seconds ?? null" />
         </section>
       </div>
     </template>

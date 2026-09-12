@@ -1,6 +1,6 @@
 import { FellowError } from '../lib/fellow'
-import type { Device } from '../lib/fellow/schemas'
-import { BrewTracker, computeStats, descaleStatus, HistoryStore, summarise } from '../lib/history'
+import type { Device, Profile } from '../lib/fellow/schemas'
+import { BrewTracker, computeStats, descaleStatus, expectBrewDuration, HistoryStore, summarise } from '../lib/history'
 import type { CleaningRecord, CurrentBrew, DescaleMarker, DescaleStatus, HistorySnapshot, PollerState } from '../lib/history'
 import { type AppConfig, getConfig } from './config'
 import { useFellowClient } from './fellow-client'
@@ -25,7 +25,7 @@ export class HistoryService {
   private inFlight: Promise<void> | undefined
   private pokeRequested = false
   private storeFailures = 0
-  private readonly titles = new Map<string, string>()
+  private readonly profiles = new Map<string, Profile>()
   private lastDevice: Device | null = null
 
   constructor(private readonly config: AppConfig) {
@@ -92,7 +92,7 @@ export class HistoryService {
     this.lastDevice = device
     this.polling.lastPollAt = now
     const logger = useLogger()
-    for (const event of this.tracker.observe(device, now, id => this.titles.get(id))) {
+    for (const event of this.tracker.observe(device, now, id => this.profiles.get(id)?.title)) {
       if (event.type === 'started') {
         logger.info({ profileId: event.brew.profileId, profileTitle: event.brew.profileTitle, startOrigin: event.brew.startOrigin }, 'Brew started')
         if (event.brew.profileId && !event.brew.profileTitle) void this.refreshTitles(event.brew)
@@ -154,7 +154,7 @@ export class HistoryService {
       stats: computeStats(records, now),
       descale: descaleStatus(descale.current, device, this.thresholds(), records, now),
       descaleHistory: descale.history,
-      current: this.tracker.currentBrew,
+      current: this.currentBrewView(),
       lastTraced: [...records].reverse().find(r => r.samples.length > 0) ?? null,
       recent: records.slice(-50).reverse().map(summarise),
       polling: { ...this.polling },
@@ -162,6 +162,17 @@ export class HistoryService {
       storeError: this.store.loadError,
       cleanings: this.cleaningSummary(),
     }
+  }
+
+  private currentBrewView(): HistorySnapshot['current'] {
+    const current = this.tracker.currentBrew
+    if (!current) return null
+    const device = this.lastDevice
+    const expected = expectBrewDuration(this.store.brews, current.profileId, current.profileId ? this.profiles.get(current.profileId) : null, {
+      waterMl: device?.brewingWaterVolumeMl ?? device?.ibWaterQuantity ?? null,
+      singleServe: device?.singleBrewBasketPresent === true,
+    })
+    return { ...current, expected }
   }
 
   private cleaningSummary(): HistorySnapshot['cleanings'] {
@@ -236,8 +247,8 @@ export class HistoryService {
 
   private async refreshTitles(brew?: CurrentBrew): Promise<void> {
     try {
-      for (const profile of await useFellowClient().getProfiles()) this.titles.set(profile.id, profile.title)
-      if (brew?.profileId) brew.profileTitle = this.titles.get(brew.profileId) ?? brew.profileTitle
+      for (const profile of await useFellowClient().getProfiles()) this.profiles.set(profile.id, profile)
+      if (brew?.profileId) brew.profileTitle = this.profiles.get(brew.profileId)?.title ?? brew.profileTitle
     }
     catch {
       // Titles are decoration; the id is always recorded.

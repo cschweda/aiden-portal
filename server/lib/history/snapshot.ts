@@ -1,4 +1,5 @@
 import type { DescaleStatus } from './descale'
+import type { BrewExpectation } from './estimate'
 import type { HistoryStats } from './stats'
 import type { CurrentBrew, CurrentCleaning } from './tracker'
 import type { BrewRecord, CleaningRecord, DescaleMarker } from './types'
@@ -16,12 +17,15 @@ export interface PollerState {
 /** A brew record without its samples, for lists. */
 export type BrewSummary = Omit<BrewRecord, 'samples'> & { sampleCount: number }
 
+/** The running brew as the pages see it: the tracker's record plus how long it is expected to take. */
+export type CurrentBrewView = CurrentBrew & { expected: BrewExpectation | null }
+
 export interface HistorySnapshot {
   stats: HistoryStats
   descale: DescaleStatus
   descaleHistory: DescaleMarker[]
   /** The brew running now, with its samples so far. */
-  current: CurrentBrew | null
+  current: CurrentBrewView | null
   /** The newest brew that has a trace. */
   lastTraced: BrewRecord | null
   recent: BrewSummary[]

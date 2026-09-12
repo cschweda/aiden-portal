@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { BrewRecord, BrewSummary, HistoryResponse } from '#shared/types/api'
+import { describeCountdown } from '../utils/countdown'
 import { formatAgo, formatDateTime, formatDuration, formatHours, formatLitresFromMl, formatMillilitres, formatTime } from '../utils/format'
 
 useHead({ title: 'History' })
@@ -23,6 +24,13 @@ async function showTrace(brew: BrewSummary) {
 }
 
 const live = computed(() => history.data.value?.current ?? null)
+const now = ref(Date.now())
+let clock: ReturnType<typeof setInterval> | undefined
+onMounted(() => {
+  clock = setInterval(() => (now.value = Date.now()), 1_000)
+})
+onBeforeUnmount(() => clearInterval(clock))
+const countdown = computed(() => (live.value ? describeCountdown(live.value.expected, (now.value - live.value.startedAt) / 1000) : ''))
 const traced = computed(() => selected.value ?? history.data.value?.lastTraced ?? null)
 
 // While a brew runs the trace grows every few seconds; otherwise the page only re-reads on request.
@@ -109,10 +117,10 @@ const pollingLine = computed(() => {
                 Brewing now
               </h3>
               <p class="text-sm text-muted">
-                {{ live.profileTitle ?? live.profileId ?? 'selected profile' }} · started {{ formatTime(live.startedAt) }}
+                {{ live.profileTitle ?? live.profileId ?? 'selected profile' }} · started {{ formatTime(live.startedAt) }}<template v-if="countdown"> · {{ countdown }}</template>
               </p>
             </div>
-            <BrewTraceChart :samples="live.samples" :started-at="live.startedAt" :interval-s="history.data.value.polling.brewPollSeconds" />
+            <BrewTraceChart :samples="live.samples" :started-at="live.startedAt" :interval-s="history.data.value.polling.brewPollSeconds" :expected-s="live.expected?.seconds ?? null" />
           </section>
 
           <section v-if="traced" class="space-y-3">

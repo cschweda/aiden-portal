@@ -1,10 +1,10 @@
 import type { Device, Profile, Schedule } from '../../server/lib/fellow/schemas'
-import type { BrewRecord, BrewSummary, CleaningRecord, CurrentBrew, CurrentCleaning, DescaleMarker, DescaleStatus, HistorySnapshot, HistoryStats, PollerState, TraceSample } from '../../server/lib/history'
+import type { BrewExpectation, BrewRecord, BrewSummary, CleaningRecord, CurrentBrew, CurrentBrewView, CurrentCleaning, DescaleMarker, DescaleStatus, HistorySnapshot, HistoryStats, PollerState, TraceSample } from '../../server/lib/history'
 import type { LogLevel } from '../../server/utils/aiden-config'
 import type { LogRecord } from '../../server/utils/log-reader'
 
 export type { Device, Profile, Schedule }
-export type { BrewRecord, BrewSummary, CleaningRecord, CurrentBrew, CurrentCleaning, DescaleMarker, DescaleStatus, HistoryStats, PollerState, TraceSample }
+export type { BrewExpectation, BrewRecord, BrewSummary, CleaningRecord, CurrentBrew, CurrentBrewView, CurrentCleaning, DescaleMarker, DescaleStatus, HistoryStats, PollerState, TraceSample }
 
 export type HistoryResponse = HistorySnapshot
 

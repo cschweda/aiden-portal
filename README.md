@@ -72,6 +72,9 @@ counters.
   watched and the brew counter rose by exactly one; a counter that rose while nobody was watching (Mac asleep,
   service down) becomes an inferred brew with the brewer's own timestamps and no duration. Fellow never says which
   profile ran, so the log records the one that was selected on the brewer and the UI says so.
+- **Time to go.** During a brew the live trace says about how long is left: measured from your previous watched
+  brews of the same profile once there are any, and worked out from the recipe (bloom, an assumed pour rate, the
+  pauses between pulses, a drip finish) until then. Fellow does not expose the brewer's own countdown.
 - **Where it lives.** `data/` sits next to `logs/` in the working directory: the checkout for `pnpm start`, the
   installed copy under launchd. A reinstall keeps it; `uninstall.sh --purge` removes it. Nothing leaves this Mac.
 - **Cleaning cycles.** The brewer announces a descale or rinse while it runs (and borrows the brew fields for it:
@@ -167,6 +170,20 @@ bad configuration is being retried) and is safe to delete at any time.
 
 The app listens on `127.0.0.1` only. Other devices on your network cannot reach it, by design: there is no
 login. Reaching it from elsewhere is what Phase 2 is about.
+
+### From a laptop on the same network
+
+Without a login the app must stay on loopback, but a laptop can reach loopback on this Mac through an SSH
+tunnel, which keeps the brewer behind your Mac's own login. Once, on this Mac: System Settings > General >
+Sharing > Remote Login, on. Then on the laptop:
+
+```sh
+ssh -N -L 5150:127.0.0.1:5150 cschweda@cschwedas-Mac-mini.local
+```
+
+Leave that running and open `http://localhost:5150` on the laptop. The name is this Mac's Bonjour name, shown
+under Sharing; use its IP address if the name does not resolve. Ctrl-C ends the tunnel. A phone, or anything
+outside the network, is what Phase 2 is about.
 
 ## Scripts
 
