@@ -160,7 +160,7 @@ describe('BrewTracker cleaning cycles', () => {
     expect(tracker.currentBrew).toBeNull()
     tracker.observe(cleaning({ heaterOn: false, pumpOn: false }), T0 + 65_000)
     const [done] = tracker.observe(idle(71, { totalWaterVolumeL: 65_070, brewingWaterVolumeMl: 1500 }), T0 + 1_800_000)
-    expect(done).toMatchObject({ type: 'cleaningCompleted', record: { kind: 'clean', durationS: 1740, waterMl: 1500, cyclesDelta: 1, waterDeltaMl: 1500, observedStart: true } })
+    expect(done).toMatchObject({ type: 'cleaningCompleted', record: { kind: 'clean', durationS: 1740, waterMl: 1500, cyclesDelta: 1, waterDeltaMl: 1500, cyclesAfter: 71, observedStart: true } })
     expect((done as { record: { samples: unknown[] } }).record.samples).toHaveLength(2)
     expect(tracker.currentCleaningCycle).toBeNull()
     // The counter rise belonged to the cycle: nothing is inferred afterwards, and the baseline moved on.

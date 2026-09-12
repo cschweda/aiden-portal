@@ -49,6 +49,8 @@ export interface CleaningRecord {
   /** How far `totalBrewingCycles` and `totalWaterVolumeL` moved across the cycle, when both ends were known. */
   cyclesDelta: number | null
   waterDeltaMl: number | null
+  /** The brew counter after the cycle: the baseline for the next read, and after a restart. */
+  cyclesAfter: number | null
   observedStart: boolean
   samples: CleaningSample[]
 }

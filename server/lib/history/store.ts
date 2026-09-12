@@ -30,6 +30,7 @@ const CleaningSchema = z.looseObject({
   waterMl: z.number().nullable().default(null),
   cyclesDelta: z.number().nullable().default(null),
   waterDeltaMl: z.number().nullable().default(null),
+  cyclesAfter: z.number().nullable().default(null),
   observedStart: z.boolean().default(false),
   samples: z.array(z.looseObject({ t: z.number(), heaterOn: z.boolean().optional(), pumpOn: z.boolean().optional() })).default([]),
 })
@@ -158,6 +159,13 @@ export class HistoryStore {
   get cleanings(): readonly CleaningRecord[] {
     this.ensureLoaded()
     return this.cleaningRecords
+  }
+
+  /** The brew counter as last recorded by whichever record (brew or cleaning cycle) is newest. */
+  get lastKnownCycles(): number | null {
+    this.ensureLoaded()
+    const candidates = [...this.records, ...this.cleaningRecords].filter(r => r.cyclesAfter !== null).sort((a, b) => a.endedAt - b.endedAt)
+    return candidates[candidates.length - 1]?.cyclesAfter ?? null
   }
 
   get descaleState(): DescaleState {

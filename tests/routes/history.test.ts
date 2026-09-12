@@ -48,6 +48,11 @@ describe('GET /api/history', () => {
     expect(body.cleanings.recent[0]).toMatchObject({ kind: 'clean', durationS: 1800, waterMl: 1500, cyclesDelta: 1, waterDeltaMl: 1500 })
     expect(body.cleanings.lastEndedAt).toBe(now - 100_000)
     expect(body.recent).toEqual([])
+    // A restart takes its counter baseline from the cycle, so its increment is not re-read as a missed brew.
+    useTestEnv({ HISTORY_DIRECTORY: join(dir, 'data') })
+    const again = useHistory()
+    expect(again.tracker.baselineCycles).toBe(43)
+    expect(again.tracker.observe({ ...base, brewing: false, state: null, totalBrewingCycles: 43 }, now)).toEqual([])
   })
 
   it('lists recorded brews newest first without samples, and serves one brew with its trace', async () => {

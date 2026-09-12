@@ -64,6 +64,10 @@ const estimate = computed(() => {
 
     <UProgress :model-value="percent" :color="color" size="sm" />
 
+    <p v-if="descale.cleaningMl" class="text-xs text-muted">
+      Cleaning cycles since then used {{ (descale.cleaningMl / 1000).toFixed(1) }} L and counted as {{ descale.cleaningBrews }} brew{{ descale.cleaningBrews === 1 ? '' : 's' }} on the brewer; both are left out.
+    </p>
+
     <p class="text-xs text-muted">
       {{ estimate }}
     </p>

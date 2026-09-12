@@ -32,7 +32,7 @@ export class HistoryService {
     this.store = new HistoryStore({ directory: config.history.directory })
     this.store.load()
     this.tracker = new BrewTracker({
-      baselineCycles: this.store.lastBrew?.cyclesAfter ?? null,
+      baselineCycles: this.store.lastKnownCycles,
       seedLastBrew: this.store.brews.length === 0 && !this.store.loadError,
     })
     this.polling = {
@@ -152,7 +152,7 @@ export class HistoryService {
     const descale = this.store.descaleState
     return {
       stats: computeStats(records, now),
-      descale: descaleStatus(descale.current, device, this.thresholds(), records, now),
+      descale: descaleStatus(descale.current, device, this.thresholds(), records, now, this.store.cleanings),
       descaleHistory: descale.history,
       current: this.currentBrewView(),
       lastTraced: [...records].reverse().find(r => r.samples.length > 0) ?? null,
@@ -200,7 +200,7 @@ export class HistoryService {
     }
     const state = this.store.markDescaled(marker)
     useLogger().info({ action: 'descale.mark', brews: marker.brews, waterMl: marker.waterMl }, 'Marked descaled')
-    return descaleStatus(state.current, device, this.thresholds(), this.store.brews, now)
+    return descaleStatus(state.current, device, this.thresholds(), this.store.brews, now, this.store.cleanings)
   }
 
   private thresholds() {

@@ -42,6 +42,12 @@ describe('descaleStatus', () => {
     expect(status.ratio).toBeCloseTo(10 / 12, 6)
     expect(status.level).toBe('amber')
   })
+  it('leaves out what cleaning cycles since the mark added to the counters', () => {
+    const marker = { at: NOW - 20 * DAY, brews: 60, waterMl: 55_570 }
+    const cycle = (endedAt: number) => ({ id: `c${endedAt}`, kind: 'clean' as const, startedAt: endedAt - 800_000, endedAt, durationS: 800, waterMl: 1500, cyclesDelta: 1, waterDeltaMl: 1500, cyclesAfter: null, observedStart: true, samples: [] })
+    const status = descaleStatus(marker, { ...device, totalBrewingCycles: 73, totalWaterVolumeL: 68_042 }, thresholds, [], NOW, [cycle(NOW - 30 * DAY), cycle(NOW - DAY), cycle(NOW - DAY + 1000)])
+    expect(status).toMatchObject({ cleaningBrews: 2, cleaningMl: 3000, brewsSince: 11, litresSince: 9.472 })
+  })
   it('never goes negative after a brewer swap, and is unknown without totals', () => {
     expect(descaleStatus({ at: NOW, brews: 500, waterMl: 900_000 }, device, thresholds, [], NOW)).toMatchObject({ brewsSince: 0, litresSince: 0, level: 'ok' })
     expect(descaleStatus(null, { id: 'd' }, thresholds, [], NOW)).toMatchObject({ brewsSince: null, litresSince: null, ratio: null, level: 'unknown', dueAt: null })

@@ -7,6 +7,18 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-09-12
+
+### Fixed
+
+- After a restart the brew counter baseline came from the brew log alone, so the three counts a descale program
+  adds (the Aiden counts each phase as a brew) were re-read as missed brews. The baseline now comes from the newest
+  brew or cleaning record.
+- The descale tally leaves out the brews and water that cleaning cycles since the mark added to the brewer's totals
+  (4.5 L and three brews per descale program).
+- The dashboard banner treats the pauses between a descale program's phases as still running, and offers Mark
+  descaled only after ten quiet minutes.
+
 ## [0.10.0] - 2026-09-12
 
 ### Added

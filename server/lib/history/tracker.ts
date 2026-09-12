@@ -249,6 +249,7 @@ export class BrewTracker {
       waterMl: device.brewingWaterVolumeMl ?? null,
       cyclesDelta: cycles !== null && cleaning.cyclesBefore !== null ? cycles - cleaning.cyclesBefore : null,
       waterDeltaMl: water !== null && cleaning.waterBefore !== null ? water - cleaning.waterBefore : null,
+      cyclesAfter: cycles,
       observedStart,
       samples: cleaning.samples,
     }

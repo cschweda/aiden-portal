@@ -92,8 +92,11 @@ describe('HistoryStore', () => {
   })
   it('keeps cleaning cycles in their own file and reads them back', () => {
     const store = new HistoryStore({ directory: dir })
-    const cycle: CleaningRecord = { id: 'c1', kind: 'clean', startedAt: 1_000, endedAt: 1_800_000, durationS: 1799, waterMl: 1500, cyclesDelta: 1, waterDeltaMl: 1500, observedStart: true, samples: [{ t: 1_000, heaterOn: true, pumpOn: true }] }
+    const cycle: CleaningRecord = { id: 'c1', kind: 'clean', startedAt: 1_000, endedAt: 1_800_000, durationS: 1799, waterMl: 1500, cyclesDelta: 1, waterDeltaMl: 1500, cyclesAfter: 71, observedStart: true, samples: [{ t: 1_000, heaterOn: true, pumpOn: true }] }
     store.appendCleaning(cycle)
+    expect(store.lastKnownCycles).toBe(71)
+    store.appendBrew(record({ endedAt: 2_000_000, cyclesAfter: 72 }))
+    expect(store.lastKnownCycles).toBe(72)
     expect(statSync(join(dir, CLEANINGS_FILE)).mode & 0o777).toBe(0o600)
     const again = new HistoryStore({ directory: dir })
     expect(again.cleanings).toEqual([cycle])
