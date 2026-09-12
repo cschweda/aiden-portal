@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { createApp, createRouter, toWebHandler } from 'h3'
 import brewStart from '../../server/api/brew/start.post'
 import descaleMark from '../../server/api/descale.post'
@@ -35,11 +38,16 @@ const BASE_ENV: Record<string, string> = {
   LOG_LEVEL: 'silent',
 }
 
-/** A complete, known environment plus fresh config, logger, and Fellow client singletons. */
+// Every test gets its own history directory under one per-process root, so no test can touch the checkout's data/.
+const HISTORY_ROOT = mkdtempSync(join(tmpdir(), 'aiden-test-history-'))
+let historyDirs = 0
+process.on('exit', () => rmSync(HISTORY_ROOT, { recursive: true, force: true }))
+
+/** A complete, known environment plus fresh config, logger, Fellow client, and history singletons. */
 export function useTestEnv(overrides: Record<string, string> = {}): void {
   // Assigning undefined would store the string 'undefined'; the property has to go.
   for (const key of ['ALLOWED_HOSTS', 'FELLOW_TIMEZONE', 'PORT', 'NODE_ENV', 'NITRO_HOST', 'NITRO_PORT', 'LOG_LEVEL', 'HISTORY_ENABLED', 'HISTORY_DIRECTORY']) Reflect.deleteProperty(process.env, key)
-  Object.assign(process.env, BASE_ENV, overrides)
+  Object.assign(process.env, BASE_ENV, { HISTORY_DIRECTORY: join(HISTORY_ROOT, String(historyDirs++)) }, overrides)
   resetConfigForTests()
   resetLoggerForTests()
   resetFellowClientForTests()

@@ -3,9 +3,13 @@ import type { Device } from '../fellow/schemas'
 import { plausibleEpoch } from './time'
 import type { BrewRecord, TraceSample } from './types'
 
+/** How the start time was learned. Only a brew whose start was seen (or reported by the brewer) gets a trusted duration. */
+export type StartOrigin = 'transition' | 'device' | 'first-read'
+
 export interface CurrentBrew {
   id: string
   startedAt: number
+  startOrigin: StartOrigin
   profileId: string | null
   profileTitle: string | null
   /** The brew counter before this brew, when known. */
@@ -30,6 +34,10 @@ export type TitleLookup = (profileId: string) => string | undefined
 
 /** Five minutes: the device's own start time is used only when it is at most this stale. */
 const START_WINDOW_MS = 5 * 60_000
+/** A brew still running after a day is a stuck state, not a brew; it is closed uncounted and watching starts over. */
+export const MAX_BREW_MS = 24 * 60 * 60_000
+/** Samples kept per brew; beyond this every other sample is dropped, halving the resolution of a very long steep. */
+export const MAX_SAMPLES = 2000
 
 /**
  * Turns successive device reads into brew events. Pure apart from the clock values it is given.
@@ -39,6 +47,9 @@ const START_WINDOW_MS = 5 * 60_000
 export class BrewTracker {
   private current: CurrentBrew | null = null
   private idleCycles: number | null
+  private sawIdle = false
+  /** A brew was completed without a counter reading; the next idle read's +1 belongs to it, not to a missed brew. */
+  private pendingIncrement = false
   private readonly maxInferred: number
 
   constructor(options: TrackerOptions = {}) {
@@ -62,12 +73,19 @@ export class BrewTracker {
     const events: BrewEvent[] = []
 
     if (brewing) {
+      if (this.current && now - this.current.startedAt > MAX_BREW_MS) {
+        events.push({ type: 'completed', record: this.complete(this.current, device, now, undefined) })
+        this.current = null
+        this.sawIdle = false
+      }
       if (!this.current) {
         const profileId = device.ibSelectedProfileId ?? null
-        const startedAt = plausibleEpoch(device.brewStartTime, now - START_WINDOW_MS, now) ?? now
+        const deviceStart = plausibleEpoch(device.brewStartTime, now - START_WINDOW_MS, now)
+        const startedAt = deviceStart ?? now
         this.current = {
           id: `b${startedAt}`,
           startedAt,
+          startOrigin: deviceStart !== undefined ? 'device' : this.sawIdle ? 'transition' : 'first-read',
           profileId,
           profileTitle: profileId ? titleOf?.(profileId) ?? null : null,
           cyclesBefore: this.idleCycles ?? cycles ?? null,
@@ -76,16 +94,19 @@ export class BrewTracker {
         events.push({ type: 'started', brew: this.current })
       }
       this.current.samples.push(sampleOf(device, now))
+      if (this.current.samples.length > MAX_SAMPLES) this.current.samples = this.current.samples.filter((_, i) => i % 2 === 0)
       events.push({ type: 'sample', brew: this.current })
       return events
     }
 
+    this.sawIdle = true
     if (this.current) {
       events.push({ type: 'completed', record: this.complete(this.current, device, now, cycles) })
       this.current = null
+      if (cycles === undefined) this.pendingIncrement = true
     }
     else if (this.idleCycles !== null && cycles !== undefined && cycles > this.idleCycles) {
-      const missing = Math.min(cycles - this.idleCycles, this.maxInferred)
+      const missing = Math.min(cycles - this.idleCycles - (this.pendingIncrement ? 1 : 0), this.maxInferred)
       const endedAt = plausibleEpoch(device.brewEndTime, 0, now) ?? now
       const startedAt = plausibleEpoch(device.brewStartTime, 0, endedAt) ?? endedAt
       for (let i = 0; i < missing; i++) {
@@ -110,18 +131,22 @@ export class BrewTracker {
         })
       }
     }
-    if (cycles !== undefined) this.idleCycles = cycles
+    if (cycles !== undefined) {
+      this.idleCycles = cycles
+      this.pendingIncrement = false
+    }
     return events
   }
 
   private complete(brew: CurrentBrew, device: Device, now: number, cycles: number | undefined): BrewRecord {
     const endedAt = plausibleEpoch(device.brewEndTime, brew.startedAt, now + 60_000) ?? now
     const counted = cycles !== undefined && brew.cyclesBefore !== null && cycles === brew.cyclesBefore + 1
+    const trustedStart = brew.startOrigin !== 'first-read'
     return {
       id: brew.id,
       startedAt: brew.startedAt,
       endedAt,
-      durationS: counted ? Math.max(0, Math.round((endedAt - brew.startedAt) / 1000)) : null,
+      durationS: counted && trustedStart ? Math.max(0, Math.round((endedAt - brew.startedAt) / 1000)) : null,
       waterMl: device.brewingWaterVolumeMl ?? null,
       profileId: brew.profileId,
       profileTitle: brew.profileTitle,

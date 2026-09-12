@@ -59,6 +59,8 @@ function kind(brew: BrewSummary): { label: string, color: 'success' | 'neutral' 
 const pollingLine = computed(() => {
   const p = history.data.value?.polling
   if (!p) return ''
+  const store = history.data.value?.storeError
+  if (store) return `The history directory cannot be used (${store}); nothing is being logged.`
   if (!p.enabled) return 'Background reads are off (HISTORY_ENABLED=false); the log only grows while a page is open.'
   const last = p.lastPollAt ? `last read ${formatTime(p.lastPollAt)}` : 'no read yet'
   const trouble = p.failures ? `, ${p.failures} failed in a row (${p.lastError})` : ''

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BrewTracker } from '../../../server/lib/history'
+import { BrewTracker, MAX_BREW_MS, MAX_SAMPLES } from '../../../server/lib/history'
 import type { Device } from '../../../server/lib/fellow/schemas'
 
 const T0 = 1_789_200_000_000
@@ -82,11 +82,51 @@ describe('BrewTracker', () => {
     expect(tracker.observe(idle(71), T0)).toEqual([])
     expect(tracker.baselineCycles).toBe(71)
   })
-  it('counts a brew that was already running at the first read if the counter then rises by one', () => {
+  it('counts a brew already running at the first read, but does not trust a duration it never saw start', () => {
     const tracker = new BrewTracker()
     tracker.observe(brewing('p2'), T0)
-    expect(tracker.currentBrew?.cyclesBefore).toBe(70)
+    expect(tracker.currentBrew).toMatchObject({ cyclesBefore: 70, startOrigin: 'first-read' })
     const [event] = tracker.observe(idle(71), T0 + 200_000)
-    expect(event).toMatchObject({ type: 'completed', record: { counted: true } })
+    expect(event).toMatchObject({ type: 'completed', record: { counted: true, durationS: null, observed: true } })
+  })
+  it('trusts the duration of a brew first seen mid-way when the brewer reports a recent start time', () => {
+    const tracker = new BrewTracker()
+    tracker.observe(brewing('p2', { brewStartTime: String((T0 - 90_000) / 1000) }), T0)
+    expect(tracker.currentBrew).toMatchObject({ startedAt: T0 - 90_000, startOrigin: 'device' })
+    const [event] = tracker.observe(idle(71), T0 + 200_000)
+    expect(event).toMatchObject({ type: 'completed', record: { counted: true, durationS: 290 } })
+  })
+  it('marks a brew seen after an idle read as a transition, with a trusted duration', () => {
+    const tracker = new BrewTracker()
+    tracker.observe(idle(70), T0)
+    tracker.observe(brewing('b'), T0 + 60_000)
+    expect(tracker.currentBrew?.startOrigin).toBe('transition')
+  })
+  it('attributes the next counter rise to a brew completed without a counter reading, instead of inferring a duplicate', () => {
+    const tracker = new BrewTracker()
+    tracker.observe(idle(70), T0)
+    tracker.observe(brewing('p1'), T0 + 1_000)
+    const [completed] = tracker.observe(idle(70, { totalBrewingCycles: undefined }), T0 + 300_000)
+    expect(completed).toMatchObject({ type: 'completed', record: { counted: false, cyclesAfter: null } })
+    expect(tracker.observe(idle(71), T0 + 360_000)).toEqual([])
+    expect(tracker.baselineCycles).toBe(71)
+    expect(tracker.observe(idle(72), T0 + 400_000)).toHaveLength(1)
+  })
+  it('closes a brew that has run for a day as uncounted and starts watching afresh', () => {
+    const tracker = new BrewTracker()
+    tracker.observe(idle(70), T0)
+    tracker.observe(brewing('p1'), T0 + 1_000)
+    const events = tracker.observe(brewing('p1'), T0 + 1_000 + MAX_BREW_MS + 1)
+    expect(events.map(e => e.type)).toEqual(['completed', 'started', 'sample'])
+    expect(events[0]).toMatchObject({ type: 'completed', record: { counted: false, durationS: null } })
+    expect(tracker.currentBrew?.startOrigin).toBe('first-read')
+  })
+  it('thins the samples of a very long brew instead of growing without bound', () => {
+    const tracker = new BrewTracker()
+    tracker.observe(idle(70), T0)
+    for (let i = 0; i <= MAX_SAMPLES; i++) tracker.observe(brewing('p1'), T0 + 1_000 + i * 5_000)
+    const count = tracker.currentBrew?.samples.length ?? 0
+    expect(count).toBeLessThanOrEqual(MAX_SAMPLES)
+    expect(count).toBeGreaterThan(MAX_SAMPLES / 2 - 1)
   })
 })

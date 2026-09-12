@@ -1,50 +1,21 @@
 import { FellowError } from '../lib/fellow'
 import type { Device } from '../lib/fellow/schemas'
-import { BrewTracker, computeStats, descaleStatus, HistoryStore } from '../lib/history'
-import type { BrewRecord, CurrentBrew, DescaleMarker, DescaleStatus, HistoryStats } from '../lib/history'
+import { BrewTracker, computeStats, descaleStatus, HistoryStore, summarise } from '../lib/history'
+import type { CurrentBrew, DescaleMarker, DescaleStatus, HistorySnapshot, PollerState } from '../lib/history'
 import { type AppConfig, getConfig } from './config'
 import { useFellowClient } from './fellow-client'
 import { useLogger } from './logger'
 
-export interface PollerState {
-  enabled: boolean
-  running: boolean
-  idlePollSeconds: number
-  brewPollSeconds: number
-  lastPollAt: number | null
-  lastError: string | null
-  failures: number
-}
-
-/** A brew record without its samples, for lists. */
-export type BrewSummary = Omit<BrewRecord, 'samples'> & { sampleCount: number }
-
-export interface HistorySnapshot {
-  stats: HistoryStats
-  descale: DescaleStatus
-  descaleHistory: DescaleMarker[]
-  /** The brew running now, with its samples so far. */
-  current: CurrentBrew | null
-  /** The newest brew that has a trace. */
-  lastTraced: BrewRecord | null
-  recent: BrewSummary[]
-  polling: PollerState
-  skippedLines: number
-}
-
 /** After this long a brew is sampled at the idle rate: cold-brew steeps run for hours. */
 const LONG_BREW_MS = 20 * 60_000
 const FIRST_POLL_DELAY_MS = 2_000
+const POKE_DELAY_MS = 2_000
 const MAX_BACKOFF_MS = 15 * 60_000
-
-export function summarise(record: BrewRecord): BrewSummary {
-  const { samples, ...rest } = record
-  return { ...rest, sampleCount: samples.length }
-}
 
 /**
  * The process-wide brew history: the store on disk, the tracker fed by a poll loop, and the answers the routes give.
- * Polling errors back off exponentially and are logged once per streak.
+ * Polling errors back off exponentially and are logged once per streak. A store that cannot be written never breaks
+ * a poll or a route: the failure is recorded in `polling.lastError` and `snapshot().storeError` instead.
  */
 export class HistoryService {
   readonly store: HistoryStore
@@ -52,6 +23,8 @@ export class HistoryService {
   readonly polling: PollerState
   private timer: ReturnType<typeof setTimeout> | undefined
   private inFlight: Promise<void> | undefined
+  private pokeRequested = false
+  private storeFailures = 0
   private readonly titles = new Map<string, string>()
   private lastDevice: Device | null = null
 
@@ -65,9 +38,12 @@ export class HistoryService {
       idlePollSeconds: config.history.idlePollSeconds,
       brewPollSeconds: config.history.brewPollSeconds,
       lastPollAt: null,
-      lastError: null,
+      lastError: this.store.loadError,
       failures: 0,
     }
+    const logger = useLogger()
+    if (this.store.loadError) logger.error({ directory: this.store.directory, err: this.store.loadError }, 'History directory unusable; brews will not be logged')
+    else if (this.store.directoryIsShared) logger.warn({ directory: this.store.directory }, 'History directory is readable by other accounts on this machine; consider chmod 700')
   }
 
   /** Starts the loop; a second call is a no-op. */
@@ -85,17 +61,14 @@ export class HistoryService {
   }
 
   /** Reads again soon, so a brew the app just started is traced from its first seconds rather than the next idle tick. */
-  pokeSoon(delayMs = 2_000): void {
-    if (!this.polling.running || this.inFlight) return
+  pokeSoon(): void {
+    if (!this.polling.running) return
+    if (this.inFlight) {
+      this.pokeRequested = true
+      return
+    }
     if (this.timer) clearTimeout(this.timer)
-    this.schedule(delayMs)
-  }
-
-  /** One read of the brewer through the tracker. Exposed for tests and for the routes' snapshot after a mutation. */
-  async poll(now: number = Date.now()): Promise<Device> {
-    const device = await useFellowClient().getDevice({ fresh: true })
-    this.observe(device, now)
-    return device
+    this.schedule(POKE_DELAY_MS)
   }
 
   /** The brewer as last observed, so the history can still be shown while Fellow is unreachable. */
@@ -103,27 +76,52 @@ export class HistoryService {
     return this.lastDevice
   }
 
+  /** One fresh read of the brewer through the tracker, stamped when the answer arrives. */
+  async poll(): Promise<Device> {
+    const device = await useFellowClient().getDevice({ fresh: true })
+    this.observe(device, Date.now())
+    return device
+  }
+
+  /** Feeds one device read to the tracker. Reads that resolved out of order (older than the last one) are ignored. */
   observe(device: Device, now: number): void {
+    if (this.polling.lastPollAt !== null && now < this.polling.lastPollAt) return
     this.lastDevice = device
+    this.polling.lastPollAt = now
     const logger = useLogger()
     for (const event of this.tracker.observe(device, now, id => this.titles.get(id))) {
       if (event.type === 'started') {
-        logger.info({ profileId: event.brew.profileId, profileTitle: event.brew.profileTitle }, 'Brew started')
+        logger.info({ profileId: event.brew.profileId, profileTitle: event.brew.profileTitle, startOrigin: event.brew.startOrigin }, 'Brew started')
         if (event.brew.profileId && !event.brew.profileTitle) void this.refreshTitles(event.brew)
       }
       else if (event.type === 'completed' || event.type === 'inferred') {
-        this.store.appendBrew(event.record)
-        logger.info({
-          brewId: event.record.id,
-          observed: event.record.observed,
-          counted: event.record.counted,
-          durationS: event.record.durationS,
-          waterMl: event.record.waterMl,
-          profileTitle: event.record.profileTitle,
-        }, event.type === 'completed' ? 'Brew logged' : 'Brew inferred from the brew counter')
+        this.persist(event.record, event.type === 'completed' ? 'Brew logged' : 'Brew inferred from the brew counter')
       }
     }
-    this.polling.lastPollAt = now
+  }
+
+  private persist(record: HistorySnapshot['lastTraced'] & object, message: string): void {
+    const logger = useLogger()
+    const fields = {
+      brewId: record.id,
+      observed: record.observed,
+      counted: record.counted,
+      durationS: record.durationS,
+      waterMl: record.waterMl,
+      profileTitle: record.profileTitle,
+    }
+    try {
+      this.store.appendBrew(record)
+      if (this.storeFailures > 0) logger.info({ failures: this.storeFailures }, 'History store writable again')
+      this.storeFailures = 0
+      logger.info(fields, message)
+    }
+    catch (error) {
+      this.storeFailures += 1
+      this.polling.lastError = error instanceof Error ? error.message : String(error)
+      const level = this.storeFailures === 1 ? 'error' : 'debug'
+      logger[level]({ ...fields, err: this.polling.lastError }, 'Brew could not be written to the history file')
+    }
   }
 
   snapshot(device: Device, now: number = Date.now()): HistorySnapshot {
@@ -138,13 +136,15 @@ export class HistoryService {
       recent: records.slice(-50).reverse().map(summarise),
       polling: { ...this.polling },
       skippedLines: this.store.skippedLines,
+      storeError: this.store.loadError,
     }
   }
 
-  brew(id: string): BrewRecord | null {
+  brew(id: string): HistorySnapshot['lastTraced'] {
     return this.store.brews.find(r => r.id === id) ?? null
   }
 
+  /** Writes the marker; throws when the store is unusable, which the route turns into a 409. */
   markDescaled(device: Device, now: number = Date.now()): DescaleStatus {
     const marker: DescaleMarker = {
       at: now,
@@ -176,7 +176,7 @@ export class HistoryService {
       await this.poll()
       if (this.polling.failures > 0) logger.info({ failures: this.polling.failures }, 'History polling recovered')
       this.polling.failures = 0
-      this.polling.lastError = null
+      if (this.storeFailures === 0) this.polling.lastError = this.store.loadError
       const current = this.tracker.currentBrew
       if (current) {
         const seconds = Date.now() - current.startedAt > LONG_BREW_MS ? this.config.history.idlePollSeconds : this.config.history.brewPollSeconds
@@ -190,6 +190,10 @@ export class HistoryService {
       if (this.polling.failures === 1) logger.warn(fields, 'History poll failed; backing off')
       else logger.debug(fields, 'History poll still failing')
       delayMs = Math.min(this.config.history.idlePollSeconds * 1000 * 2 ** Math.min(this.polling.failures, 6), MAX_BACKOFF_MS)
+    }
+    if (this.pokeRequested) {
+      this.pokeRequested = false
+      delayMs = Math.min(delayMs, POKE_DELAY_MS)
     }
     this.schedule(delayMs)
   }

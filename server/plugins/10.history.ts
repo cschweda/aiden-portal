@@ -6,11 +6,18 @@ import { useLogger } from '../utils/logger'
 export default defineNitroPlugin(() => {
   if (import.meta.prerender) return
   const config = getConfig()
-  const history = useHistory()
+  const logger = useLogger()
   if (!config.history.enabled) {
-    useLogger().info('History polling is off (HISTORY_ENABLED=false); the log only grows while pages are open')
+    logger.info('History polling is off (HISTORY_ENABLED=false); the log only grows while pages are open')
     return
   }
-  history.start()
-  useLogger().info({ directory: config.history.directory, idlePollSeconds: config.history.idlePollSeconds, brewPollSeconds: config.history.brewPollSeconds, brewsOnDisk: history.store.brews.length }, 'History polling started')
+  try {
+    const history = useHistory()
+    history.start()
+    logger.info({ directory: config.history.directory, idlePollSeconds: config.history.idlePollSeconds, brewPollSeconds: config.history.brewPollSeconds, brewsOnDisk: history.store.brews.length }, 'History polling started')
+  }
+  catch (error) {
+    // The brewer controls must work even if the history cannot; the routes report the reason.
+    logger.error({ err: error instanceof Error ? error.message : String(error) }, 'History could not start')
+  }
 })

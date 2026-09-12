@@ -36,8 +36,8 @@ Brew history, brew trace, and a descale tally.
 
 ### Changed
 
-- Every fresh device read (the dashboard's refresh, the check before a remote start) feeds the brew tracker, and a
-  brew started from the app is re-read two seconds later so its trace starts at once.
+- Every fresh device read the dashboard makes feeds the brew tracker, and a brew started from the app is re-read
+  two seconds later so its trace starts at once.
 - The startup plugin is now `00.startup.ts`, so it runs before the history plugin.
 
 ## [0.6.0] - 2026-09-12

@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -64,6 +64,31 @@ describe('HistoryStore', () => {
     expect(existsSync(join(dir, `${DESCALE_FILE}.tmp`))).toBe(false)
     expect(statSync(join(dir, DESCALE_FILE)).mode & 0o777).toBe(0o600)
     expect(new HistoryStore({ directory: dir }).descaleState.current?.brews).toBe(70)
+  })
+  it('leaves an existing directory\'s permissions alone and says when they are shared', () => {
+    mkdirSync(dir, { recursive: true })
+    chmodSync(dir, 0o755)
+    const store = new HistoryStore({ directory: dir })
+    store.appendBrew(record())
+    expect(statSync(dir).mode & 0o777).toBe(0o755)
+    expect(store.directoryIsShared).toBe(true)
+    expect(new HistoryStore({ directory: join(dir, 'fresh') }).directoryIsShared).toBe(false)
+  })
+  it('repairs a torn last line before appending, so the next record stays readable', () => {
+    const store = new HistoryStore({ directory: dir })
+    store.appendBrew(record())
+    writeFileSync(join(dir, BREWS_FILE), `${readFileSync(join(dir, BREWS_FILE), 'utf8')}{"id":"torn","startedAt":1`)
+    new HistoryStore({ directory: dir }).appendBrew(record({ id: 'b2' }))
+    const again = new HistoryStore({ directory: dir })
+    expect(again.brews.map(r => r.id)).toEqual(['b1', 'b2'])
+    expect(again.skippedLines).toBe(1)
+  })
+  it('reports an unusable directory instead of throwing on load, and refuses writes', () => {
+    writeFileSync(join(dir, '..', 'not-a-dir'), 'x')
+    const store = new HistoryStore({ directory: join(dir, '..', 'not-a-dir') })
+    expect(store.loadError).toMatch(/ENOTDIR|EEXIST|not a directory/i)
+    expect(store.brews).toEqual([])
+    expect(() => store.appendBrew(record())).toThrow(/unusable/)
   })
   it('treats an unreadable marker file as never descaled', () => {
     const store = new HistoryStore({ directory: dir })

@@ -67,7 +67,7 @@ pipeline in-process with msw standing in for Fellow.
 
 ## Startup
 
-`server/plugins/startup.ts` runs before Nitro listens. It parses the environment, refuses to start
+`server/plugins/00.startup.ts` runs before Nitro listens. It parses the environment, refuses to start
 (exit 1) when `HOST` is unset or not loopback, logs a config summary without secrets, prints one plain
 line to stdout, and probes Fellow once without blocking.
 

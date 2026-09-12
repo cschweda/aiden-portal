@@ -5,7 +5,7 @@ import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { useHistory } from '../../server/utils/history'
 import { createTestApp, useTestEnv } from '../helpers/app'
-import { BASE, DEVICE_DETAIL, happyHandlers, newCalls } from '../helpers/fellow-fixtures'
+import { BASE, DEVICE, DEVICE_DETAIL, happyHandlers, newCalls } from '../helpers/fellow-fixtures'
 import { server } from '../setup/msw'
 
 let dir: string
@@ -49,7 +49,9 @@ describe('GET /api/history', () => {
     const one = await app.json('GET', `/api/history/brews/${body.recent[0].id}`)
     expect(one.status).toBe(200)
     expect(one.body.samples.map((s: { phase: string }) => s.phase)).toEqual(['bloom', 'pulse 1'])
-    expect((await app.json('GET', '/api/history/brews/nope')).status).toBe(404)
+    const missing = await app.json('GET', '/api/history/brews/nope')
+    expect(missing.status).toBe(404)
+    expect(missing.body).toEqual({ error: 'not_found' })
     expect((await app.json('GET', '/api/history/brews/bad%20id')).status).toBe(400)
   })
 
@@ -68,7 +70,9 @@ describe('GET /api/history', () => {
 
 describe('POST /api/descale', () => {
   it('resets the tally from a fresh read and keeps a history', async () => {
+    server.use(http.get(`${BASE}/devices/${DEVICE.id}`, () => HttpResponse.json({ ...DEVICE_DETAIL, totalWaterVolumeL: 40_000 })))
     const app = createTestApp()
+    await app.json('GET', '/api/device')
     const marked = await app.json('POST', '/api/descale')
     expect(marked.status).toBe(200)
     expect(marked.body.markedAt).toBeGreaterThan(0)
@@ -76,6 +80,14 @@ describe('POST /api/descale', () => {
     const { body } = await app.json('GET', '/api/history')
     expect(body.descale.markedAt).toBe(marked.body.markedAt)
     expect(body.descaleHistory).toHaveLength(1)
+  })
+
+  it('refuses to mark when the brewer reports no totals to count from', async () => {
+    const app = createTestApp()
+    await app.json('GET', '/api/device')
+    const { status, body } = await app.json('POST', '/api/descale')
+    expect(status).toBe(409)
+    expect(body.error).toBe('brewer_totals_unavailable')
   })
 
   it('is refused cross-site like every other write', async () => {

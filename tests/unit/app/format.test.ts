@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatAgo, formatClock, formatDateTime, formatDuration, formatHours, formatLitres, formatLitresFromMl, formatMillilitres, formatTemperature, formatTime, toDate } from '../../../app/utils/format'
+import { formatAgo, formatClock, formatDate, formatDateTime, formatDuration, formatHours, formatLitres, formatLitresFromMl, formatMillilitres, formatTemperature, formatTime, toDate } from '../../../app/utils/format'
 
 describe('format helpers', () => {
   it('formats temperatures with half degrees', () => {
@@ -39,6 +39,8 @@ describe('format helpers', () => {
   it('formats a date and time without seconds', () => {
     expect(formatDateTime(1789213533)).toMatch(/^\d{1,2}\s\w{3,5},?\s\d{2}:\d{2}$/)
     expect(formatDateTime('garbage')).toBe('—')
+    expect(formatDate(Date.UTC(2026, 8, 24, 12))).toMatch(/^\d{1,2}\s\w{3,5}\s2026$/)
+    expect(formatDate(null)).toBe('—')
   })
   it('says how long ago, coarsely', () => {
     const now = 1_800_000_000_000

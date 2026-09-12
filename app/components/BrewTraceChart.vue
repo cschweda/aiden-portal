@@ -48,10 +48,13 @@ const y = (celsius: number) => {
 /** Contiguous runs of one phase, each spanning from its first sample to the next run's first sample. */
 const bands = computed(() => {
   const runs: Array<{ phase: string, from: number, to: number }> = []
+  const last = props.samples[props.samples.length - 1]
+  const previous = props.samples[props.samples.length - 2]
+  const tail = last && previous ? Math.max(props.intervalS, elapsed(last.t) - elapsed(previous.t)) : props.intervalS
   props.samples.forEach((sample, i) => {
     const from = elapsed(sample.t)
     const next = props.samples[i + 1]
-    const to = next ? elapsed(next.t) : from + props.intervalS
+    const to = next ? elapsed(next.t) : from + tail
     const last = runs[runs.length - 1]
     if (last && last.phase === sample.phase) last.to = to
     else runs.push({ phase: sample.phase, from, to })
@@ -61,7 +64,7 @@ const bands = computed(() => {
 
 const xTicks = computed(() => {
   const span = spanS.value
-  const step = span <= 120 ? 15 : span <= 600 ? 60 : span <= 1800 ? 300 : span <= 7200 ? 900 : 1800
+  const step = span <= 120 ? 15 : span <= 600 ? 60 : span <= 1800 ? 300 : span <= 7200 ? 900 : span <= 21_600 ? 1800 : span <= 43_200 ? 3600 : 7200
   const ticks: number[] = []
   for (let s = 0; s <= span; s += step) ticks.push(s)
   return ticks
@@ -134,7 +137,7 @@ const onOff = (value: boolean | undefined) => (value === undefined ? '—' : val
           :height="HEIGHT - PAD.top - PAD.bottom + 20"
           :fill="i % 2 ? 'var(--ui-bg-elevated)' : 'transparent'"
         />
-        <text :x="x(band.from) + 4" :y="PAD.top - 8" font-size="10" fill="var(--ui-text-muted)">{{ band.phase }}</text>
+        <text v-if="x(band.to) - x(band.from) >= 34" :x="x(band.from) + 4" :y="PAD.top - 8" font-size="10" fill="var(--ui-text-muted)">{{ band.phase }}</text>
       </g>
       <g v-for="c in yTicks" :key="c">
         <line :x1="PAD.left" :x2="width - PAD.right" :y1="y(c)" :y2="y(c)" stroke="var(--ui-border)" stroke-width="1" />

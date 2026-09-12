@@ -16,7 +16,7 @@ export interface HistoryStats {
   today: PeriodStats
   thisWeek: PeriodStats
   thisMonth: PeriodStats
-  /** Everything in the log, and when the log starts. */
+  /** Everything the store holds in memory (the newest 2000 records; older lines stay on disk), and when that starts. */
   logged: PeriodStats & { since: number | null }
   /** Mean of the trusted durations, seconds. */
   averageDurationS: number | null
@@ -51,7 +51,11 @@ export function computeStats(records: readonly BrewRecord[], now: number = Date.
   const counted = past.filter(r => r.counted)
   const recent = counted.slice(-30)
   const gaps: number[] = []
-  for (let i = 1; i < recent.length; i++) gaps.push((recent[i]!.endedAt - recent[i - 1]!.endedAt) / (60 * 60_000))
+  // Brews inferred from one counter jump share a timestamp; a gap under a minute is not a real interval.
+  for (let i = 1; i < recent.length; i++) {
+    const gapMs = recent[i]!.endedAt - recent[i - 1]!.endedAt
+    if (gapMs >= 60_000) gaps.push(gapMs / (60 * 60_000))
+  }
 
   const byProfile = new Map<string, FavouriteProfile & { latest: number }>()
   for (const r of past) {

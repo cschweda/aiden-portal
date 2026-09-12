@@ -1,6 +1,5 @@
 import type { Device, Profile, Schedule } from '../../server/lib/fellow/schemas'
-import type { BrewRecord, CurrentBrew, DescaleMarker, DescaleStatus, HistoryStats, TraceSample } from '../../server/lib/history'
-import type { BrewSummary, HistorySnapshot, PollerState } from '../../server/utils/history'
+import type { BrewRecord, BrewSummary, CurrentBrew, DescaleMarker, DescaleStatus, HistorySnapshot, HistoryStats, PollerState, TraceSample } from '../../server/lib/history'
 import type { LogRecord } from '../../server/utils/log-reader'
 
 export type { Device, Profile, Schedule }

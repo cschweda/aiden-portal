@@ -15,7 +15,14 @@ export default defineApiRoute(async (event) => {
   }
   const result = await client.startBrew()
   event.context.logger?.info({ action: 'brew.start', dryRun: client.dryRun }, 'Remote start requested')
-  if (!client.dryRun) useHistory().pokeSoon()
+  if (!client.dryRun) {
+    try {
+      useHistory().pokeSoon()
+    }
+    catch {
+      // The brew is running regardless; the history reports its own trouble.
+    }
+  }
   setResponseStatus(event, 202)
   return { ok: true, result }
 })

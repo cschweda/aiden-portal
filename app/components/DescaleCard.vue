@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DescaleStatus } from '#shared/types/api'
-import { formatAgo, formatDateTime } from '../utils/format'
+import { formatAgo, formatDate, formatDateTime } from '../utils/format'
 
 const props = defineProps<{ descale: DescaleStatus }>()
 const emit = defineEmits<{ marked: [] }>()
@@ -29,7 +29,7 @@ const estimate = computed(() => {
   if (d.dueInDays === null) return 'An estimate appears after a few days of logged brews.'
   const days = Math.max(1, Math.round(d.dueInDays))
   const basis = d.paceBasis === 'log' ? 'the brew log' : 'the litres since the last mark'
-  return `At your pace, about ${days} day${days === 1 ? '' : 's'} to go, around ${formatDateTime(d.dueAt)}, judging by ${basis}.`
+  return `At your pace, about ${days} day${days === 1 ? '' : 's'} to go, around ${formatDate(d.dueAt)}, judging by ${basis}.`
 })
 
 async function mark() {

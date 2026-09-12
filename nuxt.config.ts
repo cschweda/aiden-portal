@@ -8,7 +8,7 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   nitro: { preset: 'node-server' },
   // The dev server listens where aiden.config.ts says; the production server is pinned to the same value
-  // by server/plugins/startup.ts. HOST/PORT in .env still override both.
+  // by server/plugins/00.startup.ts. HOST/PORT in .env still override both.
   devServer: {
     host: process.env.NITRO_HOST || process.env.HOST || aiden.server.host,
     port: Number(process.env.NITRO_PORT || process.env.PORT || aiden.server.port),

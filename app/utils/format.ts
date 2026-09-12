@@ -32,6 +32,12 @@ export function toDate(value: string | number | undefined | null): Date | undefi
   return Number.isNaN(date.getTime()) ? undefined : date
 }
 
+/** Local date with its year, e.g. "24 Sept 2026". */
+export function formatDate(value: string | number | undefined | null): string {
+  const date = toDate(value)
+  return date ? date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
+}
+
 /** Local date and time without seconds, e.g. "12 Sept, 11:45". */
 export function formatDateTime(value: string | number | undefined | null): string {
   const date = toDate(value)
