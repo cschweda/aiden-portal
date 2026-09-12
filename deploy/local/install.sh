@@ -48,8 +48,8 @@ if answers "$url"; then
   fail "something else is listening at $url (pnpm dev, pnpm start, or the mock demo?); stop it, or set PORT in .env. While the service is installed, run the dev server elsewhere: PORT=3001 pnpm dev"
 fi
 
-mkdir -p "$APP_HOME" "$APP_HOME/logs" "$PLIST_DIR" "$LAUNCHD_LOG_DIR"
-chmod 700 "$APP_HOME" "$APP_HOME/logs" "$LAUNCHD_LOG_DIR"
+mkdir -p "$APP_HOME" "$APP_HOME/logs" "$APP_HOME/data" "$PLIST_DIR" "$LAUNCHD_LOG_DIR"
+chmod 700 "$APP_HOME" "$APP_HOME/logs" "$APP_HOME/data" "$LAUNCHD_LOG_DIR"
 rsync -a --delete "$REPO/.output/" "$APP_HOME/.output/"
 install -m 600 "$REPO/.env" "$APP_HOME/.env"
 cp "$REPO/aiden.config.ts" "$APP_HOME/aiden.config.ts"   # the build has it compiled in; status.sh and logs.sh read this copy

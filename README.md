@@ -22,9 +22,10 @@ Dark by default (the toggle is in the sidebar footer), one accent, and every val
 
 | Page | What it does |
 |---|---|
-| Dashboard | The brewer's state as one word (Ready, Brewing, Offline, Not ready) with every reported flag underneath, the reasons a brew cannot start, the **Start brew** button, which is enabled only when the brewer says it is ready and asks before it sends, and a sensor panel with everything the brewer reports, grouped for troubleshooting: the live phase, heater, pump, and water temperature; lid, tank, carafe, baskets, and shower head; brew and water totals; the settings on the brewer itself; and its identity. |
+| Dashboard | The brewer's state as one word (Ready, Brewing, Offline, Not ready) with every reported flag underneath, the reasons a brew cannot start, the **Start brew** button, which is enabled only when the brewer says it is ready and asks before it sends, and a sensor panel with everything the brewer reports, grouped for troubleshooting: the live phase, heater, pump, and water temperature; lid, tank, carafe, baskets, and shower head; brew and water totals; the settings on the brewer itself; and its identity.; a descale tally with a Mark descaled button and an estimate of the due date; brews and water today, this week, and this month; and the trace of the brew running now, or the last one. |
 | Profiles | Every profile on the brewer with a one-line recipe summary. Create, edit, delete, share (a brew.link URL to copy), and import from a brew.link. The editor exposes every variable in its exact steps: ratio and temperature sliders in halves, bloom, and per-pulse temperatures that follow the pulse count. |
 | Schedules | Each schedule with its time in the brewer's local time, days, water, and profile; pause or resume with the switch, delete, or add one with the day chips and time picker. |
+| History | Brews and water by day, week, and month; average brew length and time between brews; the most used profile; every logged brew, with its trace on demand; when the brewer was descaled; and what the background reads are doing. |
 | Logs | The production log file, newest first, filterable by level and by request id (click any id). Each row expands to the full record. |
 
 Failed calls show a toast with the server's error code, never a blank failure. The `?new=1` query on the
@@ -37,6 +38,9 @@ profiles and schedules pages opens the create form directly.
 | Schedules | Logs |
 |---|---|
 | ![Schedules](docs/screenshots/schedules.png) | ![Logs](docs/screenshots/logs.png) |
+| History | |
+|---|---|
+| ![History](docs/screenshots/history.png) | |
 
 (Screenshots taken against the mock brewer. In development the log viewer explains that logs go to the terminal; the production build writes the file it reads.)
 
@@ -52,6 +56,28 @@ Then in `.env` set `FELLOW_BASE_URL=http://127.0.0.1:3900/v2` and any `FELLOW_EM
 and run `pnpm dev` (or `pnpm build && pnpm start`). The mock has three profiles, two schedules, a ready
 brewer, and accepts every mutation; `pnpm mock:fellow -- --flaky` makes every third read fail with a 503
 so you can watch the retries. Leave `FELLOW_BASE_URL` blank to talk to the real Fellow API.
+
+## Brew history and descale
+
+The service keeps its own record of what the brewer does, because Fellow's API has no history and no maintenance
+counters.
+
+- **How it watches.** A fresh read of the brewer every 60 seconds while idle and every 5 seconds during a brew (the
+  idle rate again once a brew has run for twenty minutes, for cold-brew steeps). Every fresh read the dashboard makes
+  counts too, and a brew started from the app is re-read two seconds later. `HISTORY_ENABLED=false` in `.env` turns the
+  background reads off; the log then only grows while a page is open.
+- **What it logs.** One line per completed brew in `data/brews.jsonl`: start, end, duration, water, the profile
+  selected on the brewer, whether the brew was watched or inferred, and the trace samples (phase, water temperature,
+  heater, pump). Rules borrowed from the Home Assistant integration: a duration is trusted only when the brew was
+  watched and the brew counter rose by exactly one; a counter that rose while nobody was watching (Mac asleep,
+  service down) becomes an inferred brew with the brewer's own timestamps and no duration. Fellow never says which
+  profile ran, so the log records the one that was selected on the brewer and the UI says so.
+- **Where it lives.** `data/` sits next to `logs/` in the working directory: the checkout for `pnpm start`, the
+  installed copy under launchd. A reinstall keeps it; `uninstall.sh --purge` removes it. Nothing leaves this Mac.
+- **The descale tally.** Brews and litres since you pressed Mark descaled, a bar that turns amber at 80% and red at
+  100% of `maintenance.descaleAfterLitres` (60 L to start; add `descaleAfterBrews` to count brews as well), and an
+  estimate of the due date from the litres per day in the log, or since the last mark while the log is young. Until
+  the first mark the tally counts from the brewer's lifetime totals. Marking writes only to `data/descale.json`.
 
 ## Requirements
 
@@ -163,6 +189,8 @@ single-run override of the keys below; `.env.sample` documents each one.
 | `HOST`, `PORT` | Override `server.host` / `server.port`. `NITRO_HOST` / `NITRO_PORT` are honoured too, with the same guard. |
 | `ALLOWED_HOSTS` | Overrides `server.allowedHosts` (hostnames only, as they appear in the `Host` header). |
 | `LOG_LEVEL` | Overrides `logging.level`. |
+| `HISTORY_ENABLED` | `false` stops the background reads that feed the brew log, the trace, and the descale tally. |
+| `HISTORY_DIRECTORY` | Overrides `history.directory` (where `brews.jsonl` and `descale.json` are written). |
 
 ## API
 
@@ -182,6 +210,9 @@ this site: the browser proves it with `Sec-Fetch-Site: same-origin`; a script or
 | `GET /api/schedules?fresh=1`, `POST /api/schedules` | list, create |
 | `PATCH /api/schedules/:id`, `DELETE /api/schedules/:id` | update (for example `{ "enabled": false }`), delete |
 | `POST /api/brew/start` | starts the configured Instant Brew, or 409 with the reasons it cannot |
+| `GET /api/history` | stats, the descale tally, the brew running now with its samples, the last traced brew, recent brews, the poller's state |
+| `GET /api/history/brews/:id` | one logged brew with its trace samples |
+| `POST /api/descale` | records that the brewer was descaled now; the tally restarts from its current totals |
 
 Errors are `{ error, message?, issues? }`: 400 for validation, 502 for a Fellow failure (the code only,
 never Fellow's response), 500 otherwise. Reads are cached for 30 seconds; `?fresh=1` bypasses the cache.

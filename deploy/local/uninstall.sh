@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Stops the aiden-studio LaunchAgent and removes its plist. With --purge, also removes the installed copy
-# (~/Library/Application Support/aiden-studio: the build, the .env copy, and the app's logs) and launchd's log
+# (~/Library/Application Support/aiden-studio: the build, the .env copy, the app's logs, and the brew history in
+# data/) and launchd's log
 # directory (~/Library/Logs/aiden-studio). The checkout is never touched.
 set -euo pipefail
 # shellcheck source=deploy/local/common.sh

@@ -53,6 +53,7 @@ export class HistoryService {
   private timer: ReturnType<typeof setTimeout> | undefined
   private inFlight: Promise<void> | undefined
   private readonly titles = new Map<string, string>()
+  private lastDevice: Device | null = null
 
   constructor(private readonly config: AppConfig) {
     this.store = new HistoryStore({ directory: config.history.directory })
@@ -97,7 +98,13 @@ export class HistoryService {
     return device
   }
 
+  /** The brewer as last observed, so the history can still be shown while Fellow is unreachable. */
+  get lastObservedDevice(): Device | null {
+    return this.lastDevice
+  }
+
   observe(device: Device, now: number): void {
+    this.lastDevice = device
     const logger = useLogger()
     for (const event of this.tracker.observe(device, now, id => this.titles.get(id))) {
       if (event.type === 'started') {

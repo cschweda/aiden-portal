@@ -7,6 +7,39 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-12
+
+Brew history, brew trace, and a descale tally.
+
+### Added
+
+- A background poller in the service: a fresh read of the brewer every 60 seconds while idle and every 5 seconds
+  during a brew (`history.idlePollSeconds` / `history.brewPollSeconds` in `aiden.config.ts`; `HISTORY_ENABLED=false`
+  turns it off). Fellow failures back off to fifteen minutes. The reads also keep the dashboard's cache warm.
+- A brew log in `data/brews.jsonl` next to `logs/` (`history.directory`, or `HISTORY_DIRECTORY`): one line per
+  completed brew with start, end, duration, water, the profile selected on the brewer, whether it was watched or
+  inferred from the brew counter, and its trace samples. The installed copy keeps it across reinstalls; only
+  `uninstall.sh --purge` removes it.
+- A brew trace: phase, water temperature, heater, and pump sampled through the brew, drawn as a temperature line with
+  shaded phase bands, a crosshair tooltip, and a sample table. Live on the dashboard while a brew runs, the last brew
+  afterwards, any brew on the History page.
+- Stats on the dashboard (brews and water today, this week from Sunday, this month; most used profile) and a History
+  page with average brew length, average time between brews, every logged brew, the descale history, and what the
+  poller is doing.
+- A descale tally on the dashboard: brews and litres since Mark descaled, a bar that turns amber at 80% and red at
+  100% of `maintenance.descaleAfterLitres` (60 L to start; `descaleAfterBrews` adds a brew count), an estimate of the
+  due date from the recent pace, and the Mark descaled button behind a confirmation. Only aiden-studio's own file
+  changes; nothing is sent to Fellow. Until the first mark the tally counts from the brewer's lifetime totals.
+- `POST /api/descale`, `GET /api/history`, `GET /api/history/brews/:id`.
+- The mock brewer walks a brew through bloom, two pulses, and drip finish with a cooling water temperature and
+  completes it with a counter tick, so all of this can be tried without a brewer.
+
+### Changed
+
+- Every fresh device read (the dashboard's refresh, the check before a remote start) feeds the brew tracker, and a
+  brew started from the app is re-read two seconds later so its trace starts at once.
+- The startup plugin is now `00.startup.ts`, so it runs before the history plugin.
+
 ## [0.6.0] - 2026-09-12
 
 Running at home for real: installed as the launchd service on the owner's Mac, on its own port, with dry run

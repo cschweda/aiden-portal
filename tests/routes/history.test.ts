@@ -1,10 +1,11 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { useHistory } from '../../server/utils/history'
 import { createTestApp, useTestEnv } from '../helpers/app'
-import { DEVICE_DETAIL, happyHandlers, newCalls } from '../helpers/fellow-fixtures'
+import { BASE, DEVICE_DETAIL, happyHandlers, newCalls } from '../helpers/fellow-fixtures'
 import { server } from '../setup/msw'
 
 let dir: string
@@ -81,5 +82,16 @@ describe('POST /api/descale', () => {
     const app = createTestApp()
     const res = await app.fetch('/api/descale', { method: 'POST', headers: { 'sec-fetch-site': 'cross-site' } })
     expect(res.status).toBe(403)
+  })
+})
+
+describe('GET /api/history without Fellow', () => {
+  it('still answers from the local log when the device read fails', async () => {
+    server.use(http.get(`${BASE}/devices`, () => HttpResponse.json({ message: 'down' }, { status: 503 })))
+    const app = createTestApp()
+    const { status, body } = await app.json('GET', '/api/history')
+    expect(status).toBe(200)
+    expect(body.descale.level).toBe('unknown')
+    expect(body.recent).toEqual([])
   })
 })

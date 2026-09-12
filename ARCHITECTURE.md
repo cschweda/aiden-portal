@@ -71,6 +71,20 @@ pipeline in-process with msw standing in for Fellow.
 (exit 1) when `HOST` is unset or not loopback, logs a config summary without secrets, prints one plain
 line to stdout, and probes Fellow once without blocking.
 
+## Brew history
+
+`server/lib/history/` is pure: a `HistoryStore` over `data/brews.jsonl` and `data/descale.json` (owner-only, in the
+working directory like `logs/`), a `BrewTracker` state machine from device reads to events (started, sample,
+completed, inferred), `computeStats`, and `descaleStatus`. `server/utils/history.ts` owns the process-wide instance
+and the poll loop that `server/plugins/10.history.ts` starts after `00.startup.ts`: a fresh device read every
+`history.idlePollSeconds`, every `history.brewPollSeconds` during a brew (the idle rate again after twenty minutes,
+for cold-brew steeps), exponential backoff to fifteen minutes when Fellow fails. Fresh reads made by the dashboard
+and the re-read after an app-started brew feed the same tracker, so the log never depends on the loop alone.
+Rules borrowed from the Home Assistant integration: a duration is trusted only when the poller watched the brew and
+the counter rose by exactly one; brews the poller missed are inferred from the counter with the brewer's own
+timestamps and no duration; `state.value` decodes to the phase. Routes: `GET /api/history`,
+`GET /api/history/brews/:id`, `POST /api/descale`. Nothing in this layer writes to Fellow.
+
 ## Deployment (Phase 1)
 
 `deploy/local/install.sh` copies `.output/` and `.env` to `~/Library/Application Support/aiden-studio`,
@@ -116,3 +130,6 @@ Everything below is inferred, not observed against a live brewer. Each is marked
 | `showerHeadPresent` | `schemas.ts` | Parsed but not shown: the owner's brewer reported `false` with the shower head in place, before and after a brew, so the flag does not mean what its name says. |
 | `brewEndTime` | `SensorPanel.vue` | Shown as the last brew's end; Fellow also advances it while idle, so it is never subtracted from `brewStartTime`. |
 | Production logger | `logger.ts` | The pino-roll transport is exercised only by `scripts/smoke.sh`, never by Vitest. |
+| Brew counter timing | `history/tracker.ts` | `totalBrewingCycles` is assumed to rise when a brew completes (the mock does the same). If it rises at the start instead, watched brews still count, because the baseline is the last idle read. |
+| Profile attribution | `history/tracker.ts` | `ibSelectedProfileId` at the first brewing read is recorded as the brew's profile. Fellow never reports which profile ran; the UI says "selected profile". |
+| Live water temperature | `history/tracker.ts` | `brewingWaterTemperatureC` is taken as the live reading during a brew. On the owner's brewer it has only been seen null while idle. |

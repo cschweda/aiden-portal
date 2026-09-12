@@ -18,7 +18,7 @@ check() { # check <label> <expected-status> <curl args...>
   if [ "$got" = "$want" ]; then pass "$label ($got)"; else fail "$label: expected $want, got $got: $(head -c 160 /tmp/aiden-smoke.body)"; fi
 }
 [ -f "$ENTRY" ] || { echo "No build found; run pnpm build first."; exit 1; }
-export FELLOW_EMAIL="${FELLOW_EMAIL:-smoke@example.com}" FELLOW_PASSWORD="${FELLOW_PASSWORD:-not-a-real-password}" NODE_ENV=production FELLOW_DRY_RUN=true
+export FELLOW_EMAIL="${FELLOW_EMAIL:-smoke@example.com}" FELLOW_PASSWORD="${FELLOW_PASSWORD:-not-a-real-password}" NODE_ENV=production FELLOW_DRY_RUN=true HISTORY_ENABLED=false
 SMOKE_LOGS="$(mktemp -d)"
 cd "$SMOKE_LOGS" || exit 1
 ENTRY_ABS="$OLDPWD/$ENTRY"
@@ -76,6 +76,8 @@ check "unknown API path" 404 "$URL/api/nope"
 check "unsupported method" 404 -X POST -H "Origin: http://127.0.0.1:${PORT}" "$URL/api/profiles/p7"
 check "status" 200 "$URL/api/status"
 if grep -q '"dryRun":true' /tmp/aiden-smoke.body; then pass "status reports dry run"; else fail "status body: $(cat /tmp/aiden-smoke.body)"; fi
+check "history answers without Fellow" 200 "$URL/api/history"
+if grep -q '"enabled":false' /tmp/aiden-smoke.body; then pass "history polling is off for the smoke run"; else fail "history polling state: $(head -c 200 /tmp/aiden-smoke.body)"; fi
 check "Fellow failure is a 502 with a code" 502 "$URL/api/device"
 if grep -q '"error":"fellow_auth_failed"' /tmp/aiden-smoke.body; then pass "502 carries the code"; else fail "502 body: $(cat /tmp/aiden-smoke.body)"; fi
 if grep -q 'not-a-real-password\|smoke@example.com' /tmp/aiden-smoke.body; then fail "502 leaked credentials"; else pass "502 leaks no credential values"; fi
