@@ -22,6 +22,14 @@ export default defineNuxtConfig({
     head: {
       htmlAttrs: { lang: 'en' },
       title: aiden.app.name,
+      // A coffee cup in the app's amber on its dark stone: SVG for current browsers, PNG for the rest, the 180 px
+      // one for a phone's home screen. The files live in public/.
+      link: [
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon.png' },
+        { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
+      ],
+      meta: [{ name: 'theme-color', content: '#1c1917' }],
     },
   },
   colorMode: {

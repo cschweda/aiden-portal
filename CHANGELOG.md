@@ -7,6 +7,13 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.11.2] - 2026-09-12
+
+### Added
+
+- A favicon: a coffee cup in the app's amber on dark stone, as SVG, a 32 px PNG, and a 180 px home-screen icon for
+  phones.
+
 ## [0.11.1] - 2026-09-12
 
 ### Added
