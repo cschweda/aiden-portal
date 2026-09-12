@@ -4,6 +4,7 @@ import pretty from 'pino-pretty'
 // Imported for its side effect on the build only: Nitro's dependency tracing copies the package into
 // .output because of this line, and the pino transport below then resolves it by name at runtime.
 import 'pino-roll'
+import type { LogLevel } from './aiden-config'
 import { type AppConfig, getConfig } from './config'
 
 const SECRET_KEYS = ['password', 'accessToken', 'refreshToken', 'authorization', 'cookie']
@@ -51,6 +52,16 @@ let instance: pino.Logger | undefined
 export function useLogger(): pino.Logger {
   instance ??= createLogger(getConfig())
   return instance
+}
+
+/** The level in force now: the configured one until `setLogLevel` changes it for the life of the process. */
+export function currentLogLevel(): LogLevel {
+  return useLogger().level as LogLevel
+}
+
+/** Changes the level at runtime. pino applies it to the child loggers already made (the Fellow client's, each request's). */
+export function setLogLevel(level: LogLevel): void {
+  useLogger().level = level
 }
 
 export function resetLoggerForTests(): void {
