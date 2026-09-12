@@ -6,7 +6,7 @@ const NOW = 1_789_200_000_000
 const DAY = 86_400_000
 const device = { id: 'd', totalBrewingCycles: 70, totalWaterVolumeL: 63_570 }
 const thresholds = { litres: 60, brews: 0 }
-const brew = (endedAt: number, waterMl = 900): BrewRecord => ({ id: `b${endedAt}`, startedAt: endedAt - 300_000, endedAt, durationS: 300, waterMl, profileId: null, profileTitle: null, observed: true, counted: true, cyclesAfter: null, samples: [] })
+const brew = (startedAt: number, waterMl = 900): BrewRecord => ({ id: `b${startedAt}`, startedAt, endedAt: startedAt + 300_000, durationS: 300, waterMl, profileId: null, profileTitle: null, observed: true, counted: true, cyclesAfter: null, samples: [] })
 
 describe('descaleStatus', () => {
   it('counts from the brewer\'s lifetime totals until the first mark, and reads due when over the threshold', () => {

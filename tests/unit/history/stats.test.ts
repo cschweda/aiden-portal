@@ -5,10 +5,10 @@ import type { BrewRecord } from '../../../server/lib/history'
 // Wednesday 16 September 2026, noon, local time.
 const NOW = new Date(2026, 8, 16, 12, 0, 0).getTime()
 const at = (y: number, m: number, d: number, h = 8) => new Date(y, m - 1, d, h).getTime()
-const brew = (endedAt: number, overrides: Partial<BrewRecord> = {}): BrewRecord => ({
-  id: `b${endedAt}`,
-  startedAt: endedAt - 300_000,
-  endedAt,
+const brew = (startedAt: number, overrides: Partial<BrewRecord> = {}): BrewRecord => ({
+  id: `b${startedAt}`,
+  startedAt,
+  endedAt: startedAt + 300_000,
   durationS: 300,
   waterMl: 800,
   profileId: 'plocal1',
@@ -40,7 +40,7 @@ describe('computeStats', () => {
     brew(at(2026, 9, 20)),
   ]
   const stats = computeStats(records, NOW)
-  it('buckets brews by local day, week, and month, ignoring records from the future', () => {
+  it('buckets brews by the local day, week, and month they started in, ignoring records from the future', () => {
     expect(stats.today).toEqual({ brews: 2, waterMl: 800 })
     expect(stats.thisWeek).toEqual({ brews: 3, waterMl: 1600 })
     expect(stats.thisMonth).toEqual({ brews: 4, waterMl: 2400 })
