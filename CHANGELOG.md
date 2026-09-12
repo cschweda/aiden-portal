@@ -7,6 +7,12 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+### Fixed
+
+- On `aiden.local` and `aiden.localhost` the page arrived unstyled: the content security policy's
+  `upgrade-insecure-requests` made the browser fetch every asset over https, which the plain-http server cannot
+  answer. Chrome exempts only `localhost`. The directive is off in Phase 1 and noted for Phase 2.
+
 ### Changed
 
 - The default port is 5150 (`server.port` in `aiden.config.ts`); 3000 is busy with other work on the owner's Mac.

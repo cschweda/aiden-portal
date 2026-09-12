@@ -48,6 +48,8 @@ table (argon2id hashes, `pnpm user:add <email>`), keeping everything else above.
 - **Client IP.** Read `X-Forwarded-For` only when the connection comes from loopback (the proxy), for the
   rate limiter and the logs. Not needed in Phase 1 and deliberately absent.
 - **Cookies.** `secure: true` (TLS is real now).
+- **Headers.** Turn `upgrade-insecure-requests` back on in `nuxt.config.ts`; Phase 1 turns it off because on any
+  name other than `localhost` the browser would upgrade the app's own assets to https and fail.
 - **Secrets.** `.env` copied to the droplet by hand, `chmod 600`, owned by the service user; never in the repo.
 - **Logs.** pino-roll keeps rotating in `logs/`; Forge's log viewer or `journalctl -u aiden-studio` for the
   process itself.

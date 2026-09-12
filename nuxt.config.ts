@@ -39,6 +39,10 @@ export default defineNuxtConfig({
     headers: {
       contentSecurityPolicy: {
         'frame-ancestors': ['\'none\''],
+        // Phase 1 is plain http on loopback. With this directive on, a browser rewrites every asset URL to https and
+        // the page arrives unstyled; Chrome exempts only localhost, so aiden.local and aiden.localhost broke. Turn it
+        // back on in Phase 2, once TLS is real (docs/PHASE-2.md).
+        'upgrade-insecure-requests': false,
       },
       xFrameOptions: 'DENY',
     },
