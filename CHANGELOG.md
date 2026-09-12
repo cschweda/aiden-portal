@@ -7,6 +7,20 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-09-12
+
+### Fixed
+
+- On a phone the demo banner squeezed its text into a single-word column, because a Nuxt UI alert keeps its buttons
+  on the text's row when horizontal. Both banners, the demo one and the descale one, now stack on narrow screens and
+  go back to one row at 640 px.
+
+### Verified
+
+- Every page measured in a real 390 px viewport, and again at 320 and 768: no page scrolls sideways, no text is
+  squeezed into a narrow column, and the profile editor and schedule form open cleanly. The logs table is wider than
+  a phone by design and scrolls inside its own container, with the last column reachable.
+
 ## [0.13.0] - 2026-09-12
 
 Ubuntu as a host, beside the Mac.

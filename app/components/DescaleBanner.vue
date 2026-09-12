@@ -14,6 +14,8 @@ onMounted(() => {
 onBeforeUnmount(() => clearInterval(clock))
 const emit = defineEmits<{ marked: [] }>()
 const { confirming, marking, mark } = useDescaleMark(() => emit('marked'))
+// Horizontal keeps the button on the text's row, which has no room on a phone.
+const wide = useWideScreen()
 
 /** A cycle that ended after the last mark (or with no mark) within the last day is worth a prompt. */
 const finishedUnmarked = computed(() => {
@@ -66,7 +68,7 @@ const actions = computed(() => mode.value === 'running' || mode.value === 'pausi
 
 <template>
   <div v-if="shown">
-    <UAlert :color="color" variant="subtle" :icon="icon" :title="title" :description="description" :actions="actions" orientation="horizontal" />
+    <UAlert :color="color" variant="subtle" :icon="icon" :title="title" :description="description" :actions="actions" :orientation="wide ? 'horizontal' : 'vertical'" />
     <ConfirmModal
       v-model:open="confirming"
       title="Mark the brewer as descaled?"

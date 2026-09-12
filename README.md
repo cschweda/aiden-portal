@@ -29,7 +29,9 @@ Putting this on a public website would need a login inside the app first, which 
 
 ## The app
 
-Dark by default (the toggle is in the sidebar footer), one accent, and every value the brewer accepts.
+Dark by default (the toggle is in the sidebar footer), one accent, and every value the brewer accepts. It works
+on a phone as well as a desktop: the sidebar becomes a menu, the panels stack, and the only thing that scrolls
+sideways is the log table, inside its own frame.
 
 | Page | What it does |
 |---|---|
