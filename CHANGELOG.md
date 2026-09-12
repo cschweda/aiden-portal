@@ -7,6 +7,12 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+### Removed
+
+- `docs/PHASE-2.md`. The public droplet it described is not where this is going; the design notes stay in the
+  git history if they are ever wanted. `ARCHITECTURE.md`'s deployment section drops the phase from its title and
+  describes Tailscale alongside launchd.
+
 ### Changed
 
 - The README describes the project as it is: Phase 1 on the Mac and Phase 1.5 over Tailscale for the owner's own

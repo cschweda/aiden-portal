@@ -85,7 +85,7 @@ the counter rose by exactly one; brews the poller missed are inferred from the c
 timestamps and no duration; `state.value` decodes to the phase. Routes: `GET /api/history`,
 `GET /api/history/brews/:id`, `POST /api/descale`. Nothing in this layer writes to Fellow.
 
-## Deployment (Phase 1)
+## Deployment
 
 `deploy/local/install.sh` copies `.output/` and `.env` to `~/Library/Application Support/aiden-studio`,
 renders `com.cschweda.aiden-studio.plist.template` into `~/Library/LaunchAgents/` with an absolute node path
@@ -96,6 +96,13 @@ under its `logs/`, and redacts secrets; launchd only supervises, and its own std
 `~/Library/Logs/aiden-studio/launchd.log`. Running from an installed copy rather than the checkout is what
 makes this work when the checkout lives on an external volume, which macOS hides from unattended
 processes, and it keeps builds and git operations away from the running service.
+
+The owner's other machines reach the same loopback service through Tailscale: `tailscale serve --bg 5150`
+terminates TLS with a Let's Encrypt certificate for the machine's `ts.net` name and forwards to
+`127.0.0.1:5150`, so the bind address and the startup guard are untouched. The app's side of it is one entry in
+the Host allowlist for that name and `server.tailnetUsers`, which limits changes to the listed Tailscale logins;
+`tailscale serve` stamps the signed-in login on each request and `00.request-id.ts` carries it into the log. The
+app is never exposed beyond those machines, and `tailscale funnel`, which would publish it, is not used.
 
 ## Extracting the client to its own package
 

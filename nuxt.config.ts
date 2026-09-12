@@ -47,9 +47,10 @@ export default defineNuxtConfig({
     headers: {
       contentSecurityPolicy: {
         'frame-ancestors': ['\'none\''],
-        // Phase 1 is plain http on loopback. With this directive on, a browser rewrites every asset URL to https and
-        // the page arrives unstyled; Chrome exempts only localhost, so aiden.local and aiden.localhost broke. Turn it
-        // back on in Phase 2, once TLS is real (docs/PHASE-2.md).
+        // The app is plain http on loopback. With this directive on, a browser rewrites every asset URL to https
+        // and the page arrives unstyled; Chrome exempts only localhost, so aiden.local and aiden.localhost broke.
+        // Tailscale terminates TLS in front of the app, which does not change that: the Mac's own addresses stay
+        // http, so this stays off for as long as any of them is in use.
         'upgrade-insecure-requests': false,
       },
       xFrameOptions: 'DENY',
