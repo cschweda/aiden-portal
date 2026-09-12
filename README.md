@@ -149,8 +149,8 @@ disk: launchd will not start one that lives on an external volume.
 **2. The app and your Fellow login.**
 
 ```sh
-git clone https://github.com/cschweda/aiden-studio.git ~/aiden-studio
-cd ~/aiden-studio
+git clone https://github.com/cschweda/aiden-portal.git ~/aiden-portal
+cd ~/aiden-portal
 pnpm install
 cp .env.sample .env
 chmod 600 .env     # it is about to hold your real Fellow password

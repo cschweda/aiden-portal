@@ -7,6 +7,19 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+### Fixed
+
+- The deployed demo was a blank page: the Content-Security-Policy in `netlify.toml` blocked the inline script a
+  static build starts itself from, so nothing ran. Scripts may now be inline on that page, which is safe there and
+  nowhere else, and the real app keeps its nonce-based policy.
+- Icons were missing on the deployed demo: the app asks a server for them, and the single-page redirect answered
+  those requests with the page itself. A demo build now carries its icons in the client bundle, and `/api/*` on
+  Netlify returns a 404 instead of the page.
+
+### Changed
+
+- The repository is `cschweda/aiden-portal`; the clone command and the demo's source link follow.
+
 ## [0.12.0] - 2026-09-12
 
 A demo anyone can look at.

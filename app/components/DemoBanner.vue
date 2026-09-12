@@ -12,7 +12,7 @@ const open = ref(true)
     description="Every number here is invented and lives in your browser. Edit profiles, start a brew and watch the trace fill in, mark a descale: nothing leaves this page, and a reload starts over."
     orientation="horizontal"
     :actions="[
-      { label: 'Source on GitHub', icon: 'i-lucide-github', color: 'neutral', variant: 'outline', to: 'https://github.com/cschweda/aiden-studio', target: '_blank' },
+      { label: 'Source on GitHub', icon: 'i-lucide-github', color: 'neutral', variant: 'outline', to: 'https://github.com/cschweda/aiden-portal', target: '_blank' },
       { label: 'Start over', icon: 'i-lucide-rotate-ccw', color: 'neutral', variant: 'ghost', onClick: () => reloadNuxtApp({ force: true }) },
     ]"
     close

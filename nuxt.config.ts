@@ -17,6 +17,8 @@ export default defineNuxtConfig({
   // A demo build carries no server: no API routes, no request pipeline, no Fellow client, nothing that could want
   // credentials. The pages answer themselves from app/demo/ in the browser.
   ignore: demo ? ['server/api/**', 'server/middleware/**', 'server/plugins/**'] : [],
+  // With no server there is nothing to serve icons, so a demo build carries them in the client bundle.
+  icon: demo ? { clientBundle: { scan: true, sizeLimitKb: 512 } } : {},
   nitro: { preset: demo ? 'static' : 'node-server' },
   // The dev server listens where aiden.config.ts says; the production server is pinned to the same value
   // by server/plugins/00.startup.ts. HOST/PORT in .env still override both.
