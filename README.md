@@ -88,8 +88,10 @@ pnpm build:demo
 npx netlify deploy --prod --dir=.output/public
 ```
 
-A demo build never includes the server: no Fellow client, no routes, no credentials to leak. The real build is
-unaffected, since `AIDEN_DEMO` is what turns any of it on.
+A demo build never includes the server: `nuxt.config.ts` leaves `server/api`, `server/middleware`, and
+`server/plugins` out of it entirely, so there is no Fellow client, no request pipeline, and nothing that wants
+credentials. It builds on a machine that has no `.env` at all, which is what a hosting service has. The real
+build is untouched: `AIDEN_DEMO` is what turns any of this on.
 
 ## Brew history and descale
 

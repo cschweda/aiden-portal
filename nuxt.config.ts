@@ -14,6 +14,9 @@ export default defineNuxtConfig({
   modules: ['@nuxt/ui', '@nuxt/eslint', ...(demo ? [] : ['nuxt-security'])],
   css: ['~/assets/css/main.css'],
   ssr: !demo,
+  // A demo build carries no server: no API routes, no request pipeline, no Fellow client, nothing that could want
+  // credentials. The pages answer themselves from app/demo/ in the browser.
+  ignore: demo ? ['server/api/**', 'server/middleware/**', 'server/plugins/**'] : [],
   nitro: { preset: demo ? 'static' : 'node-server' },
   // The dev server listens where aiden.config.ts says; the production server is pinned to the same value
   // by server/plugins/00.startup.ts. HOST/PORT in .env still override both.

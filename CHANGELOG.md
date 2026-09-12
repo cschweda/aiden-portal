@@ -18,7 +18,8 @@ A demo anyone can look at.
   a descale history, and logs. The pages and the statistics, descale, and brew-phase logic are the app's own, so the
   demo behaves like the real thing; pressing Start brew runs a hundred-second brew whose trace fills in live.
 - `netlify.toml`: build command, publish directory, `AIDEN_DEMO=1`, the single-page redirect, cache and security
-  headers. Netlify needs no other configuration; Node comes from `.nvmrc`.
+  headers. Netlify needs no other configuration; Node comes from `.nvmrc`. A demo build leaves `server/api`,
+  `server/middleware`, and `server/plugins` out, so it needs no `.env` and ships no server code.
 - A banner on the demo dashboard saying what it is, linking to the source, and offering to start the sample world
   over.
 
