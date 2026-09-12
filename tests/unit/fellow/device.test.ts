@@ -109,8 +109,15 @@ describe('brewStartBlockers', () => {
       'water tank is empty',
       'cleaning cycle is running',
       'rinse cycle is running',
-      'no basket detected (batch basket also needs the carafe)',
+      'no basket detected',
     ])
+  })
+  it('names the carafe when the batch basket is in and the carafe is not', () => {
+    const batch = { ...READY, singleBrewBasketPresent: false, batchBrewBasketPresent: true }
+    expect(brewStartBlockers({ ...batch, carafePresent: false })).toEqual(['carafe is not in place (the batch basket brews into it)'])
+    expect(brewStartBlockers({ ...batch, carafePresent: undefined })).toEqual(['carafe is not in place (the batch basket brews into it)'])
+    expect(brewStartBlockers({ ...batch, carafePresent: true })).toEqual([])
+    expect(brewStartBlockers({ ...READY, carafePresent: false })).toEqual([])
   })
   it('treats unknown state as a blocker', () => {
     expect(brewStartBlockers({ ...READY, brewing: undefined })).toEqual(['brew state is unknown'])

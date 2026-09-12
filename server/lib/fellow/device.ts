@@ -76,8 +76,9 @@ export function brewStartBlockers(device: Device): string[] {
   if (device.cleaning !== false) blockers.push('cleaning cycle is running')
   if (device.rinsing !== false) blockers.push('rinse cycle is running')
   const singleBasket = device.singleBrewBasketPresent === true
-  const batchReady = device.batchBrewBasketPresent === true && device.carafePresent === true
-  if (!singleBasket && !batchReady) blockers.push('no basket detected (batch basket also needs the carafe)')
+  const batchBasket = device.batchBrewBasketPresent === true
+  if (!singleBasket && !batchBasket) blockers.push('no basket detected')
+  else if (!singleBasket && device.carafePresent !== true) blockers.push('carafe is not in place (the batch basket brews into it)')
   return blockers
 }
 

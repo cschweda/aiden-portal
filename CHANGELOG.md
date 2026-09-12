@@ -7,6 +7,11 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+### Changed
+
+- The readiness blocker says "carafe is not in place (the batch basket brews into it)" when the batch basket is
+  detected and only the carafe is missing; "no basket detected" is now reserved for no basket at all.
+
 ## [0.5.1] - 2026-09-12
 
 ### Removed
