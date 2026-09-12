@@ -18,7 +18,10 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ### Changed
 
-- The repository is `cschweda/aiden-portal`; the clone command and the demo's source link follow.
+- The project is called aiden-portal: the repository, the README, and the package name. The installed service
+  keeps its `aiden-studio` label and paths, so an existing install and its brew history are untouched.
+- A red team / blue team entry for the public demo: what the deployed site gives away (nothing found), and why its
+  policy may allow inline scripts while the real app's may not.
 
 ## [0.12.0] - 2026-09-12
 

@@ -1,4 +1,4 @@
-# aiden-studio
+# aiden-portal
 
 A personal web app for controlling a [Fellow Aiden](https://fellowproducts.com/products/aiden) coffee brewer:
 brew profiles, schedules, brew.link import, share links, and remote Instant Brew, from a browser on your own machine.
@@ -424,6 +424,50 @@ Newest entry first, open. Older entries are collapsed. Each entry records what w
 found, and what now defends against it (blue). Add a new dated `###` entry at the top and move the previous
 one into the `<details>` block at the bottom.
 
+### 2026-09-12 — Third pass, the public demo and its headers
+
+**Context.** Two things happened at once: the repository became public, and a demo went up at
+`aiden-portal.netlify.app` with a Content-Security-Policy of its own that had to be loosened to let a static build
+start itself. So: does the demo give anything away, and did loosening its policy weaken the app that controls a
+real brewer?
+
+**Red — what was tried**
+
+- **Reach a server on the demo.** `/api/status` and `/api/device` answer 404 by rule. The published output holds no
+  server bundle at all.
+- **Read files that should not be served.** `/.env`, `/server/index.mjs`, `/package.json` and `/app/demo/api.ts`
+  all come back 200 — and all of them are the page itself, `text/html`. The single-page redirect answers every
+  unknown path, which makes a status code meaningless; each was judged by content type and body instead.
+- **Collect the source.** `/_nuxt/<chunk>.js.map` is the fallback page too: the build publishes no source maps.
+- **Find real data in the bundle.** The tailnet name, the Mac's hostname, the owner's Tailscale login, the checkout
+  path, Fellow's API host, and the brewer's serial and MAC address: none of them appear in any published asset. The
+  single hit for `FELLOW_PASSWORD` is the text of an error hint, "Check FELLOW_EMAIL and FELLOW_PASSWORD in .env",
+  with no value anywhere near it.
+- **Carry the relaxed policy into the real app.** It cannot: it lives in `netlify.toml`, which only Netlify reads.
+  The app's own response still carries a per-request nonce with `strict-dynamic`.
+
+**Blue — what defends it now**
+
+- **A demo build contains no server.** `server/api`, `server/middleware`, and `server/plugins` are left out of it,
+  so there is nothing to reach, nothing that wants credentials, and it builds on a machine with no `.env` at all.
+- **The headers Netlify sends**: HSTS with preload, `frame-ancestors 'none'` alongside `X-Frame-Options: DENY`,
+  `nosniff`, `no-referrer`, camera, microphone and location switched off, and `connect-src 'self'` so the page
+  cannot call anywhere else.
+- **One deliberate relaxation.** `script-src` allows `'unsafe-inline'`, because a static build boots from an inline
+  script that carries its configuration. That is a real weakening of that page's policy and it is accepted on its
+  merits: the demo has no accounts, takes no input from anyone, holds no data, and there is nothing on that origin
+  to steal. The app that talks to the brewer keeps its nonce-based policy, which it can afford because it has a
+  server to generate nonces.
+- **The demo's data is invented**, down to the serial number and the MAC address.
+
+**Accepted for now.** Unknown paths answer 200 with the page, which is how a single-page app works. Hashed assets
+are cached for a year as immutable, which is what content hashes are for. The real app's own policy includes
+`'unsafe-inline'` as a fallback beside `'strict-dynamic'` and the nonce, which is nuxt-security's default: browsers
+that understand `strict-dynamic` ignore it, older ones fall back to it.
+
+<details>
+<summary>Older entries</summary>
+
 ### 2026-09-12 — Second pass, when the app left the Mac (Phase 1.5)
 
 **Context.** Until now the only way to reach the app was to sit at the Mac, and the first pass said plainly that a
@@ -460,9 +504,6 @@ replaces "you are sitting at the Mac" as the thing being trusted.
 **Accepted for now.** Any signed-in device of the owner's is trusted to read, so an unlocked device that is
 already on the tailnet can see the brewer. A login inside the app is the answer to that, and is only worth
 building if this ever has to be reachable by someone who is not the owner.
-
-<details>
-<summary>Older entries</summary>
 
 ### 2026-09-10 — First pass, after checkpoint 2
 
@@ -553,8 +594,8 @@ This project stands on the shoulders of [fellow-aiden](https://github.com/9b/fel
 [Fellow Aiden Home Assistant integration](https://github.com/kristofferR/FellowAiden-HomeAssistant), whose
 maintained client documents the v2 API: the refresh-token flow, the `overallTemperature` profile field,
 brew.link drop types, remote Instant Brew, and the device state that gates it. Fellow documents none of this.
-Everything aiden-studio knows about the endpoints, the required headers, the profile and schedule validation
-rules, and the server-side fields was learned from those two projects. aiden-studio is an independent
+Everything aiden-portal knows about the endpoints, the required headers, the profile and schedule validation
+rules, and the server-side fields was learned from those two projects. aiden-portal is an independent
 TypeScript implementation that ports the behavior rather than the code, but if it is useful to you, the credit
 belongs upstream. Both projects are licensed under GPL-3.0.
 
