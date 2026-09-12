@@ -7,6 +7,11 @@ brew profiles, schedules, brew.link import, share links, and remote Instant Brew
 > is reachable from your own computers and phones over [Tailscale](https://tailscale.com). It is not a public
 > website and is not built to become one. See `CHANGELOG.md`.
 
+> **Demo:** **[aiden-portal.netlify.app](https://aiden-portal.netlify.app)** — the whole interface, running on
+> invented data. It is not connected to a brewer, to Fellow, or to anything else, so nothing you press there
+> changes anything in the world; it is the fastest way to see how the app looks and behaves. Start a brew and the
+> trace fills in phase by phase, edit a profile, mark a descale. A reload starts the sample world over.
+
 ## How it works
 
 Fellow publishes no API. This app talks to the same cloud endpoints the Fellow mobile app uses, with your
@@ -65,6 +70,7 @@ so you can watch the retries. Leave `FELLOW_BASE_URL` blank to talk to the real 
 
 ### The demo site
 
+That demo is at **[aiden-portal.netlify.app](https://aiden-portal.netlify.app)**, and anyone can build their own:
 `pnpm build:demo` produces a static site with no server at all: a single-page build whose every `/api` call is
 answered in the browser from sample data in `app/demo/`. It shows the whole app, with an invented brewer, seven
 profiles, three weeks of brews and traces, a descale history, and logs. Nothing is connected to anything: no
