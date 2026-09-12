@@ -115,6 +115,10 @@ the process died within 30 seconds of starting, so a misconfiguration cannot spi
 - **After changing Node versions** (`nvm install`, `nvm uninstall`): `deploy/local/install.sh`. The service is
   pinned to the absolute path of the node it was installed with; when that binary is gone, launchd starts nothing
   and logs nothing. `deploy/local/status.sh` says so.
+- **A friendlier address:** `aiden.local` is already an allowed host. Point it at this Mac once, with
+  `echo '127.0.0.1 aiden.local' | sudo tee -a /etc/hosts`, and `http://aiden.local:5150` works in every browser on
+  this Mac and nowhere else. Browsers treat only `localhost` as secure, so on that address the share dialog's
+  copy button falls back to showing the link for you to copy by hand.
 - **While it is installed, port 5150 is taken.** The installer refuses to run when something else is listening
   there (`pnpm dev`, `pnpm start`, the mock demo), so it can never mistake one of those for the service. Run the
   dev server elsewhere meanwhile: `PORT=3001 pnpm dev`.
