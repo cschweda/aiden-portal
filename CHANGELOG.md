@@ -7,6 +7,15 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-09-12
+
+### Fixed
+
+- Opening the dashboard from Chrome's address bar could show "Could not read the brewer, cross_site_request":
+  Chrome prerenders addresses it expects you to visit, the API refuses speculative loads by design, and the
+  refused page was then shown as is. Pages now wait until they are actually shown before reading, and re-read
+  when a prerendered page becomes visible. Refusals log the speculation header that caused them.
+
 ## [0.10.1] - 2026-09-12
 
 ### Fixed

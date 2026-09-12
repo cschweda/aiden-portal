@@ -35,7 +35,8 @@ function isSpeculative(event: Event): boolean {
 }
 
 function refuse(event: Event, site?: string, origin?: string) {
-  event.context.logger?.warn({ site: site ?? null, origin: origin ?? null, method: event.method, path: event.path }, 'Rejected a cross-site request')
+  const purpose = getHeader(event, 'sec-purpose') ?? getHeader(event, 'purpose') ?? null
+  event.context.logger?.warn({ site: site ?? null, origin: origin ?? null, purpose, method: event.method, path: event.path }, 'Rejected a cross-site request')
   setResponseStatus(event, 403)
   return { error: 'cross_site_request' }
 }
