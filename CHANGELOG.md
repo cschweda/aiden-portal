@@ -7,6 +7,11 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-12
+
+Running at home for real: installed as the launchd service on the owner's Mac, on its own port, with dry run
+off, reachable by name.
+
 ### Fixed
 
 - On `aiden.local` and `aiden.localhost` the page arrived unstyled: the content security policy's
