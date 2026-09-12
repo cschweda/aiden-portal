@@ -4,11 +4,7 @@ import { formatAgo, formatDate, formatDateTime } from '../utils/format'
 
 const props = defineProps<{ descale: DescaleStatus }>()
 const emit = defineEmits<{ marked: [] }>()
-
-const { call } = useApi()
-const toast = useToast()
-const confirming = ref(false)
-const marking = ref(false)
+const { confirming, marking, mark } = useDescaleMark(() => emit('marked'))
 
 const color = computed(() => ({ ok: 'success', amber: 'warning', red: 'error', unknown: 'neutral' } as const)[props.descale.level])
 const percent = computed(() => (props.descale.ratio === null ? 0 : Math.min(100, Math.round(props.descale.ratio * 100))))
@@ -31,22 +27,6 @@ const estimate = computed(() => {
   const basis = d.paceBasis === 'log' ? 'the brew log' : 'the litres since the last mark'
   return `At your pace, about ${days} day${days === 1 ? '' : 's'} to go, around ${formatDate(d.dueAt)}, judging by ${basis}.`
 })
-
-async function mark() {
-  marking.value = true
-  try {
-    await call('/api/descale', { method: 'POST' })
-    toast.add({ title: 'Marked descaled', description: 'The tally starts again from now.', color: 'success', icon: 'i-lucide-check' })
-    confirming.value = false
-    emit('marked')
-  }
-  catch {
-    // useApi already showed the reason.
-  }
-  finally {
-    marking.value = false
-  }
-}
 </script>
 
 <template>

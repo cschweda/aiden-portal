@@ -152,11 +152,14 @@ const pollingLine = computed(() => {
             </p>
           </section>
 
-          <section v-if="history.data.value.descaleHistory.length" class="space-y-3">
+          <section class="space-y-3">
             <h3 class="text-base font-semibold">
-              Descaled
+              Descale
             </h3>
-            <ul class="divide-y divide-default rounded-lg border border-default text-sm">
+            <div class="max-w-md">
+              <DescaleCard :descale="history.data.value.descale" @marked="history.reload()" />
+            </div>
+            <ul v-if="history.data.value.descaleHistory.length" class="divide-y divide-default rounded-lg border border-default text-sm">
               <li v-for="mark in [...history.data.value.descaleHistory].reverse()" :key="mark.at" class="flex flex-wrap gap-x-4 px-4 py-2">
                 <span class="tabular w-36">{{ formatDateTime(mark.at) }}</span>
                 <span class="text-muted">at {{ mark.brews ?? '—' }} brews and {{ formatLitresFromMl(mark.waterMl ?? undefined) }} lifetime</span>

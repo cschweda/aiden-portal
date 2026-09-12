@@ -58,6 +58,7 @@ watch(() => device.data.value, (value) => {
     <template #body>
       <div class="mx-auto w-full max-w-5xl space-y-8">
         <ApiErrorAlert v-if="device.failure.value" :failure="device.failure.value" what="the brewer" :stale="device.stale.value" />
+        <DescaleBanner v-if="history.data.value" :descale="history.data.value.descale" @marked="history.reload()" />
 
         <div v-if="device.loading.value && !device.data.value" class="space-y-4">
           <USkeleton class="h-4 w-32" />
@@ -67,10 +68,7 @@ watch(() => device.data.value, (value) => {
 
         <div v-else-if="device.data.value" class="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
           <BrewerReadout :data="device.data.value" />
-          <div class="space-y-6">
-            <InstantBrewCard :data="device.data.value" :profiles="profiles.data.value ?? []" @done="refreshNow" />
-            <DescaleCard v-if="history.data.value" :descale="history.data.value.descale" @marked="history.reload()" />
-          </div>
+          <InstantBrewCard :data="device.data.value" :profiles="profiles.data.value ?? []" @done="refreshNow" />
         </div>
 
         <ApiErrorAlert v-if="profiles.failure.value && !device.failure.value" :failure="profiles.failure.value" what="the profiles" :stale="profiles.stale.value" />

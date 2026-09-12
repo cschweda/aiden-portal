@@ -7,6 +7,14 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-09-12
+
+### Changed
+
+- The descale tally is a banner across the top of the dashboard, shown only when descaling is due or close, with
+  the Mark descaled button on it; the full tally with its estimate lives on the History page. The card no longer
+  stretches the dashboard's top row.
+
 ## [0.7.0] - 2026-09-12
 
 Brew history, brew trace, and a descale tally.

@@ -1,6 +1,6 @@
 {
   "name": "aiden-studio",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Personal web app for controlling a Fellow Aiden coffee brewer",
   "type": "module",
   "private": true,
