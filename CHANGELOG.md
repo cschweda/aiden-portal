@@ -7,6 +7,13 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-09-12
+
+### Added
+
+- One log line per API request at the debug level (method, path, host, and the Tailscale login when there is
+  one), so switching the Logs page to Detailed shows who asked for what and from which address.
+
 ## [0.11.0] - 2026-09-12
 
 Phase 1.5: the dashboard from every one of your computers, through Tailscale.

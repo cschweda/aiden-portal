@@ -9,5 +9,9 @@ export default defineEventHandler((event) => {
   event.context.tailnetUser = tailnetUser
   event.context.logger = useLogger().child(tailnetUser ? { requestId, tailnetUser } : { requestId })
   setHeader(event, 'x-request-id', requestId)
-  if (event.path.startsWith('/api/')) setHeader(event, 'cache-control', 'no-store')
+  if (event.path.startsWith('/api/')) {
+    setHeader(event, 'cache-control', 'no-store')
+    // One line per API request at debug, so "Detailed" on the Logs page shows who asked for what, from where.
+    event.context.logger.debug({ method: event.method, path: event.path, host: getHeader(event, 'host') ?? null }, 'API request')
+  }
 })
