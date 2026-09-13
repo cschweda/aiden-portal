@@ -7,6 +7,14 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.18.2] - 2026-09-13
+
+### Fixed
+
+- The demo site read its own copy of the descale thresholds, the coffee freshness window, and the idle poll
+  interval, so it had drifted from `aiden.config.ts`. It now reads the real configuration, and shows the app's own
+  behaviour rather than a stale imitation of it.
+
 ## [0.18.1] - 2026-09-13
 
 ### Changed

@@ -1,3 +1,4 @@
+import aiden from '../../aiden.config'
 import { brewStartBlockers } from '../../server/lib/fellow/device'
 import type { Device, Profile, Schedule } from '../../server/lib/fellow/schemas'
 import { coffeeSittingSince, computeStats, descaleStatus, expectBrewDuration, summarise, targetOf } from '../../server/lib/history'
@@ -37,7 +38,8 @@ interface DemoState {
   nextId: number
 }
 
-const THRESHOLDS = { litres: 60, brews: 60 }
+// Read from the real configuration, so the demo shows the thresholds the app itself would use.
+const THRESHOLDS = { litres: aiden.maintenance.descaleAfterLitres, brews: aiden.maintenance.descaleAfterBrews }
 
 let version = 'demo'
 
@@ -159,7 +161,8 @@ function historySnapshot(now: number) {
     current,
     lastTraced: [...state.brews].reverse().find(b => b.samples.length > 0) ?? null,
     recent: state.brews.slice(-50).reverse().map(summarise),
-    polling: { enabled: true, running: true, idlePollSeconds: 60, brewPollSeconds: DEMO_SAMPLE_SECONDS, lastPollAt: now, lastError: null, failures: 0 },
+    // The sample cadence is the demo's own; the idle cadence is the app's.
+    polling: { enabled: true, running: true, idlePollSeconds: aiden.history.idlePollSeconds, brewPollSeconds: DEMO_SAMPLE_SECONDS, lastPollAt: now, lastError: null, failures: 0 },
     skippedLines: 0,
     storeError: null,
     coffee: {
@@ -169,7 +172,7 @@ function historySnapshot(now: number) {
         lastBrewEndedAt: state.brews[state.brews.length - 1]?.endedAt ?? null,
         carafeRemovedAt: null,
       }, now),
-      freshMinutes: 30,
+      freshMinutes: aiden.maintenance.coffeeFreshMinutes,
     },
     cleanings: {
       current: null,
