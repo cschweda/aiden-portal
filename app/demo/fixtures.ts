@@ -76,7 +76,6 @@ export function demoDevice(now: number): Device {
     batchBrewBasketPresent: true,
     heaterOn: false,
     pumpOn: false,
-    brewError: false,
     brewingWaterTemperatureC: undefined,
     brewingWaterVolumeMl: 950,
     brewStartTime: String(Math.floor((now - 5 * HOUR) / 1000)),
@@ -101,20 +100,22 @@ export function demoDevice(now: number): Device {
   } as Device
 }
 
-const TRACE_PHASES: Array<{ until: number, phase: string, temperature: number }> = [
-  { until: 30, phase: 'bloom', temperature: 96 },
-  { until: 55, phase: 'pulse 1', temperature: 95 },
-  { until: 80, phase: 'pulse 2', temperature: 93.5 },
-  { until: DEMO_BREW_SECONDS, phase: 'drip finish', temperature: 91 },
+const TRACE_PHASES: Array<{ until: number, phase: string }> = [
+  { until: 30, phase: 'bloom' },
+  { until: 55, phase: 'pulse 1' },
+  { until: 80, phase: 'pulse 2' },
+  { until: DEMO_BREW_SECONDS, phase: 'drip finish' },
 ]
 
-/** Where a brew is at `elapsed` seconds: the phase, the water temperature, and whether the pump and heater run. */
+/**
+ * Where a brew is at `elapsed` seconds. No water temperature: the brewer measures none and reports none, so a
+ * trace here carries exactly what a real one does, the phase and whether the heater and pump are running. The
+ * demo would be a lie with a temperature line the app can never draw.
+ */
 export function traceAt(elapsed: number) {
   const step = TRACE_PHASES.find(p => elapsed < p.until) ?? TRACE_PHASES[TRACE_PHASES.length - 1]!
-  const wobble = Math.round(Math.sin(elapsed / 7) * 2) / 4
   return {
     phase: step.phase,
-    temperatureC: Math.round((step.temperature + wobble) * 2) / 2,
     heaterOn: step.phase !== 'drip finish',
     pumpOn: elapsed % 25 < 18,
   }
@@ -123,8 +124,8 @@ export function traceAt(elapsed: number) {
 function traceSamples(startedAt: number): TraceSample[] {
   const samples: TraceSample[] = []
   for (let t = 0; t < DEMO_BREW_SECONDS; t += DEMO_SAMPLE_SECONDS) {
-    const { phase, temperatureC, heaterOn, pumpOn } = traceAt(t)
-    samples.push({ t: startedAt + t * 1000, phase: phase as TraceSample['phase'], temperatureC, heaterOn, pumpOn })
+    const { phase, heaterOn, pumpOn } = traceAt(t)
+    samples.push({ t: startedAt + t * 1000, phase: phase as TraceSample['phase'], heaterOn, pumpOn })
   }
   return samples
 }

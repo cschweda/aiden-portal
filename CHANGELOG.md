@@ -7,6 +7,17 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.19.1] - 2026-09-13
+
+### Fixed
+
+- The demo invented two readings the brewer does not produce: a measured water temperature on every trace, and a
+  brew-error field it only sends when something is wrong. A visitor saw a temperature plot the app can never draw.
+  Demo traces now carry exactly what a real one does, the phase and whether the heater and pump are running, so
+  the demo shows the same chart the app shows, with the recipe's target over the phases it went through.
+- With no invented measurement there is one line rather than two, so the trace legend no longer appears in the
+  demo either. It is there for a brewer that does report a temperature, alongside the recipe target.
+
 ## [0.19.0] - 2026-09-13
 
 ### Changed

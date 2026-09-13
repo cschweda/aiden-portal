@@ -78,8 +78,8 @@ function advance(now: number): void {
   const wanted = Math.min(Math.floor(elapsed / DEMO_SAMPLE_SECONDS) + 1, Math.ceil(DEMO_BREW_SECONDS / DEMO_SAMPLE_SECONDS))
   while (brew.samples.length < wanted) {
     const t = brew.samples.length * DEMO_SAMPLE_SECONDS
-    const { phase, temperatureC, heaterOn, pumpOn } = traceAt(t)
-    brew.samples.push({ t: brew.startedAt + t * 1000, phase: phase as TraceSample['phase'], temperatureC, heaterOn, pumpOn })
+    const { phase, heaterOn, pumpOn } = traceAt(t)
+    brew.samples.push({ t: brew.startedAt + t * 1000, phase: phase as TraceSample['phase'], heaterOn, pumpOn })
   }
   const live = traceAt(Math.min(elapsed, DEMO_BREW_SECONDS - 1))
   if (elapsed < DEMO_BREW_SECONDS) {
@@ -88,7 +88,6 @@ function advance(now: number): void {
       state: { value: live.phase === 'bloom' ? 'b' : live.phase === 'drip finish' ? 'd' : `p${live.phase.slice(-1)}` },
       heaterOn: live.heaterOn,
       pumpOn: live.pumpOn,
-      brewingWaterTemperatureC: live.temperatureC,
     })
     return
   }
