@@ -11,8 +11,11 @@ const props = withDefaults(defineProps<{
   expectedS?: number | null
 }>(), { intervalS: 5, expectedS: null })
 
-const HEIGHT = 220
 const PAD = { top: 28, right: 12, bottom: 28, left: 40 }
+/** Without temperatures the drawing is a timeline of what the brewer does report, so it needs less height. */
+const TEMPERATURE_HEIGHT = 220
+const TIMELINE_HEIGHT = 150
+const ROW_LABEL_WIDTH = 52
 
 const host = ref<HTMLElement | null>(null)
 const width = ref(720)
@@ -28,23 +31,29 @@ onMounted(() => {
 })
 onBeforeUnmount(() => observer?.disconnect())
 
+const temperatures = computed(() => props.samples.map(s => s.temperatureC).filter((c): c is number => typeof c === 'number'))
+/** Some brewers report the water temperature during a brew and some never do; the drawing follows what arrived. */
+const hasTemperatures = computed(() => temperatures.value.length > 0)
+const height = computed(() => (hasTemperatures.value ? TEMPERATURE_HEIGHT : TIMELINE_HEIGHT))
+const padLeft = computed(() => (hasTemperatures.value ? PAD.left : ROW_LABEL_WIDTH))
+
 const elapsed = (t: number) => (t - props.startedAt) / 1000
 const spanS = computed(() => {
   const last = props.samples[props.samples.length - 1]
   return Math.max(last ? elapsed(last.t) + props.intervalS : props.intervalS * 4, props.expectedS ?? 0, 30)
 })
-const temperatures = computed(() => props.samples.map(s => s.temperatureC).filter((c): c is number => typeof c === 'number'))
 const yDomain = computed<[number, number]>(() => {
-  if (temperatures.value.length === 0) return [80, 100]
+  if (!hasTemperatures.value) return [0, 1]
   const lo = Math.floor((Math.min(...temperatures.value) - 1) / 5) * 5
   const hi = Math.ceil((Math.max(...temperatures.value) + 1) / 5) * 5
   return hi - lo < 10 ? [lo - 5, hi + 5] : [lo, hi]
 })
-const plotWidth = computed(() => Math.max(width.value - PAD.left - PAD.right, 40))
-const x = (seconds: number) => PAD.left + (seconds / spanS.value) * plotWidth.value
+const plotWidth = computed(() => Math.max(width.value - padLeft.value - PAD.right, 40))
+const plotBottom = computed(() => height.value - PAD.bottom)
+const x = (seconds: number) => padLeft.value + (seconds / spanS.value) * plotWidth.value
 const y = (celsius: number) => {
   const [lo, hi] = yDomain.value
-  return PAD.top + (1 - (celsius - lo) / (hi - lo)) * (HEIGHT - PAD.top - PAD.bottom)
+  return PAD.top + (1 - (celsius - lo) / (hi - lo)) * (plotBottom.value - PAD.top)
 }
 
 /** Contiguous runs of one phase, each spanning from its first sample to the next run's first sample. */
@@ -57,11 +66,37 @@ const bands = computed(() => {
     const from = elapsed(sample.t)
     const next = props.samples[i + 1]
     const to = next ? elapsed(next.t) : from + tail
-    const last = runs[runs.length - 1]
-    if (last && last.phase === sample.phase) last.to = to
+    const run = runs[runs.length - 1]
+    if (run && run.phase === sample.phase) run.to = to
     else runs.push({ phase: sample.phase, from, to })
   })
   return runs
+})
+
+/** Contiguous stretches where a pump or heater was on, for the timeline rows. */
+function runsOf(key: 'heaterOn' | 'pumpOn') {
+  const runs: Array<{ from: number, to: number }> = []
+  const last = props.samples[props.samples.length - 1]
+  const previous = props.samples[props.samples.length - 2]
+  const tail = last && previous ? Math.max(props.intervalS, elapsed(last.t) - elapsed(previous.t)) : props.intervalS
+  props.samples.forEach((sample, i) => {
+    if (sample[key] !== true) return
+    const from = elapsed(sample.t)
+    const next = props.samples[i + 1]
+    const to = next ? elapsed(next.t) : from + tail
+    const run = runs[runs.length - 1]
+    if (run && Math.abs(run.to - from) < 0.001) run.to = to
+    else runs.push({ from, to })
+  })
+  return runs
+}
+const rows = computed(() => {
+  const top = PAD.top + 14
+  const gap = 34
+  return [
+    { label: 'Heater', y: top, runs: runsOf('heaterOn'), reported: props.samples.some(s => s.heaterOn !== undefined) },
+    { label: 'Pump', y: top + gap, runs: runsOf('pumpOn'), reported: props.samples.some(s => s.pumpOn !== undefined) },
+  ]
 })
 
 const xTicks = computed(() => {
@@ -72,6 +107,7 @@ const xTicks = computed(() => {
   return ticks
 })
 const yTicks = computed(() => {
+  if (!hasTemperatures.value) return []
   const [lo, hi] = yDomain.value
   const step = hi - lo > 30 ? 10 : 5
   const ticks: number[] = []
@@ -124,10 +160,12 @@ const onOff = (value: boolean | undefined) => (value === undefined ? '—' : val
   <div ref="host" class="relative">
     <svg
       :width="width"
-      :height="HEIGHT"
+      :height="height"
       class="block w-full"
       role="img"
-      :aria-label="`Water temperature over the brew, ${samples.length} samples`"
+      :aria-label="hasTemperatures
+        ? `Water temperature over the brew, ${samples.length} samples`
+        : `What the brewer reported through the brew: phase, heater and pump, ${samples.length} samples`"
       @mousemove="onMove"
       @mouseleave="hovered = null"
     >
@@ -136,50 +174,77 @@ const onOff = (value: boolean | undefined) => (value === undefined ? '—' : val
           :x="x(band.from)"
           :y="PAD.top - 20"
           :width="Math.max(0, x(band.to) - x(band.from))"
-          :height="HEIGHT - PAD.top - PAD.bottom + 20"
+          :height="plotBottom - PAD.top + 20"
           :fill="i % 2 ? 'var(--ui-bg-elevated)' : 'transparent'"
         />
         <text v-if="x(band.to) - x(band.from) >= 34" :x="x(band.from) + 4" :y="PAD.top - 8" font-size="10" fill="var(--ui-text-muted)">{{ band.phase }}</text>
       </g>
-      <g v-for="c in yTicks" :key="c">
-        <line :x1="PAD.left" :x2="width - PAD.right" :y1="y(c)" :y2="y(c)" stroke="var(--ui-border)" stroke-width="1" />
-        <text :x="PAD.left - 6" :y="y(c) + 3" text-anchor="end" font-size="10" fill="var(--ui-text-muted)">{{ c }}°</text>
-      </g>
-      <text v-for="s in xTicks" :key="s" :x="x(s)" :y="HEIGHT - 8" text-anchor="middle" font-size="10" fill="var(--ui-text-muted)">{{ formatClock(s) }}</text>
-      <path :d="linePath" fill="none" stroke="var(--ui-primary)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
-      <template v-for="(sample, i) in samples" :key="sample.t">
-        <circle
-          v-if="typeof sample.temperatureC === 'number'"
-          :cx="x(elapsed(sample.t))"
-          :cy="y(sample.temperatureC)"
-          :r="hovered === i ? 5 : 3"
-          fill="var(--ui-primary)"
-          stroke="var(--ui-bg)"
-          stroke-width="2"
-        />
+
+      <template v-if="hasTemperatures">
+        <g v-for="c in yTicks" :key="c">
+          <line :x1="padLeft" :x2="width - PAD.right" :y1="y(c)" :y2="y(c)" stroke="var(--ui-border)" stroke-width="1" />
+          <text :x="padLeft - 6" :y="y(c) + 3" text-anchor="end" font-size="10" fill="var(--ui-text-muted)">{{ c }}°</text>
+        </g>
+        <path :d="linePath" fill="none" stroke="var(--ui-primary)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+        <template v-for="(sample, i) in samples" :key="sample.t">
+          <circle
+            v-if="typeof sample.temperatureC === 'number'"
+            :cx="x(elapsed(sample.t))"
+            :cy="y(sample.temperatureC)"
+            :r="hovered === i ? 5 : 3"
+            fill="var(--ui-primary)"
+            stroke="var(--ui-bg)"
+            stroke-width="2"
+          />
+        </template>
       </template>
+
+      <!-- No temperature to plot: show what the brewer does report, as a timeline. -->
+      <template v-else>
+        <g v-for="row in rows" :key="row.label">
+          <text :x="padLeft - 8" :y="row.y + 11" text-anchor="end" font-size="10" fill="var(--ui-text-muted)">{{ row.label }}</text>
+          <rect :x="padLeft" :y="row.y" :width="plotWidth" height="14" rx="3" fill="var(--ui-border)" opacity="0.45" />
+          <rect
+            v-for="run in row.runs"
+            :key="`${row.label}-${run.from}`"
+            :x="x(run.from)"
+            :y="row.y"
+            :width="Math.max(1, x(run.to) - x(run.from))"
+            height="14"
+            rx="3"
+            fill="var(--ui-primary)"
+          />
+          <text v-if="!row.reported" :x="padLeft + 6" :y="row.y + 11" font-size="10" fill="var(--ui-text-muted)">not reported</text>
+        </g>
+      </template>
+
+      <text v-for="s in xTicks" :key="s" :x="x(s)" :y="height - 8" text-anchor="middle" font-size="10" fill="var(--ui-text-muted)">{{ formatClock(s) }}</text>
       <line
         v-if="hoverSample"
         :x1="x(elapsed(hoverSample.t))"
         :x2="x(elapsed(hoverSample.t))"
         :y1="PAD.top - 20"
-        :y2="HEIGHT - PAD.bottom"
+        :y2="plotBottom"
         stroke="var(--ui-text-muted)"
         stroke-width="1"
         stroke-dasharray="3 3"
       />
     </svg>
+
     <div v-if="hoverSample" class="pointer-events-none absolute top-1 rounded-md border border-default bg-elevated px-2 py-1 text-xs shadow-sm" :style="tooltipStyle">
       <p class="font-medium">
         {{ formatClock(elapsed(hoverSample.t)) }} · {{ hoverSample.phase }}
       </p>
       <p class="text-muted">
-        {{ formatTemperature(hoverSample.temperatureC) }} · heater {{ onOff(hoverSample.heaterOn) }} · pump {{ onOff(hoverSample.pumpOn) }}
+        <template v-if="hasTemperatures">{{ formatTemperature(hoverSample.temperatureC) }} · </template>heater {{ onOff(hoverSample.heaterOn) }} · pump {{ onOff(hoverSample.pumpOn) }}
       </p>
     </div>
-    <p v-if="temperatures.length === 0" class="mt-1 text-xs text-muted">
-      No water temperature was reported during this brew; the bands show the phases.
+
+    <p v-if="!hasTemperatures" class="mt-1 text-xs text-muted">
+      This brewer does not report the water temperature, so the trace shows what it does report: the phase it is in,
+      and when the heater and pump run.
     </p>
+
     <div class="mt-1">
       <UButton :label="showTable ? 'Hide samples' : 'Show samples'" variant="link" color="neutral" size="xs" @click="showTable = !showTable" />
     </div>
@@ -196,7 +261,7 @@ const onOff = (value: boolean | undefined) => (value === undefined ? '—' : val
             <th class="py-1 pr-3 font-medium">
               Phase
             </th>
-            <th class="py-1 pr-3 font-medium">
+            <th v-if="hasTemperatures" class="py-1 pr-3 font-medium">
               Water
             </th>
             <th class="py-1 pr-3 font-medium">
@@ -218,7 +283,7 @@ const onOff = (value: boolean | undefined) => (value === undefined ? '—' : val
             <td class="py-1 pr-3">
               {{ sample.phase }}
             </td>
-            <td class="py-1 pr-3">
+            <td v-if="hasTemperatures" class="py-1 pr-3">
               {{ formatTemperature(sample.temperatureC) }}
             </td>
             <td class="py-1 pr-3">

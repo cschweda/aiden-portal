@@ -47,8 +47,13 @@ export interface TrackerOptions {
 
 export type TitleLookup = (profileId: string) => string | undefined
 
-/** Five minutes: the device's own start time is used only when it is at most this stale. */
-const START_WINDOW_MS = 5 * 60_000
+/**
+ * How far back the brewer's own `brewStartTime` is believed for a brew it says is running now. Observed on a real
+ * brewer: `brewStartTime` is the current brew's start and stays put until the next brew, while `brewEndTime`
+ * drifts on its own. A generous window matters because a restart mid-brew (every reinstall does one) would
+ * otherwise lose the start and with it the duration; six hours also covers a cold-brew steep.
+ */
+const START_WINDOW_MS = 6 * 60 * 60_000
 /** A descale runs for the better part of an hour, so its reported start is believed up to two hours back. */
 const CLEANING_START_WINDOW_MS = 2 * 60 * 60_000
 /** A cleaning cycle still running after this long is a stuck flag; it is closed and watching starts over. */

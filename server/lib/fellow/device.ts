@@ -24,14 +24,17 @@ export function isBrewing(device: Device): boolean | undefined {
   return typeof device.brewing === 'boolean' ? device.brewing : undefined
 }
 
-export type BrewPhase = 'idle' | 'bloom' | `pulse ${number}` | 'drip finish' | 'paused' | 'brewing' | 'unknown'
+export type BrewPhase = 'idle' | 'bloom' | `pulse ${number}` | 'drip finish' | 'paused' | 'brewing' | `brewing (${string})` | 'unknown'
 
+/** Fellow's codes, as far as they are known. `pr` was seen on a real brew between bloom and the end; its meaning
+ * is a guess, so it is not translated: an unknown code is shown as it arrived. */
 const PHASE_CODES: Record<string, BrewPhase> = { b: 'bloom', d: 'drip finish', pa: 'paused' }
 
 /**
  * The live phase, decoded from the v2 `state` object the way the Home Assistant integration does: `b` bloom,
- * `p1`…`p10` pulse, `d` drip finish, `pa` paused, null idle. A state object with no recognisable code still means a
- * brew is running (see `isBrewing`), so it reads 'brewing'. Without a `state` field the older `brewing` flag decides.
+ * `p1`…`p10` pulse, `d` drip finish, `pa` paused, null idle. A brew is running whatever the code says (see
+ * `isBrewing`), so an unrecognised one reads `brewing (code)` rather than being thrown away. Without a `state`
+ * field the older `brewing` flag decides.
  */
 export function brewPhase(device: Device): BrewPhase {
   if (device.state === undefined) {
@@ -45,7 +48,7 @@ export function brewPhase(device: Device): BrewPhase {
   if (typeof value !== 'string') return 'brewing'
   const pulse = /^p([1-9]|10)$/.exec(value)
   if (pulse) return `pulse ${Number(pulse[1])}`
-  return PHASE_CODES[value] ?? 'brewing'
+  return PHASE_CODES[value] ?? (value ? `brewing (${value})` : 'brewing')
 }
 
 /** Combines the top-level `missingWater` flag with the nested live-state indicator. Undefined when unreported. */

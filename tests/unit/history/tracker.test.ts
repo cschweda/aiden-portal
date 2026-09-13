@@ -45,11 +45,12 @@ describe('BrewTracker', () => {
     const [event] = tracker.observe(idle(71, { brewEndTime: String((T0 + 380_000) / 1000) }), T0 + 400_000)
     expect(event).toMatchObject({ type: 'completed', record: { startedAt: T0 + 50_000, endedAt: T0 + 380_000, durationS: 330 } })
   })
-  it('ignores a stale start time and an end time from the future', () => {
+  it('believes a start time from earlier in the same brew, and ignores an end time from the future', () => {
     const tracker = new BrewTracker()
     tracker.observe(idle(70), T0)
+    // A restart mid-brew sees the brewer already brewing; its reported start is this brew's, so the duration holds.
     tracker.observe(brewing('b', { brewStartTime: T0 - 3_600_000 }), T0 + 60_000)
-    expect(tracker.currentBrew?.startedAt).toBe(T0 + 60_000)
+    expect(tracker.currentBrew).toMatchObject({ startedAt: T0 - 3_600_000, startOrigin: 'device' })
     const [event] = tracker.observe(idle(71, { brewEndTime: T0 + 9_000_000 }), T0 + 400_000)
     expect(event).toMatchObject({ type: 'completed', record: { endedAt: T0 + 400_000 } })
   })
@@ -106,7 +107,7 @@ describe('BrewTracker', () => {
     const [event] = tracker.observe(idle(71), T0 + 200_000)
     expect(event).toMatchObject({ type: 'completed', record: { counted: true, durationS: null, observed: true } })
   })
-  it('trusts the duration of a brew first seen mid-way when the brewer reports a recent start time', () => {
+  it('trusts the duration of a brew first seen mid-way when the brewer reports a start time', () => {
     const tracker = new BrewTracker()
     tracker.observe(brewing('p2', { brewStartTime: String((T0 - 90_000) / 1000) }), T0)
     expect(tracker.currentBrew).toMatchObject({ startedAt: T0 - 90_000, startOrigin: 'device' })

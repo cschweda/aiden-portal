@@ -134,8 +134,11 @@ describe('brewPhase', () => {
     [{ state: { value: 'p10' } }, 'pulse 10'],
     [{ state: { value: 'd' } }, 'drip finish'],
     [{ state: { value: 'pa' } }, 'paused'],
-    [{ state: { value: 'p11' } }, 'brewing'],
-    [{ state: { value: 'zz' } }, 'brewing'],
+    [{ state: { value: 'p11' } }, 'brewing (p11)'],
+    [{ state: { value: 'zz' } }, 'brewing (zz)'],
+    // Seen on a real brew between bloom and the end; its meaning is unknown, so it is shown rather than guessed.
+    [{ state: { value: 'pr' } }, 'brewing (pr)'],
+    [{ state: { value: '' } }, 'brewing'],
     [{ state: { phase: 'brew' } }, 'brewing'],
     [{ state: 'odd' }, 'brewing'],
     [{ brewing: true }, 'brewing'],

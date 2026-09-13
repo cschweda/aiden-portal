@@ -7,6 +7,22 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.13.2] - 2026-09-13
+
+Learned from the first brew the app watched from start to finish.
+
+### Fixed
+
+- The brew trace drew an empty temperature grid when there was no temperature to draw. This brewer never reports
+  `brewingWaterTemperatureC`, not while idle, not during a descale, and not during a brew with the heater on, so
+  the trace now shows what it does report: the phase it is in, and when the heater and pump ran.
+- A phase code the brewer sends is no longer thrown away. A real brew reported `b` for the first minute and then
+  `pr`, which appears in neither reference project; an unrecognised code now reads `brewing (pr)` rather than a
+  flat "brewing".
+- A restart during a brew lost the brew's start time, and with it the duration, because the brewer's own
+  `brewStartTime` was only believed for five minutes. It is believed for six hours while the brewer says it is
+  brewing, which is what every reinstall needs and what a cold-brew steep needs too.
+
 ### Fixed
 
 - README accuracy, checked against the code rather than by eye: the status line and the logging section said the
