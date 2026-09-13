@@ -7,6 +7,21 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-09-13
+
+### Added
+
+- The app writes what it is in the middle of to `current.json` and picks it back up when it starts. A restart during
+  a brew or a descale now keeps the samples already taken instead of losing them, and a cycle that finished while the
+  app was down is still recorded in full rather than inferred from the brew counter.
+- The coffee clock remembers that the carafe was taken. Before, a restart within six hours of a brew, with the carafe
+  back in place, claimed the coffee was still sitting there.
+
+### Fixed
+
+- A completed brew or cleaning cycle is flushed to disk as it is written, so a power cut can no longer take the most
+  recent one with it. The descale marker already did this.
+
 ## [0.15.3] - 2026-09-13
 
 ### Fixed

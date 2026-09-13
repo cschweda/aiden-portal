@@ -1,13 +1,18 @@
-import { appendFileSync, closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, readSync, renameSync, statSync, writeSync } from 'node:fs'
+import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, readSync, renameSync, rmSync, statSync, writeSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod'
+import type { CurrentBrew, CurrentCleaning } from './tracker'
 import type { BrewRecord, CleaningRecord, DescaleMarker, DescaleState } from './types'
 
 export const BREWS_FILE = 'brews.jsonl'
 export const DESCALE_FILE = 'descale.json'
 export const CLEANINGS_FILE = 'cleanings.jsonl'
+export const SESSION_FILE = 'current.json'
 
 const SampleSchema = z.looseObject({ t: z.number(), phase: z.string(), temperatureC: z.number().optional(), heaterOn: z.boolean().optional(), pumpOn: z.boolean().optional() })
+const CleaningSampleSchema = z.looseObject({ t: z.number(), heaterOn: z.boolean().optional(), pumpOn: z.boolean().optional() })
+const TargetSchema = z.looseObject({ bloomC: z.number().nullable(), pulsesC: z.array(z.number()), overallC: z.number().nullable() })
+const OriginSchema = z.enum(['transition', 'device', 'first-read']).default('first-read')
 const RecordSchema = z.looseObject({
   id: z.string().min(1),
   startedAt: z.number(),
@@ -19,7 +24,7 @@ const RecordSchema = z.looseObject({
   observed: z.boolean().default(false),
   counted: z.boolean().default(false),
   cyclesAfter: z.number().nullable().default(null),
-  target: z.looseObject({ bloomC: z.number().nullable(), pulsesC: z.array(z.number()), overallC: z.number().nullable() }).optional(),
+  target: TargetSchema.optional(),
   samples: z.array(SampleSchema).default([]),
 })
 const CleaningSchema = z.looseObject({
@@ -33,10 +38,47 @@ const CleaningSchema = z.looseObject({
   waterDeltaMl: z.number().nullable().default(null),
   cyclesAfter: z.number().nullable().default(null),
   observedStart: z.boolean().default(false),
-  samples: z.array(z.looseObject({ t: z.number(), heaterOn: z.boolean().optional(), pumpOn: z.boolean().optional() })).default([]),
+  samples: z.array(CleaningSampleSchema).default([]),
+})
+const CurrentBrewSchema = z.looseObject({
+  id: z.string().min(1),
+  startedAt: z.number(),
+  startOrigin: OriginSchema,
+  profileId: z.string().nullable().default(null),
+  profileTitle: z.string().nullable().default(null),
+  target: TargetSchema.nullable().default(null),
+  cyclesBefore: z.number().nullable().default(null),
+  samples: z.array(SampleSchema).default([]),
+})
+const CurrentCleaningSchema = z.looseObject({
+  id: z.string().min(1),
+  kind: z.enum(['clean', 'rinse']).default('clean'),
+  startedAt: z.number(),
+  startOrigin: OriginSchema,
+  cyclesBefore: z.number().nullable().default(null),
+  waterBefore: z.number().nullable().default(null),
+  samples: z.array(CleaningSampleSchema).default([]),
+})
+const SessionSchema = z.looseObject({
+  at: z.number(),
+  brew: CurrentBrewSchema.nullable().default(null),
+  cleaning: CurrentCleaningSchema.nullable().default(null),
+  carafeRemovedAt: z.number().nullable().default(null),
 })
 const MarkerSchema = z.looseObject({ at: z.number(), brews: z.number().nullable().default(null), waterMl: z.number().nullable().default(null) })
 const DescaleSchema = z.looseObject({ current: MarkerSchema.nullable().default(null), history: z.array(MarkerSchema).default([]) })
+
+/**
+ * What a running process is in the middle of, and would otherwise lose when it exits: a brew or cleaning cycle
+ * whose samples are in no log yet, and the moment the carafe was last seen leaving.
+ */
+export interface SessionState {
+  /** When this was written. */
+  at: number
+  brew: CurrentBrew | null
+  cleaning: CurrentCleaning | null
+  carafeRemovedAt: number | null
+}
 
 export interface HistoryStoreOptions {
   directory: string
@@ -45,7 +87,8 @@ export interface HistoryStoreOptions {
 }
 
 /**
- * One directory holding an append-only brew log (`brews.jsonl`) and a small descale marker (`descale.json`).
+ * One directory holding an append-only brew log (`brews.jsonl`), a small descale marker (`descale.json`), and the
+ * state a restart would otherwise lose (`current.json`).
  * A directory the store creates is owner-only, as are both files; an existing directory is left as it is and
  * reported through `directoryIsShared`. A corrupt line is skipped and counted, never fatal. A directory that
  * cannot be created or read leaves the store empty with `loadError` set; writes then throw.
@@ -185,7 +228,7 @@ export class HistoryStore {
     const path = join(this.directory, BREWS_FILE)
     // A crash mid-append can leave a line without its newline; never let the next record run into it.
     const prefix = endsWithNewline(path) ? '' : '\n'
-    appendFileSync(path, `${prefix}${JSON.stringify(record)}\n`, { mode: 0o600 })
+    appendLine(path, `${prefix}${JSON.stringify(record)}\n`)
     this.records.push(record)
     if (this.records.length > this.keep) this.records.splice(0, this.records.length - this.keep)
   }
@@ -194,7 +237,7 @@ export class HistoryStore {
     this.assertWritable()
     const path = join(this.directory, CLEANINGS_FILE)
     const prefix = endsWithNewline(path) ? '' : '\n'
-    appendFileSync(path, `${prefix}${JSON.stringify(record)}\n`, { mode: 0o600 })
+    appendLine(path, `${prefix}${JSON.stringify(record)}\n`)
     this.cleaningRecords.push(record)
     if (this.cleaningRecords.length > 200) this.cleaningRecords.splice(0, this.cleaningRecords.length - 200)
   }
@@ -202,18 +245,35 @@ export class HistoryStore {
   markDescaled(marker: DescaleMarker): DescaleState {
     this.assertWritable()
     const next: DescaleState = { current: marker, history: [...this.descale.history, marker].slice(-50) }
-    const path = join(this.directory, DESCALE_FILE)
-    const fd = openSync(`${path}.tmp`, 'w', 0o600)
-    try {
-      writeSync(fd, JSON.stringify(next, null, 2))
-      fsyncSync(fd)
-    }
-    finally {
-      closeSync(fd)
-    }
-    renameSync(`${path}.tmp`, path)
+    writeJson(join(this.directory, DESCALE_FILE), next, { flush: true, pretty: true })
     this.descale = next
     return next
+  }
+
+  /** What the last process was in the middle of, or null when there is nothing to resume or it cannot be read. */
+  readSession(): SessionState | null {
+    this.ensureLoaded()
+    const path = join(this.directory, SESSION_FILE)
+    if (!existsSync(path)) return null
+    try {
+      const parsed = SessionSchema.safeParse(JSON.parse(readFileSync(path, 'utf8')))
+      return parsed.success ? (parsed.data as SessionState) : null
+    }
+    catch {
+      return null
+    }
+  }
+
+  /** Replaced whole and renamed into place, so a reader never sees half of it. Not flushed: this survives a restart,
+   * not a power cut, and it is rewritten every few seconds while a brew runs. */
+  writeSession(state: SessionState): void {
+    this.assertWritable()
+    writeJson(join(this.directory, SESSION_FILE), state)
+  }
+
+  clearSession(): void {
+    this.assertWritable()
+    rmSync(join(this.directory, SESSION_FILE), { force: true })
   }
 
   private assertWritable(): void {
@@ -224,6 +284,34 @@ export class HistoryStore {
   private ensureLoaded(): void {
     if (!this.loaded) this.load()
   }
+}
+
+/**
+ * One line, on disk before this returns. A completed brew is the one thing here that cannot be reconstructed, so it
+ * is worth the flush: without it an append sits in the operating system's cache and a power cut takes it.
+ */
+function appendLine(path: string, line: string): void {
+  const fd = openSync(path, 'a', 0o600)
+  try {
+    writeSync(fd, line)
+    fsyncSync(fd)
+  }
+  finally {
+    closeSync(fd)
+  }
+}
+
+/** Written beside the target and renamed over it, so a reader sees either the old file or the new one. */
+function writeJson(path: string, value: unknown, options: { flush?: boolean, pretty?: boolean } = {}): void {
+  const fd = openSync(`${path}.tmp`, 'w', 0o600)
+  try {
+    writeSync(fd, JSON.stringify(value, null, options.pretty ? 2 : undefined))
+    if (options.flush) fsyncSync(fd)
+  }
+  finally {
+    closeSync(fd)
+  }
+  renameSync(`${path}.tmp`, path)
 }
 
 /** True for a missing or empty file, or one whose last byte is a newline. */

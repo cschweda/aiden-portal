@@ -79,6 +79,43 @@ describe('BrewTracker', () => {
     const [event] = tracker.observe(idle(71), T0 + 400_000)
     expect(event).toMatchObject({ type: 'completed', record: { startedAt: T0 + 360_000, durationS: null } })
   })
+  it('resumes a brew a restart interrupted, keeping the samples the last run took', () => {
+    const before = new BrewTracker()
+    before.observe(idle(70), T0)
+    before.observe(brewing('b'), T0 + 60_000, titles)
+    before.observe(brewing('p1'), T0 + 65_000, titles)
+    const carried = before.currentBrew!
+    // A new process comes up and is handed what the last one was watching.
+    const after = new BrewTracker({ baselineCycles: 70 })
+    after.restore({ brew: carried }, T0 + 90_000)
+    expect(after.currentBrew).toMatchObject({ id: carried.id, startOrigin: 'transition' })
+    after.observe(brewing('d'), T0 + 95_000, titles)
+    const events = after.observe(idle(71, { brewingWaterVolumeMl: 900 }), T0 + 400_000, titles)
+    const record = events[0]!.type === 'completed' ? events[0]!.record : null
+    expect(record?.samples.map(s => s.phase)).toEqual(['bloom', 'pulse 1', 'drip finish'])
+    expect(record).toMatchObject({ startedAt: T0 + 60_000, counted: true, durationS: 340, waterMl: 900 })
+  })
+  it('counts a brew that ended while the app was down once, not twice', () => {
+    const before = new BrewTracker()
+    before.observe(idle(70), T0)
+    before.observe(brewing('b'), T0 + 60_000)
+    const carried = before.currentBrew!
+    const after = new BrewTracker({ baselineCycles: 70 })
+    after.restore({ brew: carried }, T0 + 300_000)
+    // Idle again and the counter has moved: the brew finished while nothing was watching. The resumed brew takes
+    // that increment, so it is never also inferred as a brew nobody saw.
+    const events = after.observe(idle(71, { brewEndTime: (T0 + 380_000) / 1000 }), T0 + 400_000)
+    expect(events.map(e => e.type)).toEqual(['completed'])
+    expect(events[0]!.type === 'completed' && events[0]!.record).toMatchObject({ startedAt: T0 + 60_000, endedAt: T0 + 380_000, counted: true, durationS: 320 })
+  })
+  it('leaves behind in-flight state old enough to be a stuck flag rather than a brew', () => {
+    const tracker = new BrewTracker()
+    const stale = { id: 'b1', startedAt: T0, startOrigin: 'device' as const, profileId: null, profileTitle: null, target: null, cyclesBefore: 70, samples: [] }
+    tracker.restore({ brew: stale }, T0 + MAX_BREW_MS + 1)
+    expect(tracker.currentBrew).toBeNull()
+    tracker.restore({ brew: stale }, T0 + MAX_BREW_MS)
+    expect(tracker.currentBrew).toMatchObject({ id: 'b1' })
+  })
   it('infers the brews it missed from a counter that rose while idle', () => {
     const tracker = new BrewTracker()
     tracker.observe(idle(70), T0)

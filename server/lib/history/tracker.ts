@@ -124,6 +124,16 @@ export class BrewTracker {
     return this.idleCycles
   }
 
+  /**
+   * Puts back what the last process was watching, so a restart mid-brew keeps the samples it had already taken and
+   * the start it had already learned. Nothing is replaced once this tracker has a brew or cycle of its own, and
+   * anything old enough to be a stuck flag rather than a brew is left behind.
+   */
+  restore(state: { brew?: CurrentBrew | null, cleaning?: CurrentCleaning | null }, now: number): void {
+    if (!this.current && state.brew && now - state.brew.startedAt <= MAX_BREW_MS) this.current = state.brew
+    if (!this.currentCleaning && state.cleaning && now - state.cleaning.startedAt <= MAX_CLEANING_MS) this.currentCleaning = state.cleaning
+  }
+
   observe(device: Device, now: number, profileOf?: ProfileLookup): BrewEvent[] {
     const brewing = isBrewing(device)
     if (brewing === undefined) return []

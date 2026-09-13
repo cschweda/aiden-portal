@@ -2,8 +2,16 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, st
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { BREWS_FILE, CLEANINGS_FILE, DESCALE_FILE, HistoryStore } from '../../../server/lib/history'
-import type { BrewRecord, CleaningRecord } from '../../../server/lib/history'
+import { BREWS_FILE, CLEANINGS_FILE, DESCALE_FILE, HistoryStore, SESSION_FILE } from '../../../server/lib/history'
+import type { BrewRecord, CleaningRecord, SessionState } from '../../../server/lib/history'
+
+const session = (overrides: Partial<SessionState> = {}): SessionState => ({
+  at: 5_000,
+  brew: { id: 'b1', startedAt: 1_000, startOrigin: 'device', profileId: 'plocal1', profileTitle: 'Medium Roast', target: null, cyclesBefore: 70, samples: [{ t: 1_000, phase: 'bloom' }] },
+  cleaning: null,
+  carafeRemovedAt: 900,
+  ...overrides,
+})
 
 const record = (overrides: Partial<BrewRecord> = {}): BrewRecord => ({
   id: 'b1',
@@ -108,5 +116,31 @@ describe('HistoryStore', () => {
     store.load()
     writeFileSync(join(dir, DESCALE_FILE), '{oops')
     expect(new HistoryStore({ directory: dir }).descaleState.current).toBeNull()
+  })
+})
+
+describe('in-flight state', () => {
+  it('hands back the brew and the carafe moment a restart would otherwise lose', () => {
+    const store = new HistoryStore({ directory: dir })
+    expect(store.readSession()).toBeNull()
+    store.writeSession(session())
+    const reopened = new HistoryStore({ directory: dir }).readSession()
+    expect(reopened).toMatchObject({ carafeRemovedAt: 900, brew: { id: 'b1', startedAt: 1_000, startOrigin: 'device', cyclesBefore: 70 } })
+    expect(reopened?.brew?.samples).toEqual([{ t: 1_000, phase: 'bloom' }])
+    expect(statSync(join(dir, SESSION_FILE)).mode & 0o777).toBe(0o600)
+  })
+  it('reads state it cannot parse as nothing in flight, and clears the file on request', () => {
+    const store = new HistoryStore({ directory: dir })
+    store.writeSession(session())
+    writeFileSync(join(dir, SESSION_FILE), '{ half a file')
+    expect(store.readSession()).toBeNull()
+    store.clearSession()
+    expect(existsSync(join(dir, SESSION_FILE))).toBe(false)
+    expect(() => store.clearSession()).not.toThrow()
+  })
+  it('keeps a cleaning cycle too, since a descale runs far longer than a brew', () => {
+    const store = new HistoryStore({ directory: dir })
+    store.writeSession(session({ brew: null, cleaning: { id: 'c1', kind: 'clean', startedAt: 2_000, startOrigin: 'transition', cyclesBefore: 70, waterBefore: 12, samples: [{ t: 2_000, heaterOn: true }] } }))
+    expect(store.readSession()?.cleaning).toMatchObject({ id: 'c1', kind: 'clean', waterBefore: 12 })
   })
 })

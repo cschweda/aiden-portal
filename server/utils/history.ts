@@ -30,6 +30,9 @@ export class HistoryService {
   /** When the carafe was last seen leaving, which is the only sign the coffee was taken. */
   private carafeRemovedAt: number | null = null
   private carafePresent: boolean | undefined
+  /** What was last written to `current.json`, so an unchanged state is not rewritten every poll. */
+  private sessionSignature: string | null = null
+  private sessionFailed = false
 
   constructor(private readonly config: AppConfig) {
     this.store = new HistoryStore({ directory: config.history.directory })
@@ -50,6 +53,16 @@ export class HistoryService {
     const logger = useLogger()
     if (this.store.loadError) logger.error({ directory: this.store.directory, err: this.store.loadError }, 'History directory unusable; brews will not be logged')
     else if (this.store.directoryIsShared) logger.warn({ directory: this.store.directory }, 'History directory is readable by other accounts on this machine; consider chmod 700')
+
+    // Whatever the last process was in the middle of. Samples live in memory until a brew ends, so without this a
+    // restart mid-brew loses the trace, and the coffee clock forgets that the carafe was already taken.
+    const session = this.store.readSession()
+    if (session) {
+      this.tracker.restore({ brew: session.brew, cleaning: session.cleaning }, Date.now())
+      this.carafeRemovedAt = session.carafeRemovedAt
+      const resumed = this.tracker.currentBrew ?? this.tracker.currentCleaningCycle
+      if (resumed) logger.info({ id: resumed.id, samples: resumed.samples.length, startedAt: resumed.startedAt }, 'Resumed what the last run was watching')
+    }
   }
 
   /** Starts the loop; a second call is a no-op. */
@@ -111,6 +124,30 @@ export class HistoryService {
       else if (event.type === 'cleaningCompleted') {
         this.persistCleaning(event.record)
       }
+    }
+    this.saveSession(now)
+  }
+
+  /**
+   * Keeps `current.json` in step with what is in flight, so a restart resumes rather than starts over. Written only
+   * when something actually changed, which during a brew is every poll and while idle is never.
+   */
+  private saveSession(now: number): void {
+    if (this.store.loadError) return
+    const brew = this.tracker.currentBrew
+    const cleaning = this.tracker.currentCleaningCycle
+    const signature = `${brew?.id ?? ''}/${brew?.samples.length ?? 0}/${cleaning?.id ?? ''}/${cleaning?.samples.length ?? 0}/${this.carafeRemovedAt ?? ''}`
+    if (signature === this.sessionSignature) return
+    try {
+      if (!brew && !cleaning && this.carafeRemovedAt === null) this.store.clearSession()
+      else this.store.writeSession({ at: now, brew, cleaning, carafeRemovedAt: this.carafeRemovedAt })
+      this.sessionSignature = signature
+      this.sessionFailed = false
+    }
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      useLogger()[this.sessionFailed ? 'debug' : 'warn']({ err: message }, 'In-flight brew state could not be saved; a restart would lose it')
+      this.sessionFailed = true
     }
   }
 
