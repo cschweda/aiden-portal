@@ -7,6 +7,14 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.19.2] - 2026-09-13
+
+### Fixed
+
+- Every water figure in the descale story is now exact. The card was, but the cleaning cycles and the record of
+  past marks on the History page still rounded to a tenth of a litre, so the same quantity read two ways on two
+  screens and a mark taken at 68.042 L was recorded as 68.0 L.
+
 ## [0.19.1] - 2026-09-13
 
 ### Fixed

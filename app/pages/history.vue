@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { BrewRecord, BrewSummary, HistoryResponse } from '#shared/types/api'
 import { describeCountdown } from '../utils/countdown'
-import { formatAgo, formatDateTime, formatDuration, formatHours, formatLitresFromMl, formatMillilitres, formatTime } from '../utils/format'
+import { formatAgo, formatDateTime, formatDuration, formatHours, formatLitresFromMl, formatMillilitres, formatTime, formatWater } from '../utils/format'
 
 useHead({ title: 'History' })
 
@@ -207,7 +207,7 @@ const pollingLine = computed(() => {
                 <span class="tabular w-36 shrink-0">{{ formatDateTime(cycle.startedAt) }}</span>
                 <span class="w-16">{{ cycle.kind === 'clean' ? 'Descale' : 'Rinse' }}</span>
                 <span class="tabular w-24 text-muted">{{ formatDuration(cycle.durationS) }}</span>
-                <span class="tabular w-20 text-muted">{{ formatMillilitres(cycle.waterMl ?? undefined) }}</span>
+                <span class="tabular w-20 text-muted">{{ formatWater(cycle.waterMl) }}</span>
                 <span class="text-xs text-muted">ended {{ formatTime(cycle.endedAt) }}<template v-if="cycle.cyclesDelta"> · counted as {{ cycle.cyclesDelta }} brew{{ cycle.cyclesDelta === 1 ? '' : 's' }} by the brewer</template></span>
                 <UBadge v-if="!cycle.observedStart" label="Seen mid-way" color="neutral" variant="subtle" size="sm" />
               </li>
@@ -221,7 +221,7 @@ const pollingLine = computed(() => {
             <ul v-if="history.data.value.descaleHistory.length" class="divide-y divide-default rounded-lg border border-default text-sm">
               <li v-for="mark in [...history.data.value.descaleHistory].reverse()" :key="mark.at" class="flex flex-wrap gap-x-4 px-4 py-2">
                 <span class="tabular w-36">{{ formatDateTime(mark.at) }}</span>
-                <span class="text-muted">at {{ mark.brews ?? '—' }} brews and {{ formatLitresFromMl(mark.waterMl ?? undefined) }} lifetime</span>
+                <span class="text-muted">at {{ mark.brews ?? '—' }} brews and {{ formatWater(mark.waterMl) }} lifetime</span>
               </li>
             </ul>
           </section>
