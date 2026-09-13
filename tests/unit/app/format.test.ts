@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { describeCountdown } from '../../../app/utils/countdown'
-import { formatAgo, formatClock, formatDate, formatDateTime, formatDuration, formatHours, formatLitres, formatLitresFromMl, formatMillilitres, formatTemperature, formatTime, toDate } from '../../../app/utils/format'
+import { formatAgo, formatClock, formatDate, formatDateTime, formatDuration, formatElevation, formatHours, formatLitres, formatLitresFromMl, formatMillilitres, formatTemperature, formatTime, toDate } from '../../../app/utils/format'
 
 describe('format helpers', () => {
   it('formats temperatures with half degrees', () => {
@@ -57,6 +57,11 @@ describe('format helpers', () => {
     expect(describeCountdown({ seconds: 340, basis: 'measured', brews: 3 }, 260)).toBe('about 1:20 to go (from 3 previous brews)')
     expect(describeCountdown({ seconds: 340, basis: 'recipe' }, 355)).toBe('running 0:15 over the usual 5:40 (from the recipe)')
     expect(describeCountdown(null, 10)).toBe('')
+  })
+  it('shows an elevation in metres and feet', () => {
+    expect(formatElevation(233)).toBe('233 m (764 ft)')
+    expect(formatElevation(0)).toBe('0 m (0 ft)')
+    expect(formatElevation(undefined)).toBe('—')
   })
   it('formats durations, clocks, and hours', () => {
     expect(formatDuration(42)).toBe('42 s')

@@ -87,3 +87,8 @@ export function formatHours(hours: number | null | undefined): string {
   const h = Math.round(hours - d * 24)
   return h ? `${d} d ${h} h` : `${d} d`
 }
+
+/** Metres as the brewer reports them, with the feet a US reader takes in faster: "233 m (764 ft)". */
+export function formatElevation(metres: number | undefined): string {
+  return metres === undefined ? '—' : `${Math.round(metres)} m (${Math.round(metres * 3.28084)} ft)`
+}

@@ -7,6 +7,13 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.15.2] - 2026-09-13
+
+### Changed
+
+- The sensor panel shows elevation in both units, "233 m (764 ft)", because the brewer reports metres and feet are
+  quicker to place.
+
 ## [0.15.1] - 2026-09-13
 
 ### Changed

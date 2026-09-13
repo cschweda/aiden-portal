@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DeviceResponse, HistoryResponse, Profile } from '#shared/types/api'
 import { brewPhase } from '../../server/lib/fellow/device'
-import { formatAgo, formatDateTime, formatDuration, formatLitresFromMl, formatMillilitres, formatTemperature, formatTime } from '../utils/format'
+import { formatAgo, formatDateTime, formatDuration, formatElevation, formatLitresFromMl, formatMillilitres, formatTemperature, formatTime } from '../utils/format'
 
 const props = defineProps<{
   data: DeviceResponse
@@ -116,7 +116,7 @@ const groups = computed<Group[]>(() => {
       readings: [
         text('Instant Brew profile', instantProfile?.title ?? d.ibSelectedProfileId),
         text('Instant Brew water', d.ibWaterQuantity === undefined ? undefined : formatMillilitres(d.ibWaterQuantity)),
-        text('Elevation', d.elevation === undefined ? undefined : `${d.elevation} m`),
+        text('Elevation', d.elevation === undefined ? undefined : formatElevation(d.elevation)),
         d.metricUnit === undefined
           ? unreported('Units')
           : { label: 'Units', value: `${d.metricUnit ? 'Metric' : 'Imperial'}${d.preciseUnit ? ', precise' : ''}` },
