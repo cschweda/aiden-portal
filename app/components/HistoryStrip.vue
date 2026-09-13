@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { HistoryStats } from '#shared/types/api'
-import { formatLitresFromMl } from '../utils/format'
+import { formatHours, formatLitresFromMl } from '../utils/format'
 
 const props = defineProps<{ stats: HistoryStats }>()
 
@@ -12,11 +12,8 @@ const tiles = computed(() => {
     period('Today', s.today),
     period('This week', s.thisWeek),
     period('This month', s.thisMonth),
-    {
-      label: 'Most used profile',
-      value: s.favouriteProfile?.title ?? s.favouriteProfile?.profileId ?? '—',
-      sub: s.favouriteProfile ? `${s.favouriteProfile.brews} of ${s.logged.brews} logged brew${s.logged.brews === 1 ? '' : 's'}` : 'no brews logged yet',
-    },
+    // The profile ranking lives in the Totals card now, so this slot carries the one number neither shows.
+    { label: 'Between brews', value: formatHours(s.averageBetweenBrewsH), sub: 'on average' },
   ]
 })
 </script>

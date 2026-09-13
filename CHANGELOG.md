@@ -7,6 +7,19 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-09-13
+
+### Added
+
+- The Totals card on the dashboard lists the three profiles brewed most, with a running count of each, and the
+  average brew time. The profile counts come from the brews this app has logged, which the heading says, because the
+  brewer's own counter knows nothing about profiles.
+
+### Changed
+
+- The dashboard's "Most used profile" tile gave way to "Between brews", since the profile ranking it summarised now
+  sits in the Totals card in full.
+
 ## [0.16.0] - 2026-09-13
 
 ### Added

@@ -22,7 +22,8 @@ export interface HistoryStats {
   averageDurationS: number | null
   /** Mean gap between consecutive counted brews over the last thirty of them, hours. */
   averageBetweenBrewsH: number | null
-  favouriteProfile: FavouriteProfile | null
+  /** The profiles used most, in order, at most three. Ties go to whichever was used most recently. */
+  topProfiles: FavouriteProfile[]
   lastBrewAt: number | null
 }
 
@@ -69,7 +70,7 @@ export function computeStats(records: readonly BrewRecord[], now: number = Date.
     }
     byProfile.set(key, entry)
   }
-  const favourite = [...byProfile.values()].sort((a, b) => b.brews - a.brews || b.latest - a.latest)[0]
+  const ranked = [...byProfile.values()].sort((a, b) => b.brews - a.brews || b.latest - a.latest)
 
   return {
     today: sum(since(starts.day)),
@@ -78,7 +79,7 @@ export function computeStats(records: readonly BrewRecord[], now: number = Date.
     logged: { ...sum(past), since: past[0]?.startedAt ?? null },
     averageDurationS: mean(counted.filter(r => r.observed && r.durationS !== null).map(r => r.durationS as number)),
     averageBetweenBrewsH: mean(gaps),
-    favouriteProfile: favourite ? { profileId: favourite.profileId, title: favourite.title, brews: favourite.brews } : null,
+    topProfiles: ranked.slice(0, 3).map(p => ({ profileId: p.profileId, title: p.title, brews: p.brews })),
     lastBrewAt: past[past.length - 1]?.startedAt ?? null,
   }
 }

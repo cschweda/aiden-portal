@@ -55,17 +55,36 @@ describe('computeStats', () => {
     expect(stats.averageBetweenBrewsH).toBeCloseTo(gaps.reduce((a, b) => a + b) / gaps.length, 6)
   })
   it('names the most used profile, breaking ties by the latest brew', () => {
-    expect(stats.favouriteProfile).toEqual({ profileId: 'plocal1', title: 'Medium Roast', brews: 3 })
+    expect(stats.topProfiles[0]).toEqual({ profileId: 'plocal1', title: 'Medium Roast', brews: 3 })
     const tied = computeStats([brew(at(2026, 9, 1)), brew(at(2026, 9, 2), { profileId: 'plocal2', profileTitle: 'Dark Roast' })], NOW)
-    expect(tied.favouriteProfile?.title).toBe('Dark Roast')
+    expect(tied.topProfiles[0]?.title).toBe('Dark Roast')
     expect(stats.lastBrewAt).toBe(at(2026, 9, 16, 9))
+  })
+  it('ranks the profiles used most, keeping three at most', () => {
+    expect(stats.topProfiles).toEqual([
+      { profileId: 'plocal1', title: 'Medium Roast', brews: 3 },
+      { profileId: 'plocal2', title: 'Dark Roast', brews: 2 },
+    ])
+    const many = computeStats([
+      brew(at(2026, 9, 1), { profileId: 'p4', profileTitle: 'Fourth' }),
+      brew(at(2026, 9, 2), { profileId: 'p3', profileTitle: 'Third' }),
+      brew(at(2026, 9, 3), { profileId: 'p3', profileTitle: 'Third' }),
+      brew(at(2026, 9, 4), { profileId: 'p2', profileTitle: 'Second' }),
+      brew(at(2026, 9, 5), { profileId: 'p2', profileTitle: 'Second' }),
+      brew(at(2026, 9, 6), { profileId: 'p2', profileTitle: 'Second' }),
+      brew(at(2026, 9, 7), { profileId: 'p1', profileTitle: 'First' }),
+      brew(at(2026, 9, 8), { profileId: 'p1', profileTitle: 'First' }),
+      brew(at(2026, 9, 9), { profileId: 'p1', profileTitle: 'First' }),
+      brew(at(2026, 9, 10), { profileId: 'p1', profileTitle: 'First' }),
+    ], NOW)
+    expect(many.topProfiles.map(p => `${p.title} ${p.brews}`)).toEqual(['First 4', 'Second 3', 'Third 2'])
   })
   it('copes with an empty log', () => {
     const empty = computeStats([], NOW)
     expect(empty.today).toEqual({ brews: 0, waterMl: 0 })
     expect(empty.averageDurationS).toBeNull()
     expect(empty.averageBetweenBrewsH).toBeNull()
-    expect(empty.favouriteProfile).toBeNull()
+    expect(empty.topProfiles).toEqual([])
     expect(empty.logged.since).toBeNull()
   })
 })

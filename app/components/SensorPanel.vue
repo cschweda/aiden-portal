@@ -9,6 +9,7 @@ const props = defineProps<{
   readAt: number | null
   coffee?: HistoryResponse['coffee'] | null
   descale?: HistoryResponse['descale'] | null
+  stats?: HistoryResponse['stats'] | null
 }>()
 const emit = defineEmits<{ marked: [] }>()
 
@@ -29,8 +30,23 @@ const sitting = computed(() => {
 })
 
 type Tone = 'default' | 'success' | 'error' | 'neutral' | 'primary'
-interface Reading { label: string, value: string, tone?: Tone, mono?: boolean }
+/** A `heading` reading is a label across the row, marking off the readings under it. */
+interface Reading { label: string, value: string, tone?: Tone, mono?: boolean, heading?: boolean }
 interface Group { title: string, readings: Reading[] }
+
+/**
+ * The profiles brewed most, under the brewer's lifetime totals. These count the brews this app has logged rather
+ * than the brewer's own counter, which knows nothing about profiles, so the heading says what the count is out of.
+ */
+const topProfiles = computed<Reading[]>(() => {
+  const top = props.stats?.topProfiles ?? []
+  if (top.length === 0) return []
+  const logged = props.stats?.logged.brews ?? 0
+  return [
+    { label: `Most used, of ${logged} logged here`, value: '', heading: true },
+    ...top.map(p => ({ label: p.title ?? p.profileId ?? 'Unknown profile', value: String(p.brews) })),
+  ]
+})
 
 const toneClass: Record<Tone, string> = {
   default: '',
@@ -109,6 +125,9 @@ const groups = computed<Group[]>(() => {
         text('Brews', d.totalBrewingCycles),
         text('Water brewed', d.totalWaterVolumeL === undefined ? undefined : formatLitresFromMl(d.totalWaterVolumeL)),
         text('Average per brew', averageMl === undefined ? undefined : formatMillilitres(averageMl)),
+        // From the app's own log rather than the brewer, which counts cycles but times nothing.
+        { label: 'Average brew time', value: formatDuration(props.stats?.averageDurationS), tone: (props.stats?.averageDurationS ? 'default' : 'neutral') as Tone },
+        ...topProfiles.value,
       ],
     },
     {
@@ -162,14 +181,19 @@ const groups = computed<Group[]>(() => {
             {{ group.title }}
           </h4>
           <dl class="divide-y divide-default">
-            <div v-for="reading in group.readings" :key="reading.label" class="flex items-baseline justify-between gap-4 px-4 py-1.5 text-sm">
-              <dt class="text-muted">
+            <template v-for="(reading, i) in group.readings" :key="`${group.title}-${i}`">
+              <p v-if="reading.heading" class="px-4 pb-1 pt-2.5 text-xs text-muted">
                 {{ reading.label }}
-              </dt>
-              <dd class="text-right" :class="[toneClass[reading.tone ?? 'default'], reading.mono ? 'font-mono text-xs' : 'tabular']">
-                {{ reading.value }}
-              </dd>
-            </div>
+              </p>
+              <div v-else class="flex items-baseline justify-between gap-4 px-4 py-1.5 text-sm">
+                <dt class="text-muted">
+                  {{ reading.label }}
+                </dt>
+                <dd class="text-right" :class="[toneClass[reading.tone ?? 'default'], reading.mono ? 'font-mono text-xs' : 'tabular']">
+                  {{ reading.value }}
+                </dd>
+              </div>
+            </template>
           </dl>
         </div>
         <!-- Maintenance belongs with the totals it is counted from. -->

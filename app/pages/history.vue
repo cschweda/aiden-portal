@@ -53,7 +53,7 @@ const tiles = computed(() => {
     { label: 'Logged', value: String(s.logged.brews), sub: s.logged.since ? `since ${formatDateTime(s.logged.since)}` : 'nothing yet' },
     { label: 'Average brew', value: formatDuration(s.averageDurationS), sub: 'watched brews only' },
     { label: 'Between brews', value: formatHours(s.averageBetweenBrewsH), sub: 'last thirty brews' },
-    { label: 'Most used profile', value: s.favouriteProfile?.title ?? s.favouriteProfile?.profileId ?? '—', sub: s.favouriteProfile ? `${s.favouriteProfile.brews} brew${s.favouriteProfile.brews === 1 ? '' : 's'}` : 'no brews logged yet' },
+    { label: 'Most used profile', value: s.topProfiles[0]?.title ?? s.topProfiles[0]?.profileId ?? '—', sub: s.topProfiles[0] ? `${s.topProfiles[0].brews} brew${s.topProfiles[0].brews === 1 ? '' : 's'}` : 'no brews logged yet' },
     { label: 'Last brew', value: s.lastBrewAt ? formatAgo(s.lastBrewAt) : '—', sub: s.lastBrewAt ? formatDateTime(s.lastBrewAt) : 'nothing yet' },
   ]
 })
