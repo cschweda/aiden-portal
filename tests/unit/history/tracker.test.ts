@@ -56,6 +56,29 @@ describe('BrewTracker', () => {
     const [event] = tracker.observe(idle(71, { brewEndTime: T0 + 9_000_000 }), T0 + 400_000)
     expect(event).toMatchObject({ type: 'completed', record: { endedAt: T0 + 400_000 } })
   })
+  it('takes the brewer\'s start for a brew it joined already running, once that brew is over', () => {
+    const tracker = new BrewTracker()
+    // A restart mid-brew: the first read is already brewing, and the brewer is still holding the previous brew's
+    // start from a day ago, so the pickup can only anchor on the clock.
+    tracker.observe(brewing('d', { brewStartTime: (T0 - 86_400_000) / 1000 }), T0 + 360_000)
+    expect(tracker.currentBrew).toMatchObject({ startedAt: T0 + 360_000, startOrigin: 'first-read' })
+    const [event] = tracker.observe(idle(71, { brewStartTime: T0 / 1000, brewEndTime: (T0 + 380_000) / 1000 }), T0 + 400_000)
+    // The brewer has caught up by the time it reads idle, so the record carries the real start and a duration.
+    expect(event).toMatchObject({ type: 'completed', record: { id: `b${T0 + 360_000}`, startedAt: T0, endedAt: T0 + 380_000, durationS: 380 } })
+  })
+  it('never lets a recovered start drag the end time back before the app joined the brew', () => {
+    const tracker = new BrewTracker()
+    tracker.observe(brewing('d', { brewStartTime: (T0 - 86_400_000) / 1000 }), T0 + 360_000)
+    // An end time from before the pickup belongs to no brew this one watched, so the clock still wins.
+    const [event] = tracker.observe(idle(71, { brewStartTime: T0 / 1000, brewEndTime: (T0 + 100_000) / 1000 }), T0 + 400_000)
+    expect(event).toMatchObject({ type: 'completed', record: { startedAt: T0, endedAt: T0 + 400_000 } })
+  })
+  it('keeps the duration unknown when the brewer never says when the brew began', () => {
+    const tracker = new BrewTracker()
+    tracker.observe(brewing('d'), T0 + 360_000)
+    const [event] = tracker.observe(idle(71), T0 + 400_000)
+    expect(event).toMatchObject({ type: 'completed', record: { startedAt: T0 + 360_000, durationS: null } })
+  })
   it('infers the brews it missed from a counter that rose while idle', () => {
     const tracker = new BrewTracker()
     tracker.observe(idle(70), T0)

@@ -99,7 +99,7 @@ watch(() => device.data.value, (value) => {
               {{ trace.brew.profileTitle ?? trace.brew.profileId ?? 'selected profile' }} · {{ trace.live ? `started ${formatTime(trace.brew.startedAt)}` : formatDateTime(trace.brew.startedAt) }}<template v-if="countdown"> · {{ countdown }}</template>
             </p>
           </div>
-          <BrewTraceChart :samples="trace.brew.samples" :started-at="trace.brew.startedAt" :interval-s="history.data.value.polling.brewPollSeconds" :expected-s="trace.expected?.seconds ?? null" :target="trace.brew.target ?? null" />
+          <BrewTraceChart :samples="trace.brew.samples" :started-at="trace.brew.startedAt" :interval-s="history.data.value.polling.brewPollSeconds" :idle-poll-s="history.data.value.polling.idlePollSeconds" :expected-s="trace.expected?.seconds ?? null" :target="trace.brew.target ?? null" />
         </section>
       </div>
     </template>

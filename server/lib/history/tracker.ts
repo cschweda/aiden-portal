@@ -283,15 +283,30 @@ export class BrewTracker {
     }
   }
 
+  /**
+   * The real start of a brew the poller joined already running. Such a brew is anchored on the clock at pickup,
+   * which a restart mid-brew (every reinstall does one) puts near the end of it. The brewer does report the true
+   * start, but while the brew runs it can still be holding the previous one, which is why the pickup rejected it;
+   * once the brew is over it has caught up, so it is asked again here and believed when it lands between the same
+   * six-hour window and the pickup. Only the start is revisited: the end keeps the pickup as its lower bound, so
+   * nothing that reads `endedAt` (the coffee clock) can move.
+   */
+  private recoverStart(brew: CurrentBrew, device: Device, now: number): number | undefined {
+    if (brew.startOrigin !== 'first-read') return undefined
+    return plausibleEpoch(device.brewStartTime, now - START_WINDOW_MS, brew.startedAt)
+  }
+
   private complete(brew: CurrentBrew, device: Device, now: number, cycles: number | undefined): BrewRecord {
     const endedAt = plausibleEpoch(device.brewEndTime, brew.startedAt, now + 60_000) ?? now
+    const recovered = this.recoverStart(brew, device, now)
+    const startedAt = recovered ?? brew.startedAt
     const counted = cycles !== undefined && brew.cyclesBefore !== null && cycles === brew.cyclesBefore + 1
-    const trustedStart = brew.startOrigin !== 'first-read'
+    const trustedStart = brew.startOrigin !== 'first-read' || recovered !== undefined
     return {
       id: brew.id,
-      startedAt: brew.startedAt,
+      startedAt,
       endedAt,
-      durationS: counted && trustedStart ? Math.max(0, Math.round((endedAt - brew.startedAt) / 1000)) : null,
+      durationS: counted && trustedStart ? Math.max(0, Math.round((endedAt - startedAt) / 1000)) : null,
       waterMl: device.brewingWaterVolumeMl ?? null,
       profileId: brew.profileId,
       profileTitle: brew.profileTitle,

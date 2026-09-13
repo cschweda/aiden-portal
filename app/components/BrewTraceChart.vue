@@ -8,11 +8,13 @@ const props = withDefaults(defineProps<{
   startedAt: number
   /** Seconds between samples, which sets how far the last band extends. */
   intervalS?: number
+  /** How long the app can take to notice a brew began; a longer gap at the head means samples are actually missing. */
+  idlePollS?: number
   /** Expected total length, so a live trace's axis spans the whole brew from the start. */
   expectedS?: number | null
   /** What the recipe asked for, captured when the brew started. Drawn dashed, beside or instead of a measurement. */
   target?: TraceTarget | null
-}>(), { intervalS: 5, expectedS: null, target: null })
+}>(), { intervalS: 5, idlePollS: 60, expectedS: null, target: null })
 
 const PAD = { top: 28, right: 12, bottom: 28, left: 40 }
 const ROW_LABEL_WIDTH = 52
@@ -47,6 +49,17 @@ const elapsed = (t: number) => (t - props.startedAt) / 1000
 const spanS = computed(() => {
   const last = props.samples[props.samples.length - 1]
   return Math.max(last ? elapsed(last.t) + props.intervalS : props.intervalS * 4, props.expectedS ?? 0, 30)
+})
+/**
+ * How much of the brew ran before the app recorded any of it. A brew is normally noticed within one idle poll of
+ * starting, so anything beyond that is a stretch nothing was watched for: a restart mid-brew, whose samples were
+ * only ever in memory. The brewer still reports the full length, so the axis keeps it and the gap is drawn as a gap.
+ */
+const missingHeadS = computed(() => {
+  const first = props.samples[0]
+  if (!first) return 0
+  const gap = elapsed(first.t)
+  return gap > props.idlePollS + props.intervalS ? gap : 0
 })
 const yDomain = computed<[number, number]>(() => {
   const values = [...temperatures.value, ...targets.value.map(t => t.celsius)]
@@ -181,6 +194,19 @@ const onOff = (value: boolean | undefined) => (value === undefined ? '—' : val
       @mousemove="onMove"
       @mouseleave="hovered = null"
     >
+      <!-- The brew was already running when the app joined it; nothing was recorded for this stretch. -->
+      <g v-if="missingHeadS > 0">
+        <rect
+          :x="x(0)"
+          :y="PAD.top - 20"
+          :width="Math.max(0, x(missingHeadS) - x(0))"
+          :height="plotBottom - PAD.top + 20"
+          fill="var(--ui-border)"
+          opacity="0.35"
+        />
+        <text v-if="x(missingHeadS) - x(0) >= 72" :x="x(0) + 4" :y="PAD.top - 8" font-size="10" fill="var(--ui-text-muted)">not recorded</text>
+      </g>
+
       <g v-for="(band, i) in bands" :key="`${band.phase}-${band.from}`">
         <rect
           :x="x(band.from)"
@@ -264,6 +290,11 @@ const onOff = (value: boolean | undefined) => (value === undefined ? '—' : val
         <template v-if="hasTemperatures">{{ formatTemperature(hoverSample.temperatureC) }} · </template>heater {{ onOff(hoverSample.heaterOn) }} · pump {{ onOff(hoverSample.pumpOn) }}
       </p>
     </div>
+
+    <p v-if="missingHeadS > 0" class="mt-1 text-xs text-muted">
+      This brew was already running when the app started watching it, so the first {{ formatClock(missingHeadS) }}
+      went unrecorded. Its length comes from the brewer, which keeps the real start.
+    </p>
 
     <p v-if="!hasTemperatures" class="mt-1 text-xs text-muted">
       <template v-if="targets.length">

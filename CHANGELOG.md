@@ -7,6 +7,17 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.15.3] - 2026-09-13
+
+### Fixed
+
+- A brew the app joined already running, which any restart mid-brew causes, kept the moment it was picked up as its
+  start and carried no duration. The brewer holds the real start but only catches up once the brew is over, so it is
+  read again at that point and the record is anchored on it. The end time is untouched, so the coffee clock cannot
+  move.
+- The brew trace marks the stretch it has no samples for, rather than drawing an empty chart, and says how much of
+  the brew went unrecorded.
+
 ## [0.15.2] - 2026-09-13
 
 ### Changed
