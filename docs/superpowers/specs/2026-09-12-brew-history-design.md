@@ -1,7 +1,7 @@
 # Brew history, brew trace, and descale tally
 
 Approved by the owner on 2026-09-12 (design in chat; threshold 60 L; idle polling every 60 s; a Mark descaled
-button that resets the tally; an estimate of when descaling is due, because Chicago's Lake Michigan water is hard).
+button that resets the tally; an estimate of when descaling is due, because the owner's water is hard).
 
 ## What it adds
 

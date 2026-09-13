@@ -83,14 +83,14 @@ export default defineAidenConfig({
 
   maintenance: {
     // Litres through the brewer since you last pressed "Mark descaled". The Aiden prompts on its own at 150 L,
-    // which takes no account of how hard the water is; this threshold is the hardness-aware one. It is set for
-    // Lake Michigan water, which runs 130 to 150 mg/L as calcium carbonate, or 7.6 to 8.8 grains per gallon, and
-    // moves by under 10% across the year. Source: Chicago's Department of Water Management, 311.chicago.gov,
-    // "What is hardness and how many grains per gallon are in the city's water". That sits inside the USGS
-    // "hard" band of 121 to 180 mg/L but in its lower half, and Fellow advises descaling monthly at that
-    // hardness, which is roughly 30 L at one batch brew a day. Raise this for softer water; lower it for a well
-    // supply, which in the same region runs two to three times harder. Note that a municipal water quality
-    // report may not carry hardness at all: it is unregulated, so many of them leave it out.
+    // which takes no account of how hard the water is; this threshold is the hardness-aware one. It assumes
+    // water around 7 to 9 grains per gallon, or 120 to 155 mg/L as calcium carbonate, which is the lower half of
+    // the USGS "hard" band and typical of a treated surface-water supply. Fellow advises descaling monthly at
+    // that hardness, and a month is roughly 30 L at one batch brew a day:
+    // help.fellowproducts.com, "Water Hardness and Scale Buildup: Everything You Need to Know".
+    // Raise this for softer water and lower it for harder; well water often runs two to three times harder.
+    // Find your own figure from your supplier, not from a ranking site, and note that a water quality report may
+    // not carry hardness at all, since it is unregulated and many of them leave it out.
     descaleAfterLitres: 30,
     // A brew-count threshold as well, off by default: scale comes from the water that passes through the brewer,
     // and a cycle count cannot tell a 300 mL single serve from a 1.5 L carafe. Set a number above 0 to use it,

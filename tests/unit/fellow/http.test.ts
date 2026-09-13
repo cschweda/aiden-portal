@@ -66,8 +66,8 @@ describe('login', () => {
       }),
       http.get(devicesUrl, () => HttpResponse.json([DEVICE])),
     )
-    await makeHttp({ timezone: 'America/Chicago' }).request('GET', '/devices?dataType=real')
-    expect(loginBody).toEqual({ email: EMAIL, password: PASSWORD, timezone: 'America/Chicago' })
+    await makeHttp({ timezone: 'America/New_York' }).request('GET', '/devices?dataType=real')
+    expect(loginBody).toEqual({ email: EMAIL, password: PASSWORD, timezone: 'America/New_York' })
   })
 
   it.each([400, 401, 403])('reports a %s on login as fellow_auth_failed', async (status) => {

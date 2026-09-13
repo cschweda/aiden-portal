@@ -97,7 +97,7 @@ const state = {
     displayClock24hrMode: true,
     isAdvanceMode: false,
     languageCode: 'en-us',
-    deviceTimezone: 'America/Chicago',
+    deviceTimezone: 'America/New_York',
     enabledFlags: ['base', 'profiles', 'notifications', 'schedules', 'remoteBrewing'],
   },
   profiles: [

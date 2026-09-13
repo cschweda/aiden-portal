@@ -89,7 +89,7 @@ export function parseEnv(env: Record<string, string | undefined>, aiden: AidenCo
   const timezone = raw.FELLOW_TIMEZONE ?? aiden.fellow.timezone ?? (Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
   if (!isIanaTimeZone(timezone)) {
     const source = raw.FELLOW_TIMEZONE ? 'FELLOW_TIMEZONE' : 'aiden.config.ts fellow.timezone'
-    throw new Error(`Invalid time zone "${timezone}" in ${source}; use an IANA zone such as America/Chicago`)
+    throw new Error(`Invalid time zone "${timezone}" in ${source}; use an IANA zone such as America/New_York`)
   }
 
   const baseUrl = raw.FELLOW_BASE_URL ?? aiden.fellow.baseUrl

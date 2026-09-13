@@ -42,7 +42,7 @@ describe('parseEnv', () => {
     const config = parseEnv({
       ...MINIMAL,
       FELLOW_DRY_RUN: 'true',
-      FELLOW_TIMEZONE: 'America/Chicago',
+      FELLOW_TIMEZONE: 'America/New_York',
       ALLOWED_HOSTS: ' Localhost:3000 , aiden.example.com ',
       LOG_LEVEL: 'warn',
       HOST: 'localhost',
@@ -50,7 +50,7 @@ describe('parseEnv', () => {
       NODE_ENV: 'production',
     }, AIDEN)
     expect(config.fellow.dryRun).toBe(true)
-    expect(config.fellow.timezone).toBe('America/Chicago')
+    expect(config.fellow.timezone).toBe('America/New_York')
     expect(config.allowedHosts).toEqual(['localhost', 'aiden.example.com'])
     expect(config.logging.level).toBe('warn')
     expect(config.host).toBe('localhost')

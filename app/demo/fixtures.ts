@@ -96,7 +96,7 @@ export function demoDevice(now: number): Device {
     displayClock24hrMode: false,
     isAdvanceMode: false,
     languageCode: 'en-us',
-    deviceTimezone: 'America/Chicago',
+    deviceTimezone: 'America/New_York',
     enabledFlags: ['base', 'profiles', 'notifications', 'schedules', 'remoteBrewing'],
   } as Device
 }
