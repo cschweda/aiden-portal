@@ -84,9 +84,12 @@ export default defineAidenConfig({
   maintenance: {
     // Litres through the brewer since you last pressed "Mark descaled". The Aiden prompts on its own at 150 L,
     // which takes no account of how hard the water is; this threshold is the hardness-aware one. Lake Michigan
-    // water, as supplied to Chicago and much of DuPage County, runs about 8 grains per gallon, or 137 mg/L as
-    // calcium carbonate: the low end of "hard". Fellow advises descaling monthly at that hardness, which is
-    // roughly 30 L at a batch brew a day. Raise it for softer water, lower it for a well supply.
+    // water, as supplied to Chicago and on to much of DuPage County, runs 130 to 150 mg/L as calcium carbonate,
+    // or 7.6 to 8.8 grains per gallon, and moves by under 10% across the year. Source: Chicago's Department of
+    // Water Management, 311.chicago.gov, "What is hardness and how many grains per gallon are in the city's
+    // water". That is inside the USGS "hard" band of 121 to 180 mg/L but in its lower half, and Fellow advises
+    // descaling monthly at that hardness, which is roughly 30 L at one batch brew a day. Raise this for softer
+    // water; lower it for a well supply, which in DuPage County averages far harder.
     descaleAfterLitres: 30,
     // A brew-count threshold as well, off by default: scale comes from the water that passes through the brewer,
     // and a cycle count cannot tell a 300 mL single serve from a 1.5 L carafe. Set a number above 0 to use it,
