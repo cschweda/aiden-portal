@@ -7,6 +7,14 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-09-13
+
+### Changed
+
+- The sensor panel shows a water temperature row only where the brewer reports one. On an Aiden it never does, so
+  the row was permanently a dash; the capability is not removed, it simply appears when a reading arrives, as the
+  demo's brewer shows.
+
 ## [0.14.0] - 2026-09-13
 
 ### Added

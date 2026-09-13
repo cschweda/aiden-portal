@@ -52,9 +52,8 @@ const groups = computed<Group[]>(() => {
           : { label: 'Brew phase', value: capitalise(phase), tone: phase === 'idle' ? 'default' : 'primary' },
         flag('Heater', d.heaterOn, 'On', 'Off', 'primary'),
         flag('Pump', d.pumpOn, 'On', 'Off', 'primary'),
-        d.brewingWaterTemperatureC === undefined
-          ? unreported('Water temperature')
-          : { label: 'Water temperature', value: formatTemperature(d.brewingWaterTemperatureC) },
+        // Only where a brewer reports it. This one never does, and a row that is always a dash is just noise.
+        ...(d.brewingWaterTemperatureC === undefined ? [] : [{ label: 'Water temperature', value: formatTemperature(d.brewingWaterTemperatureC) }]),
         text('Last cycle water', d.brewingWaterVolumeMl === undefined ? undefined : formatMillilitres(d.brewingWaterVolumeMl)),
         when('Last cycle started', d.brewStartTime),
         flag('Cleaning', d.cleaning, 'Running', 'No', 'primary'),
