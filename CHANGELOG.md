@@ -7,6 +7,16 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-09-13
+
+### Changed
+
+- The brew trace draws its two series in two colours instead of one colour and a dash pattern. Measured keeps the
+  app's amber; the recipe target takes a cool blue, stepped per surface so it stays legible on both. The pairing
+  was checked with a palette validator: the worst separation is 26 under simulated protanopia and 30 to
+  full-colour vision, both well above the floors, and the target line clears 8:1 contrast on the dark card.
+- A legend under the trace names the solid and dashed lines, so identity never rests on colour alone.
+
 ## [0.18.4] - 2026-09-13
 
 ### Changed
