@@ -118,6 +118,10 @@ counters.
   watched and the brew counter rose by exactly one; a counter that rose while nobody was watching (Mac asleep,
   service down) becomes an inferred brew with the brewer's own timestamps and no duration. Fellow never says which
   profile ran, so the log records the one that was selected on the brewer and the UI says so.
+- **The trace.** What the brewer reports through a brew: the phase it is in, and when the heater and pump run.
+  Over that, dashed, the temperature the recipe asked for, captured when the brew started so it survives a later
+  edit of the profile. A brewer that reports the water temperature it reaches gets a solid line for that too; this
+  one does not report it at all.
 - **Time to go.** During a brew the live trace says about how long is left: measured from your previous watched
   brews of the same profile once there are any, and worked out from the recipe (bloom, an assumed pour rate, the
   pauses between pulses, a drip finish) until then. Fellow does not expose the brewer's own countdown.

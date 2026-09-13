@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { TraceSample } from '#shared/types/api'
+import type { TraceSample, TraceTarget } from '#shared/types/api'
+import { targetSegments } from '../utils/brew-target'
 import { formatClock, formatTemperature, formatTime } from '../utils/format'
 
 const props = withDefaults(defineProps<{
@@ -9,13 +10,14 @@ const props = withDefaults(defineProps<{
   intervalS?: number
   /** Expected total length, so a live trace's axis spans the whole brew from the start. */
   expectedS?: number | null
-}>(), { intervalS: 5, expectedS: null })
+  /** What the recipe asked for, captured when the brew started. Drawn dashed, beside or instead of a measurement. */
+  target?: TraceTarget | null
+}>(), { intervalS: 5, expectedS: null, target: null })
 
 const PAD = { top: 28, right: 12, bottom: 28, left: 40 }
-/** Without temperatures the drawing is a timeline of what the brewer does report, so it needs less height. */
-const TEMPERATURE_HEIGHT = 220
-const TIMELINE_HEIGHT = 150
 const ROW_LABEL_WIDTH = 52
+/** Heater and pump sit in their own rows above the time axis, whenever no measurement fills the plot. */
+const ROWS_HEIGHT = 44
 
 const host = ref<HTMLElement | null>(null)
 const width = ref(720)
@@ -34,8 +36,12 @@ onBeforeUnmount(() => observer?.disconnect())
 const temperatures = computed(() => props.samples.map(s => s.temperatureC).filter((c): c is number => typeof c === 'number'))
 /** Some brewers report the water temperature during a brew and some never do; the drawing follows what arrived. */
 const hasTemperatures = computed(() => temperatures.value.length > 0)
-const height = computed(() => (hasTemperatures.value ? TEMPERATURE_HEIGHT : TIMELINE_HEIGHT))
-const padLeft = computed(() => (hasTemperatures.value ? PAD.left : ROW_LABEL_WIDTH))
+/** Heater and pump are worth a row of their own when no measurement is filling the plot. */
+const showRows = computed(() => !hasTemperatures.value)
+const rowsHeight = computed(() => (showRows.value ? ROWS_HEIGHT : 0))
+const hasScale = computed(() => hasTemperatures.value || targets.value.length > 0)
+const height = computed(() => (hasTemperatures.value ? 220 : hasScale.value ? 236 : 160))
+const padLeft = computed(() => (showRows.value ? ROW_LABEL_WIDTH : PAD.left))
 
 const elapsed = (t: number) => (t - props.startedAt) / 1000
 const spanS = computed(() => {
@@ -43,17 +49,21 @@ const spanS = computed(() => {
   return Math.max(last ? elapsed(last.t) + props.intervalS : props.intervalS * 4, props.expectedS ?? 0, 30)
 })
 const yDomain = computed<[number, number]>(() => {
-  if (!hasTemperatures.value) return [0, 1]
-  const lo = Math.floor((Math.min(...temperatures.value) - 1) / 5) * 5
-  const hi = Math.ceil((Math.max(...temperatures.value) + 1) / 5) * 5
+  const values = [...temperatures.value, ...targets.value.map(t => t.celsius)]
+  if (values.length === 0) return [0, 1]
+  const lo = Math.floor((Math.min(...values) - 1) / 5) * 5
+  const hi = Math.ceil((Math.max(...values) + 1) / 5) * 5
   return hi - lo < 10 ? [lo - 5, hi + 5] : [lo, hi]
 })
 const plotWidth = computed(() => Math.max(width.value - padLeft.value - PAD.right, 40))
+/** Where the bands and the crosshair stop: the time axis is below this. */
 const plotBottom = computed(() => height.value - PAD.bottom)
+/** Where the temperature scale stops: above the heater and pump rows when they are shown. */
+const scaleBottom = computed(() => plotBottom.value - rowsHeight.value)
 const x = (seconds: number) => padLeft.value + (seconds / spanS.value) * plotWidth.value
 const y = (celsius: number) => {
   const [lo, hi] = yDomain.value
-  return PAD.top + (1 - (celsius - lo) / (hi - lo)) * (plotBottom.value - PAD.top)
+  return PAD.top + (1 - (celsius - lo) / (hi - lo)) * (scaleBottom.value - PAD.top)
 }
 
 /** Contiguous runs of one phase, each spanning from its first sample to the next run's first sample. */
@@ -91,13 +101,15 @@ function runsOf(key: 'heaterOn' | 'pumpOn') {
   return runs
 }
 const rows = computed(() => {
-  const top = PAD.top + 14
-  const gap = 34
+  const first = plotBottom.value - ROWS_HEIGHT + 6
   return [
-    { label: 'Heater', y: top, runs: runsOf('heaterOn'), reported: props.samples.some(s => s.heaterOn !== undefined) },
-    { label: 'Pump', y: top + gap, runs: runsOf('pumpOn'), reported: props.samples.some(s => s.pumpOn !== undefined) },
+    { label: 'Heater', y: first, runs: runsOf('heaterOn'), reported: props.samples.some(s => s.heaterOn !== undefined) },
+    { label: 'Pump', y: first + 20, runs: runsOf('pumpOn'), reported: props.samples.some(s => s.pumpOn !== undefined) },
   ]
 })
+
+/** The recipe's temperature across the phases the brewer went through, as a stepped dashed line. */
+const targets = computed(() => targetSegments(bands.value, props.target))
 
 const xTicks = computed(() => {
   const span = spanS.value
@@ -107,7 +119,7 @@ const xTicks = computed(() => {
   return ticks
 })
 const yTicks = computed(() => {
-  if (!hasTemperatures.value) return []
+  if (!hasScale.value) return []
   const [lo, hi] = yDomain.value
   const step = hi - lo > 30 ? 10 : 5
   const ticks: number[] = []
@@ -180,12 +192,25 @@ const onOff = (value: boolean | undefined) => (value === undefined ? '—' : val
         <text v-if="x(band.to) - x(band.from) >= 34" :x="x(band.from) + 4" :y="PAD.top - 8" font-size="10" fill="var(--ui-text-muted)">{{ band.phase }}</text>
       </g>
 
-      <template v-if="hasTemperatures">
+      <template v-if="hasScale">
         <g v-for="c in yTicks" :key="c">
           <line :x1="padLeft" :x2="width - PAD.right" :y1="y(c)" :y2="y(c)" stroke="var(--ui-border)" stroke-width="1" />
           <text :x="padLeft - 6" :y="y(c) + 3" text-anchor="end" font-size="10" fill="var(--ui-text-muted)">{{ c }}°</text>
         </g>
-        <path :d="linePath" fill="none" stroke="var(--ui-primary)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+        <!-- What the recipe asked for: dashed, and never mistaken for a reading. -->
+        <g v-for="segment in targets" :key="`target-${segment.from}`">
+          <line
+            :x1="x(segment.from)"
+            :x2="x(segment.to)"
+            :y1="y(segment.celsius)"
+            :y2="y(segment.celsius)"
+            stroke="var(--ui-primary)"
+            stroke-width="2"
+            stroke-dasharray="5 4"
+            opacity="0.75"
+          />
+        </g>
+        <path v-if="hasTemperatures" :d="linePath" fill="none" stroke="var(--ui-primary)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
         <template v-for="(sample, i) in samples" :key="sample.t">
           <circle
             v-if="typeof sample.temperatureC === 'number'"
@@ -199,8 +224,8 @@ const onOff = (value: boolean | undefined) => (value === undefined ? '—' : val
         </template>
       </template>
 
-      <!-- No temperature to plot: show what the brewer does report, as a timeline. -->
-      <template v-else>
+      <!-- Heater and pump, whenever no measurement is filling the plot. -->
+      <template v-if="showRows">
         <g v-for="row in rows" :key="row.label">
           <text :x="padLeft - 8" :y="row.y + 11" text-anchor="end" font-size="10" fill="var(--ui-text-muted)">{{ row.label }}</text>
           <rect :x="padLeft" :y="row.y" :width="plotWidth" height="14" rx="3" fill="var(--ui-border)" opacity="0.45" />
@@ -241,8 +266,14 @@ const onOff = (value: boolean | undefined) => (value === undefined ? '—' : val
     </div>
 
     <p v-if="!hasTemperatures" class="mt-1 text-xs text-muted">
-      This brewer does not report the water temperature, so the trace shows what it does report: the phase it is in,
-      and when the heater and pump run.
+      <template v-if="targets.length">
+        This brewer does not report the water temperature it reaches. The dashed line is the temperature the recipe
+        asked for, held against the phases it actually went through, with the heater and pump beneath.
+      </template>
+      <template v-else>
+        This brewer does not report the water temperature, so the trace shows what it does report: the phase it is
+        in, and when the heater and pump run.
+      </template>
     </p>
 
     <div class="mt-1">

@@ -120,7 +120,7 @@ const pollingLine = computed(() => {
                 {{ live.profileTitle ?? live.profileId ?? 'selected profile' }} · started {{ formatTime(live.startedAt) }}<template v-if="countdown"> · {{ countdown }}</template>
               </p>
             </div>
-            <BrewTraceChart :samples="live.samples" :started-at="live.startedAt" :interval-s="history.data.value.polling.brewPollSeconds" :expected-s="live.expected?.seconds ?? null" />
+            <BrewTraceChart :samples="live.samples" :started-at="live.startedAt" :interval-s="history.data.value.polling.brewPollSeconds" :expected-s="live.expected?.seconds ?? null" :target="live.target ?? null" />
           </section>
 
           <section v-if="traced" class="space-y-3">
@@ -132,7 +132,7 @@ const pollingLine = computed(() => {
                 {{ traced.profileTitle ?? traced.profileId ?? 'selected profile' }} · {{ formatDateTime(traced.startedAt) }} · {{ formatDuration(traced.durationS) }} · {{ formatMillilitres(traced.waterMl ?? undefined) }}
               </p>
             </div>
-            <BrewTraceChart :samples="traced.samples" :started-at="traced.startedAt" :interval-s="history.data.value.polling.brewPollSeconds" />
+            <BrewTraceChart :samples="traced.samples" :started-at="traced.startedAt" :interval-s="history.data.value.polling.brewPollSeconds" :target="traced.target ?? null" />
           </section>
 
           <section class="space-y-3">

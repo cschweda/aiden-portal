@@ -63,15 +63,15 @@ const limits = PROFILE_LIMITS
 
           <UFormField label="Coffee to water ratio" name="ratio" :hint="`1:${state.ratio}`">
             <div class="flex items-center gap-4">
-              <USlider v-model="state.ratio" :min="limits.ratio.min" :max="limits.ratio.max" :step="limits.ratio.step" class="flex-1" />
-              <UInputNumber v-model="state.ratio" :min="limits.ratio.min" :max="limits.ratio.max" :step="limits.ratio.step" class="w-28" />
+              <USlider id="ratio-slider" v-model="state.ratio" aria-label="Coffee to water ratio" :min="limits.ratio.min" :max="limits.ratio.max" :step="limits.ratio.step" class="flex-1" />
+              <UInputNumber v-model="state.ratio" :min="limits.ratio.min" :max="limits.ratio.max" :step="limits.ratio.step" aria-label="Coffee to water ratio" class="w-28" />
             </div>
           </UFormField>
 
           <UFormField label="Brew temperature" name="overallTemperature" :hint="`${state.overallTemperature}°C`">
             <div class="flex items-center gap-4">
-              <USlider v-model="state.overallTemperature" :min="limits.overallTemperature.min" :max="limits.overallTemperature.max" :step="limits.overallTemperature.step" class="flex-1" />
-              <UInputNumber v-model="state.overallTemperature" :min="limits.overallTemperature.min" :max="limits.overallTemperature.max" :step="limits.overallTemperature.step" class="w-28" />
+              <USlider id="brew-temperature-slider" v-model="state.overallTemperature" aria-label="Brew temperature" :min="limits.overallTemperature.min" :max="limits.overallTemperature.max" :step="limits.overallTemperature.step" class="flex-1" />
+              <UInputNumber v-model="state.overallTemperature" :min="limits.overallTemperature.min" :max="limits.overallTemperature.max" :step="limits.overallTemperature.step" aria-label="Brew temperature" class="w-28" />
             </div>
           </UFormField>
         </section>
@@ -113,7 +113,7 @@ const limits = PROFILE_LIMITS
           </div>
           <UFormField label="Temperature per pulse" name="ssPulseTemperatures" :error-pattern="/^ssPulseTemperatures/" hint="°C">
             <div class="flex flex-wrap gap-2" :class="{ 'opacity-50': !state.ssPulsesEnabled }">
-              <UInputNumber v-for="(_, i) in state.ssPulseTemperatures" :key="i" v-model="state.ssPulseTemperatures[i]" :min="limits.pulseTemperature.min" :max="limits.pulseTemperature.max" :step="limits.pulseTemperature.step" :disabled="!state.ssPulsesEnabled" class="w-28" :aria-label="`Pulse ${i + 1} temperature`" />
+              <UInputNumber v-for="(_, i) in state.ssPulseTemperatures" :id="`ss-pulse-temperature-${i}`" :key="i" v-model="state.ssPulseTemperatures[i]" :min="limits.pulseTemperature.min" :max="limits.pulseTemperature.max" :step="limits.pulseTemperature.step" :disabled="!state.ssPulsesEnabled" class="w-28" :aria-label="`Pulse ${i + 1} temperature`" />
             </div>
           </UFormField>
         </section>
@@ -135,7 +135,7 @@ const limits = PROFILE_LIMITS
           </div>
           <UFormField label="Temperature per pulse" name="batchPulseTemperatures" :error-pattern="/^batchPulseTemperatures/" hint="°C">
             <div class="flex flex-wrap gap-2" :class="{ 'opacity-50': !state.batchPulsesEnabled }">
-              <UInputNumber v-for="(_, i) in state.batchPulseTemperatures" :key="i" v-model="state.batchPulseTemperatures[i]" :min="limits.pulseTemperature.min" :max="limits.pulseTemperature.max" :step="limits.pulseTemperature.step" :disabled="!state.batchPulsesEnabled" class="w-28" :aria-label="`Pulse ${i + 1} temperature`" />
+              <UInputNumber v-for="(_, i) in state.batchPulseTemperatures" :id="`batch-pulse-temperature-${i}`" :key="i" v-model="state.batchPulseTemperatures[i]" :min="limits.pulseTemperature.min" :max="limits.pulseTemperature.max" :step="limits.pulseTemperature.step" :disabled="!state.batchPulsesEnabled" class="w-28" :aria-label="`Pulse ${i + 1} temperature`" />
             </div>
           </UFormField>
         </section>

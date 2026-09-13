@@ -1,5 +1,13 @@
 import { z } from 'zod'
 
+/**
+ * In a browser, Zod's compiled validators are built with `new Function`, which a Content-Security-Policy without
+ * `unsafe-eval` refuses. Zod falls back on its own, but the attempt is reported as a violation, and a page should
+ * not need `unsafe-eval` to validate a form. The server keeps the compiled path.
+ */
+if (typeof (globalThis as { document?: unknown }).document !== 'undefined') z.config({ jitless: true })
+
+
 /** Inclusive half-step range, e.g. halfSteps(14, 20) → [14, 14.5, …, 20]. Mirrors the reference library's *_ENUM lists. */
 export function halfSteps(min: number, max: number): number[] {
   return Array.from({ length: (max - min) * 2 + 1 }, (_, i) => min + i * 0.5)

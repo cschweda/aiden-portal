@@ -9,6 +9,17 @@ export interface TraceSample {
   pumpOn?: boolean
 }
 
+/**
+ * What the recipe asked for, copied when the brew starts. Kept with the brew because a profile can be edited
+ * afterwards, and a trace should show the recipe that actually ran. `pulsesC` is already the right array for the
+ * basket that was in at the time.
+ */
+export interface TraceTarget {
+  bloomC: number | null
+  pulsesC: number[]
+  overallC: number | null
+}
+
 export interface BrewRecord {
   id: string
   startedAt: number
@@ -25,6 +36,7 @@ export interface BrewRecord {
   counted: boolean
   /** The brew counter after this brew: the baseline for spotting brews the poller missed. */
   cyclesAfter: number | null
+  target?: TraceTarget
   samples: TraceSample[]
 }
 

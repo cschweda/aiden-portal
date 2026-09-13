@@ -92,7 +92,7 @@ export class HistoryService {
     this.lastDevice = device
     this.polling.lastPollAt = now
     const logger = useLogger()
-    for (const event of this.tracker.observe(device, now, id => this.profiles.get(id)?.title)) {
+    for (const event of this.tracker.observe(device, now, id => this.profiles.get(id))) {
       if (event.type === 'started') {
         logger.info({ profileId: event.brew.profileId, profileTitle: event.brew.profileTitle, startOrigin: event.brew.startOrigin }, 'Brew started')
         if (event.brew.profileId && !event.brew.profileTitle) void this.refreshTitles(event.brew)

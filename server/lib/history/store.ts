@@ -19,6 +19,7 @@ const RecordSchema = z.looseObject({
   observed: z.boolean().default(false),
   counted: z.boolean().default(false),
   cyclesAfter: z.number().nullable().default(null),
+  target: z.looseObject({ bloomC: z.number().nullable(), pulsesC: z.array(z.number()), overallC: z.number().nullable() }).optional(),
   samples: z.array(SampleSchema).default([]),
 })
 const CleaningSchema = z.looseObject({

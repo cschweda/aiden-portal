@@ -1,7 +1,7 @@
 import { brewPhase, isBrewing } from '../fellow/device'
 import type { Device } from '../fellow/schemas'
 import { plausibleEpoch } from './time'
-import type { BrewRecord, CleaningKind, CleaningRecord, CleaningSample, TraceSample } from './types'
+import type { BrewRecord, CleaningKind, CleaningRecord, CleaningSample, TraceSample, TraceTarget } from './types'
 
 /** How the start time was learned. Only a brew whose start was seen (or reported by the brewer) gets a trusted duration. */
 export type StartOrigin = 'transition' | 'device' | 'first-read'
@@ -12,6 +12,7 @@ export interface CurrentBrew {
   startOrigin: StartOrigin
   profileId: string | null
   profileTitle: string | null
+  target: TraceTarget | null
   /** The brew counter before this brew, when known. */
   cyclesBefore: number | null
   samples: TraceSample[]
@@ -45,7 +46,27 @@ export interface TrackerOptions {
   seedLastBrew?: boolean
 }
 
-export type TitleLookup = (profileId: string) => string | undefined
+/** The profile a brew is running, as far as the app knows it. Only the fields a trace needs are read. */
+export interface TrackedProfile {
+  title?: string
+  bloomEnabled?: boolean | null
+  bloomTemperature?: number | null
+  overallTemperature?: number | null
+  ssPulseTemperatures?: number[] | null
+  batchPulseTemperatures?: number[] | null
+}
+
+export type ProfileLookup = (profileId: string) => TrackedProfile | undefined
+
+/** The recipe's temperatures for the basket that is in, or null when the profile says nothing useful. */
+export function targetOf(profile: TrackedProfile | undefined, singleServe: boolean): TraceTarget | null {
+  if (!profile) return null
+  const pulses = (singleServe ? profile.ssPulseTemperatures : profile.batchPulseTemperatures) ?? []
+  const bloomC = profile.bloomEnabled === false ? null : profile.bloomTemperature ?? null
+  const overallC = profile.overallTemperature ?? pulses[0] ?? null
+  if (bloomC === null && pulses.length === 0 && overallC === null) return null
+  return { bloomC, pulsesC: [...pulses], overallC }
+}
 
 /**
  * How far back the brewer's own `brewStartTime` is believed for a brew it says is running now. Observed on a real
@@ -103,7 +124,7 @@ export class BrewTracker {
     return this.idleCycles
   }
 
-  observe(device: Device, now: number, titleOf?: TitleLookup): BrewEvent[] {
+  observe(device: Device, now: number, profileOf?: ProfileLookup): BrewEvent[] {
     const brewing = isBrewing(device)
     if (brewing === undefined) return []
     const cycles = typeof device.totalBrewingCycles === 'number' ? device.totalBrewingCycles : undefined
@@ -159,6 +180,7 @@ export class BrewTracker {
       }
       if (!this.current) {
         const profileId = device.ibSelectedProfileId ?? null
+        const profile = profileId ? profileOf?.(profileId) : undefined
         const deviceStart = plausibleEpoch(device.brewStartTime, now - START_WINDOW_MS, now)
         const startedAt = deviceStart ?? now
         this.current = {
@@ -166,7 +188,8 @@ export class BrewTracker {
           startedAt,
           startOrigin: deviceStart !== undefined ? 'device' : this.sawIdle ? 'transition' : 'first-read',
           profileId,
-          profileTitle: profileId ? titleOf?.(profileId) ?? null : null,
+          profileTitle: profileId ? profile?.title ?? null : null,
+          target: targetOf(profile, device.singleBrewBasketPresent === true),
           cyclesBefore: this.idleCycles ?? cycles ?? null,
           samples: [],
         }
@@ -194,7 +217,7 @@ export class BrewTracker {
             durationS: null,
             waterMl: device.brewingWaterVolumeMl ?? null,
             profileId,
-            profileTitle: profileId ? titleOf?.(profileId) ?? null : null,
+            profileTitle: profileId ? profileOf?.(profileId)?.title ?? null : null,
             observed: false,
             counted: true,
             cyclesAfter: cycles ?? null,
@@ -225,7 +248,7 @@ export class BrewTracker {
             durationS: null,
             waterMl: last ? device.brewingWaterVolumeMl ?? null : null,
             profileId,
-            profileTitle: profileId ? titleOf?.(profileId) ?? null : null,
+            profileTitle: profileId ? profileOf?.(profileId)?.title ?? null : null,
             observed: false,
             counted: true,
             cyclesAfter,
@@ -275,6 +298,7 @@ export class BrewTracker {
       observed: true,
       counted,
       cyclesAfter: cycles ?? null,
+      ...(brew.target ? { target: brew.target } : {}),
       samples: brew.samples,
     }
   }

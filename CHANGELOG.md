@@ -7,6 +7,25 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-09-13
+
+### Added
+
+- The brew trace draws what the recipe asked for, as a dashed line stepping through the phases the brewer actually
+  went through: the bloom temperature while it blooms, the pulse temperature for a pulse the brewer names, and the
+  overall temperature while it only says it is brewing. The target is copied onto each brew when it starts, so a
+  trace keeps the recipe that ran even after the profile is edited. Where a brewer does report the water
+  temperature, as the demo does, both lines are drawn together.
+
+### Fixed
+
+- Zod builds its validators with `new Function`, which a Content-Security-Policy without `unsafe-eval` refuses, so
+  the browser reported a blocked directive on every form. Zod is told to skip that on the client, where the form
+  runs; the server keeps the compiled path.
+- The profile editor had five duplicate element ids and two labels pointing at the wrong control, because a field
+  holding both a slider and a number box gave its id to each of them, and the per-pulse boxes shared one id. Every
+  control in the editor now has its own id and its own label.
+
 ## [0.13.2] - 2026-09-13
 
 Learned from the first brew the app watched from start to finish.

@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { BrewTracker, MAX_BREW_MS, MAX_CLEANING_MS, MAX_SAMPLES } from '../../../server/lib/history'
+import { BrewTracker, MAX_BREW_MS, MAX_CLEANING_MS, MAX_SAMPLES, targetOf } from '../../../server/lib/history'
 import type { Device } from '../../../server/lib/fellow/schemas'
 
 const T0 = 1_789_200_000_000
 const idle = (cycles: number, extra: Partial<Device> = {}): Device => ({ id: 'd', state: null, brewing: false, totalBrewingCycles: cycles, brewingWaterVolumeMl: 825, ibSelectedProfileId: 'plocal1', ...extra })
 const brewing = (phase: string, extra: Partial<Device> = {}): Device => ({ id: 'd', state: { value: phase }, brewing: true, totalBrewingCycles: 70, brewingWaterTemperatureC: 93.5, heaterOn: true, pumpOn: true, ibSelectedProfileId: 'plocal1', ...extra })
-const titles = (id: string) => ({ plocal1: 'Medium Roast' } as Record<string, string>)[id]
+const titles = (id: string) => (id === 'plocal1'
+  ? { title: 'Medium Roast', bloomEnabled: true, bloomTemperature: 96, overallTemperature: 94, ssPulseTemperatures: [96, 95, 94], batchPulseTemperatures: [93, 92] }
+  : undefined)
 
 describe('BrewTracker', () => {
   it('ignores reads that do not say whether the brewer is brewing', () => {
@@ -198,5 +200,40 @@ describe('BrewTracker cleaning cycles', () => {
     tracker.observe(idle(70), T0)
     const [event] = tracker.observe(cleaning({ cleaning: false, rinsing: true }), T0 + 1_000)
     expect(event).toMatchObject({ type: 'cleaningStarted', cleaning: { kind: 'rinse' } })
+  })
+})
+
+describe('targetOf', () => {
+  const recipe = { title: 'Medium Roast', bloomEnabled: true, bloomTemperature: 96, overallTemperature: 94, ssPulseTemperatures: [96, 95, 94], batchPulseTemperatures: [93, 92] }
+
+  it('takes the pulse temperatures of the basket that is in', () => {
+    expect(targetOf(recipe, true)).toEqual({ bloomC: 96, pulsesC: [96, 95, 94], overallC: 94 })
+    expect(targetOf(recipe, false)).toEqual({ bloomC: 96, pulsesC: [93, 92], overallC: 94 })
+  })
+  it('leaves the bloom out when the recipe has none, and falls back to the first pulse for the overall', () => {
+    expect(targetOf({ ...recipe, bloomEnabled: false, overallTemperature: null }, false)).toEqual({ bloomC: null, pulsesC: [93, 92], overallC: 93 })
+  })
+  it('is null when there is nothing to show, or no profile at all', () => {
+    expect(targetOf({ title: 'Bare' }, false)).toBeNull()
+    expect(targetOf(undefined, false)).toBeNull()
+  })
+})
+
+describe('BrewTracker targets', () => {
+  it('copies the recipe onto the brew when it starts, for the basket that is in', () => {
+    const tracker = new BrewTracker()
+    tracker.observe(idle(70), T0)
+    tracker.observe(brewing('b', { singleBrewBasketPresent: false, batchBrewBasketPresent: true }), T0 + 1_000, titles)
+    expect(tracker.currentBrew?.target).toEqual({ bloomC: 96, pulsesC: [93, 92], overallC: 94 })
+    const [done] = tracker.observe(idle(71), T0 + 300_000, titles)
+    expect(done).toMatchObject({ type: 'completed', record: { target: { pulsesC: [93, 92] } } })
+  })
+  it('leaves the target off a brew whose profile it does not know', () => {
+    const tracker = new BrewTracker()
+    tracker.observe(idle(70), T0)
+    tracker.observe(brewing('b'), T0 + 1_000)
+    expect(tracker.currentBrew?.target).toBeNull()
+    const [done] = tracker.observe(idle(71), T0 + 300_000)
+    expect(done && 'record' in done ? (done.record as { target?: unknown }).target : 'no event').toBeUndefined()
   })
 })

@@ -1,4 +1,4 @@
-import type { BrewRecord, CleaningRecord, DescaleMarker, TraceSample } from '../../server/lib/history'
+import type { BrewRecord, CleaningRecord, DescaleMarker, TraceSample, TraceTarget } from '../../server/lib/history'
 import type { Device, Profile, Schedule } from '../../server/lib/fellow/schemas'
 import type { LogRecord } from '../../server/utils/log-reader'
 
@@ -130,6 +130,13 @@ function traceSamples(startedAt: number): TraceSample[] {
 }
 
 /** Three weeks of brews, mostly mornings, a few with a full trace so the History page has something to draw. */
+/** What each demo recipe asks for, so the trace can show the target beside the measurement. */
+const DEMO_TARGETS: Record<string, TraceTarget> = {
+  p1: { bloomC: 96, pulsesC: [95, 93], overallC: 93 },
+  p2: { bloomC: 96, pulsesC: [96, 96, 95, 94], overallC: 96 },
+  p3: { bloomC: 95, pulsesC: [94.5, 94.5, 94.5], overallC: 94.5 },
+}
+
 export function demoBrews(now: number): BrewRecord[] {
   const brews: BrewRecord[] = []
   const profiles = ['p1', 'p1', 'p2', 'p1', 'p3', 'p1', 'p2']
@@ -155,6 +162,7 @@ export function demoBrews(now: number): BrewRecord[] {
         observed: true,
         counted: true,
         cyclesAfter: cycles,
+        target: DEMO_TARGETS[profileId],
         samples: traced ? traceSamples(startedAt) : [],
       })
     }

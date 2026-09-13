@@ -1,6 +1,6 @@
 import { brewStartBlockers } from '../../server/lib/fellow/device'
 import type { Device, Profile, Schedule } from '../../server/lib/fellow/schemas'
-import { computeStats, descaleStatus, expectBrewDuration, summarise } from '../../server/lib/history'
+import { computeStats, descaleStatus, expectBrewDuration, summarise, targetOf } from '../../server/lib/history'
 import type { BrewRecord, CleaningRecord, DescaleMarker, TraceSample } from '../../server/lib/history'
 import type { LogRecord } from '../../server/utils/log-reader'
 import {
@@ -104,6 +104,7 @@ function advance(now: number): void {
     observed: true,
     counted: true,
     cyclesAfter: cycles,
+    target: targetOf(profile, state.device.singleBrewBasketPresent === true) ?? undefined,
     samples: brew.samples,
   })
   Object.assign(state.device, {
@@ -143,6 +144,7 @@ function historySnapshot(now: number) {
         profileId: state.current.profileId,
         profileTitle: state.profiles.find(p => p.id === state.current?.profileId)?.title ?? null,
         cyclesBefore: state.device.totalBrewingCycles ?? null,
+        target: targetOf(state.profiles.find(p => p.id === state.current?.profileId), state.device.singleBrewBasketPresent === true),
         samples: state.current.samples,
         expected: expectBrewDuration(state.brews, state.current.profileId, state.profiles.find(p => p.id === state.current?.profileId), {
           waterMl: state.device.ibWaterQuantity ?? null,
