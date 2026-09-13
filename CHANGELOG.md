@@ -7,6 +7,16 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-09-13
+
+### Changed
+
+- The descale tally is water only. The brewer counts a 300 mL single serve and a 1.5 L carafe as one brew each,
+  which over-states one and under-states the other, so `maintenance.descaleAfterBrews` now starts at 0 and the bar
+  follows the litres. The brew count is still shown beside it, as information rather than a threshold.
+- Water since the last mark is shown exactly as the brewer meters it, in millilitres below a litre and to two
+  decimals above. It read "1.0 of 60 L" where the brewer had actually passed 975 mL.
+
 ## [0.17.0] - 2026-09-13
 
 ### Added

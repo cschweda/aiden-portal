@@ -19,6 +19,22 @@ export function formatMillilitres(ml: number | undefined): string {
   return ml === undefined ? '—' : `${Math.round(ml)} mL`
 }
 
+/**
+ * Water as the brewer meters it, to the millilitre. Under a litre the millilitres are kept, because a single-serve
+ * brew is a few hundred of them and rounding to a tenth of a litre would invent or lose most of one; above a litre
+ * two decimals still resolve any single brew.
+ */
+export function formatWater(ml: number | undefined | null): string {
+  if (ml === undefined || ml === null || !Number.isFinite(ml)) return '—'
+  const exact = Math.round(ml)
+  return Math.abs(exact) < 1000 ? `${exact} mL` : `${(exact / 1000).toFixed(2)} L`
+}
+
+/** The same, for a figure carried in litres: back to the brewer's whole millilitres first. */
+export function formatWaterFromLitres(litres: number | undefined | null): string {
+  return litres === undefined || litres === null || !Number.isFinite(litres) ? '—' : formatWater(Math.round(litres * 1000))
+}
+
 /** A millilitre total shown in litres: "63.6 L". Fellow's `totalWaterVolumeL` is millilitres despite its name. */
 export function formatLitresFromMl(ml: number | undefined): string {
   return ml === undefined ? '—' : formatLitres(ml / 1000)

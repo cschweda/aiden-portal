@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { CurrentCleaning, DescaleStatus } from '#shared/types/api'
-import { formatAgo, formatDate, formatDateTime, formatTime } from '../utils/format'
+import { formatAgo, formatDate, formatDateTime, formatTime, formatWaterFromLitres } from '../utils/format'
 
 const props = defineProps<{ descale: DescaleStatus, cleaning?: CurrentCleaning | null, lastCleaningEndedAt?: number | null }>()
 
@@ -49,7 +49,7 @@ const description = computed(() => {
   if (mode.value === 'running' && props.cleaning) return `This phase started ${formatTime(props.cleaning.startedAt)} (${formatAgo(props.cleaning.startedAt)}). Mark it descaled once the whole program is done.`
   if (mode.value === 'pausing' && props.lastCleaningEndedAt) return `The last phase ended ${formatTime(props.lastCleaningEndedAt)}; the brewer waits a few minutes between phases.`
   if (mode.value === 'finished' && props.lastCleaningEndedAt) return `Ended ${formatTime(props.lastCleaningEndedAt)} (${formatAgo(props.lastCleaningEndedAt)}). If that was a descale, mark it so the tally restarts.`
-  const litres = d.litresSince === null ? '—' : d.litresSince.toFixed(1)
+  const litres = formatWaterFromLitres(d.litresSince)
   const since = d.markedAt ? `since ${formatDateTime(d.markedAt)}` : 'since the brewer\'s first brew, never marked'
   const brews = d.brewsSince === null ? '' : ` and ${d.brewsSince} brew${d.brewsSince === 1 ? '' : 's'}`
   const pace = d.dueInDays !== null && d.dueInDays > 0

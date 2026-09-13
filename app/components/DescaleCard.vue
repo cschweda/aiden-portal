@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DescaleStatus } from '#shared/types/api'
-import { formatAgo, formatDate, formatDateTime } from '../utils/format'
+import { formatAgo, formatDate, formatDateTime, formatWater, formatWaterFromLitres } from '../utils/format'
 
 const props = defineProps<{ descale: DescaleStatus }>()
 const emit = defineEmits<{ marked: [] }>()
@@ -17,7 +17,8 @@ const headline = computed(() => {
   }
 })
 const headlineClass = computed(() => ({ red: 'text-error', amber: 'text-warning', ok: 'text-success', unknown: 'text-muted' })[props.descale.level])
-const litres = computed(() => (props.descale.litresSince === null ? '—' : props.descale.litresSince.toFixed(1)))
+// Exact to the millilitre: a run of single-serve brews should move this as truly as one batch brew does.
+const water = computed(() => formatWaterFromLitres(props.descale.litresSince))
 const estimate = computed(() => {
   const d = props.descale
   if (d.level === 'unknown') return 'The estimate needs the brewer\'s totals.'
@@ -49,7 +50,7 @@ const estimate = computed(() => {
           Water since
         </dt>
         <dd class="tabular text-lg font-medium">
-          {{ litres }} of {{ descale.thresholdLitres }} L
+          {{ water }} of {{ descale.thresholdLitres }} L
         </dd>
       </div>
       <div>
@@ -65,7 +66,7 @@ const estimate = computed(() => {
     <UProgress :model-value="percent" :color="color" size="sm" />
 
     <p v-if="descale.cleaningMl" class="text-xs text-muted">
-      Cleaning cycles since then used {{ (descale.cleaningMl / 1000).toFixed(1) }} L and counted as {{ descale.cleaningBrews }} brew{{ descale.cleaningBrews === 1 ? '' : 's' }} on the brewer; both are left out.
+      Cleaning cycles since then used {{ formatWater(descale.cleaningMl) }} and counted as {{ descale.cleaningBrews }} brew{{ descale.cleaningBrews === 1 ? '' : 's' }} on the brewer; both are left out.
     </p>
 
     <p class="text-xs text-muted">
