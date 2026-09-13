@@ -86,7 +86,10 @@ export default defineAidenConfig({
     // number; the Aiden decides on its own. 60 L suits moderately hard water; Chicago's lake water is on the hard
     // side, so lower it if the brewer prompts you sooner than the tally does.
     descaleAfterLitres: 60,
-    // A brew-count threshold as well, if you prefer counting brews; 0 turns it off.
-    descaleAfterBrews: 0,
+    // A brew-count threshold as well; whichever of the two is reached first decides. 0 turns this one off.
+    descaleAfterBrews: 60,
+    // The dashboard says how long the coffee has been sitting in the carafe, from the end of the brew until the
+    // carafe is lifted out. After this many minutes it stops calling it fresh.
+    coffeeFreshMinutes: 30,
   },
 })

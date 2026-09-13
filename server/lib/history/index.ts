@@ -1,3 +1,5 @@
+export { coffeeSittingSince, COFFEE_HORIZON_MS } from './coffee'
+export type { CoffeeInput } from './coffee'
 export { descaleStatus } from './descale'
 export type { DescaleLevel, DescaleStatus, DescaleThresholds } from './descale'
 export { computeStats, litresPerDay, periodStarts } from './stats'

@@ -1,6 +1,6 @@
 import { brewStartBlockers } from '../../server/lib/fellow/device'
 import type { Device, Profile, Schedule } from '../../server/lib/fellow/schemas'
-import { computeStats, descaleStatus, expectBrewDuration, summarise, targetOf } from '../../server/lib/history'
+import { coffeeSittingSince, computeStats, descaleStatus, expectBrewDuration, summarise, targetOf } from '../../server/lib/history'
 import type { BrewRecord, CleaningRecord, DescaleMarker, TraceSample } from '../../server/lib/history'
 import type { LogRecord } from '../../server/utils/log-reader'
 import {
@@ -37,7 +37,7 @@ interface DemoState {
   nextId: number
 }
 
-const THRESHOLDS = { litres: 60, brews: 0 }
+const THRESHOLDS = { litres: 60, brews: 60 }
 
 let version = 'demo'
 
@@ -162,6 +162,15 @@ function historySnapshot(now: number) {
     polling: { enabled: true, running: true, idlePollSeconds: 60, brewPollSeconds: DEMO_SAMPLE_SECONDS, lastPollAt: now, lastError: null, failures: 0 },
     skippedLines: 0,
     storeError: null,
+    coffee: {
+      sittingSince: coffeeSittingSince({
+        carafePresent: state.device.carafePresent,
+        brewing: state.current !== null,
+        lastBrewEndedAt: state.brews[state.brews.length - 1]?.endedAt ?? null,
+        carafeRemovedAt: null,
+      }, now),
+      freshMinutes: 30,
+    },
     cleanings: {
       current: null,
       recent: [...state.cleanings].reverse(),

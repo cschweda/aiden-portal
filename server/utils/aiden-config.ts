@@ -68,6 +68,8 @@ export const AidenConfigSchema = z.strictObject({
     descaleAfterLitres: z.number().positive(),
     /** Brews since the last descale at which the tally reads due; 0 turns this threshold off. */
     descaleAfterBrews: z.int().min(0),
+    /** After this many minutes in the carafe, the dashboard stops calling the coffee fresh. */
+    coffeeFreshMinutes: z.int().min(1).max(720),
   }),
 })
 

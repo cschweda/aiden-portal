@@ -132,8 +132,12 @@ counters.
   duration, water, and how far the brew and water totals moved across it; a cycle never counts as a brew. The
   History page lists them, and the dashboard shows a banner while one runs and offers Mark descaled when one has
   just finished.
+- **How long the coffee has been sitting.** From the end of the last brew until the carafe is lifted out, on the
+  dashboard. The brewer cannot tell a full carafe from an empty one, so removing it is the signal that the coffee
+  was taken; putting it back does not restart the clock. It turns amber after `maintenance.coffeeFreshMinutes`.
 - **The descale tally.** Brews and litres since you pressed Mark descaled, a bar that turns amber at 80% and red at
-  100% of `maintenance.descaleAfterLitres` (60 L to start; add `descaleAfterBrews` to count brews as well), and an
+  100% of `maintenance.descaleAfterLitres` or `descaleAfterBrews` (60 L and 60 brews to start, whichever comes
+  first), a standing tile on the dashboard that shows the count long before the banner appears, and an
   estimate of the due date from the litres per day in the log, or since the last mark while the log is young. Until
   the first mark the tally counts from the brewer's lifetime totals. Marking writes only to `data/descale.json`.
 

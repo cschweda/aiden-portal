@@ -167,7 +167,15 @@ export function demoBrews(now: number): BrewRecord[] {
       })
     }
   }
-  return brews.sort((a, b) => a.startedAt - b.startedAt)
+  brews.sort((a, b) => a.startedAt - b.startedAt)
+  // The newest brew is recent, so the demo shows coffee sitting in the carafe.
+  const newest = brews[brews.length - 1]
+  if (newest) {
+    newest.startedAt = now - 24 * MINUTE
+    newest.endedAt = newest.startedAt + (newest.durationS ?? 110) * 1000
+    newest.samples = traceSamples(newest.startedAt)
+  }
+  return brews
 }
 
 /** One descale program, twelve days ago: a cleaning phase and two rinses, as the brewer really reports them. */

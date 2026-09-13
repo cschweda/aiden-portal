@@ -1,9 +1,25 @@
 <script setup lang="ts">
-import type { DeviceResponse, Profile } from '#shared/types/api'
+import type { DeviceResponse, HistoryResponse, Profile } from '#shared/types/api'
 import { brewPhase } from '../../server/lib/fellow/device'
-import { formatAgo, formatDateTime, formatLitresFromMl, formatMillilitres, formatTemperature, formatTime } from '../utils/format'
+import { formatAgo, formatDateTime, formatDuration, formatLitresFromMl, formatMillilitres, formatTemperature, formatTime } from '../utils/format'
 
-const props = defineProps<{ data: DeviceResponse, profiles: Profile[], readAt: number | null }>()
+const props = defineProps<{ data: DeviceResponse, profiles: Profile[], readAt: number | null, coffee?: HistoryResponse['coffee'] | null }>()
+
+// The coffee clock is the one reading that changes without a new fetch, so it keeps its own.
+const now = ref(Date.now())
+let clock: ReturnType<typeof setInterval> | undefined
+onMounted(() => {
+  clock = setInterval(() => (now.value = Date.now()), 20_000)
+})
+onBeforeUnmount(() => clearInterval(clock))
+
+/** How long the coffee has been in the carafe, once there is coffee to time. */
+const sitting = computed(() => {
+  const since = props.coffee?.sittingSince
+  if (!since) return null
+  const minutes = (now.value - since) / 60_000
+  return { minutes, fresh: minutes <= (props.coffee?.freshMinutes ?? 30) }
+})
 
 type Tone = 'default' | 'success' | 'error' | 'neutral' | 'primary'
 interface Reading { label: string, value: string, tone?: Tone, mono?: boolean }
@@ -59,6 +75,8 @@ const groups = computed<Group[]>(() => {
         flag('Cleaning', d.cleaning, 'Running', 'No', 'primary'),
         flag('Rinsing', d.rinsing, 'Running', 'No', 'primary'),
         ...(d.brewError === undefined ? [] : [flag('Brew error', d.brewError, 'Yes', 'None', 'error', 'success')]),
+        // Only while a carafe of coffee is actually standing there.
+        ...(sitting.value ? [{ label: 'Coffee sitting', value: sitting.value.minutes < 1 ? 'just brewed' : formatDuration(Math.round(sitting.value.minutes) * 60), tone: (sitting.value.fresh ? 'default' : 'warning') as Tone }] : []),
       ],
     },
     {

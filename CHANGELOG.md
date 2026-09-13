@@ -7,6 +7,25 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-09-13
+
+Two reminders on the dashboard.
+
+### Added
+
+- **How long the coffee has been sitting.** The dashboard counts from the end of the last brew while the carafe is
+  still in place, and stops when the carafe is lifted out, which is the only sign the brewer gives that the coffee
+  was taken. Putting an empty carafe back does not restart it, a brew in progress has nothing sitting yet, and a
+  brew more than six hours old is not reported at all, which is what a restart would otherwise get wrong. The row
+  turns amber after `maintenance.coffeeFreshMinutes`, thirty by default.
+- **A standing descale tile** in the dashboard's brews strip: brews and litres since the last descale, with a bar,
+  visible long before the banner appears. `maintenance.descaleAfterBrews` is now 60, so whichever of the two
+  thresholds is reached first decides.
+
+### Changed
+
+- The demo's newest brew is recent, so the coffee clock and the descale tile can be seen there.
+
 ## [0.14.1] - 2026-09-13
 
 ### Changed

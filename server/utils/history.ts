@@ -1,6 +1,6 @@
 import { FellowError } from '../lib/fellow'
 import type { Device, Profile } from '../lib/fellow/schemas'
-import { BrewTracker, computeStats, descaleStatus, expectBrewDuration, HistoryStore, summarise } from '../lib/history'
+import { BrewTracker, coffeeSittingSince, computeStats, descaleStatus, expectBrewDuration, HistoryStore, summarise } from '../lib/history'
 import type { CleaningRecord, CurrentBrew, DescaleMarker, DescaleStatus, HistorySnapshot, PollerState } from '../lib/history'
 import { type AppConfig, getConfig } from './config'
 import { useFellowClient } from './fellow-client'
@@ -27,6 +27,9 @@ export class HistoryService {
   private storeFailures = 0
   private readonly profiles = new Map<string, Profile>()
   private lastDevice: Device | null = null
+  /** When the carafe was last seen leaving, which is the only sign the coffee was taken. */
+  private carafeRemovedAt: number | null = null
+  private carafePresent: boolean | undefined
 
   constructor(private readonly config: AppConfig) {
     this.store = new HistoryStore({ directory: config.history.directory })
@@ -89,6 +92,8 @@ export class HistoryService {
   /** Feeds one device read to the tracker. Reads that resolved out of order (older than the last one) are ignored. */
   observe(device: Device, now: number): void {
     if (this.polling.lastPollAt !== null && now < this.polling.lastPollAt) return
+    if (this.carafePresent === true && device.carafePresent === false) this.carafeRemovedAt = now
+    if (typeof device.carafePresent === 'boolean') this.carafePresent = device.carafePresent
     this.lastDevice = device
     this.polling.lastPollAt = now
     const logger = useLogger()
@@ -160,6 +165,15 @@ export class HistoryService {
       polling: { ...this.polling },
       skippedLines: this.store.skippedLines,
       storeError: this.store.loadError,
+      coffee: {
+        sittingSince: coffeeSittingSince({
+          carafePresent: device.carafePresent,
+          brewing: this.tracker.currentBrew !== null,
+          lastBrewEndedAt: this.store.lastBrew?.endedAt ?? null,
+          carafeRemovedAt: this.carafeRemovedAt,
+        }, now),
+        freshMinutes: this.config.maintenance.coffeeFreshMinutes,
+      },
       cleanings: this.cleaningSummary(),
     }
   }

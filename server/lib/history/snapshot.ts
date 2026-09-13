@@ -33,6 +33,12 @@ export interface HistorySnapshot {
   skippedLines: number
   /** Why the data directory cannot be used, or null. */
   storeError: string | null
+  coffee: {
+    /** When the coffee now in the carafe was brewed, or null when there is none to time. */
+    sittingSince: number | null
+    /** Minutes after which the dashboard stops calling it fresh. */
+    freshMinutes: number
+  }
   cleanings: {
     /** The cleaning or rinse cycle running now. */
     current: CurrentCleaning | null
