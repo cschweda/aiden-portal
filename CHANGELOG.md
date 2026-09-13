@@ -7,6 +7,12 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.18.1] - 2026-09-13
+
+### Changed
+
+- The brew count in the descale card is centred under its heading, so it stays there as it grows.
+
 ## [0.18.0] - 2026-09-13
 
 ### Changed

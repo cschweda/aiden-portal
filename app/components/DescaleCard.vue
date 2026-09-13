@@ -53,7 +53,8 @@ const estimate = computed(() => {
           {{ water }} of {{ descale.thresholdLitres }} L
         </dd>
       </div>
-      <div>
+      <!-- Centred as a column, label and all, so the number stays under its own heading as it grows. -->
+      <div class="text-center">
         <dt class="text-muted">
           Brews since
         </dt>
