@@ -7,6 +7,14 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.18.3] - 2026-09-13
+
+### Changed
+
+- The descale threshold is 30 L rather than 60. Fellow advises descaling monthly on water of about 8 grains per
+  gallon, which is what Lake Michigan supplies to Chicago and DuPage County, and 30 L is roughly a month of daily
+  batch brews. The brewer's own prompt at 150 L takes no account of hardness.
+
 ## [0.18.2] - 2026-09-13
 
 ### Fixed

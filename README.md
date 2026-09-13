@@ -136,7 +136,8 @@ counters.
   dashboard. The brewer cannot tell a full carafe from an empty one, so removing it is the signal that the coffee
   was taken; putting it back does not restart the clock. It turns amber after `maintenance.coffeeFreshMinutes`.
 - **The descale tally.** Water since you pressed Mark descaled, exact to the millilitre the brewer meters, with a
-  bar that turns amber at 80% and red at 100% of `maintenance.descaleAfterLitres` (60 L to start). Scale comes from
+  bar that turns amber at 80% and red at 100% of `maintenance.descaleAfterLitres` (30 L to start, which is about a
+  month of daily batch brews on moderately hard water). Scale comes from
   the water that passes through the brewer, so the count of brews is shown for interest but is not a threshold: a
   cycle count cannot tell a 300 mL single serve from a 1.5 L carafe. Set `maintenance.descaleAfterBrews` above 0 to
   use one anyway, and whichever threshold is reached first decides. There is a card on the dashboard beside the
