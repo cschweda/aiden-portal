@@ -3,7 +3,14 @@ import type { DeviceResponse, HistoryResponse, Profile } from '#shared/types/api
 import { brewPhase } from '../../server/lib/fellow/device'
 import { formatAgo, formatDateTime, formatDuration, formatLitresFromMl, formatMillilitres, formatTemperature, formatTime } from '../utils/format'
 
-const props = defineProps<{ data: DeviceResponse, profiles: Profile[], readAt: number | null, coffee?: HistoryResponse['coffee'] | null }>()
+const props = defineProps<{
+  data: DeviceResponse
+  profiles: Profile[]
+  readAt: number | null
+  coffee?: HistoryResponse['coffee'] | null
+  descale?: HistoryResponse['descale'] | null
+}>()
+const emit = defineEmits<{ marked: [] }>()
 
 // The coffee clock is the one reading that changes without a new fetch, so it keeps its own.
 const now = ref(Date.now())
@@ -149,21 +156,25 @@ const groups = computed<Group[]>(() => {
       </p>
     </div>
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      <div v-for="group in groups" :key="group.title" class="rounded-lg border border-default">
-        <h4 class="border-b border-default px-4 py-2 text-sm font-medium">
-          {{ group.title }}
-        </h4>
-        <dl class="divide-y divide-default">
-          <div v-for="reading in group.readings" :key="reading.label" class="flex items-baseline justify-between gap-4 px-4 py-1.5 text-sm">
-            <dt class="text-muted">
-              {{ reading.label }}
-            </dt>
-            <dd class="text-right" :class="[toneClass[reading.tone ?? 'default'], reading.mono ? 'font-mono text-xs' : 'tabular']">
-              {{ reading.value }}
-            </dd>
-          </div>
-        </dl>
-      </div>
+      <template v-for="group in groups" :key="group.title">
+        <div class="rounded-lg border border-default">
+          <h4 class="border-b border-default px-4 py-2 text-sm font-medium">
+            {{ group.title }}
+          </h4>
+          <dl class="divide-y divide-default">
+            <div v-for="reading in group.readings" :key="reading.label" class="flex items-baseline justify-between gap-4 px-4 py-1.5 text-sm">
+              <dt class="text-muted">
+                {{ reading.label }}
+              </dt>
+              <dd class="text-right" :class="[toneClass[reading.tone ?? 'default'], reading.mono ? 'font-mono text-xs' : 'tabular']">
+                {{ reading.value }}
+              </dd>
+            </div>
+          </dl>
+        </div>
+        <!-- Maintenance belongs with the totals it is counted from. -->
+        <DescaleCard v-if="descale && group.title === 'Totals'" :descale="descale" @marked="emit('marked')" />
+      </template>
     </div>
   </section>
 </template>

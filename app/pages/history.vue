@@ -164,9 +164,9 @@ const pollingLine = computed(() => {
             <h3 class="text-base font-semibold">
               Descale
             </h3>
-            <div class="max-w-md">
-              <DescaleCard :descale="history.data.value.descale" @marked="history.reload()" />
-            </div>
+            <p class="text-sm text-muted">
+              The tally and the Mark descaled button are on the dashboard, beside the totals they count from.
+            </p>
             <div class="grid gap-4 sm:grid-cols-3">
               <div class="rounded-lg border border-default px-4 py-3">
                 <p class="text-sm text-muted">

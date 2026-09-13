@@ -7,6 +7,15 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-09-13
+
+### Changed
+
+- The descale card lives on the dashboard now, in the sensor grid directly after Totals, so the tally, the bar, the
+  estimate and the Mark descaled button are where the rest of the at-a-glance numbers are. The tile that briefly
+  stood in the brews strip is gone, and the History page keeps the record of past descales and cleaning cycles
+  rather than a second copy of the card.
+
 ## [0.15.0] - 2026-09-13
 
 Two reminders on the dashboard.

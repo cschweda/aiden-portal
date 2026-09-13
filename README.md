@@ -36,10 +36,10 @@ sideways is the log table, inside its own frame.
 
 | Page | What it does |
 |---|---|
-| Dashboard | Top to bottom: a descale banner, with its **Mark descaled** button, when descaling is due or close. The brewer's state as one word (Ready, Brewing, Offline, Not ready), the flags behind that word, and the reasons a brew cannot start. **Start brew**, enabled only when the brewer says it is ready, which asks before it sends. A sensor panel with everything the brewer reports, grouped for troubleshooting: the live phase, heater and pump, and the water temperature where a brewer reports one; lid, tank, carafe and baskets; brew and water totals; the settings on the brewer itself; and its identity. Brews and water for today, this week and this month. The trace of the brew running now, or of the last one. |
+| Dashboard | Top to bottom: a descale banner, with its **Mark descaled** button, when descaling is due or close. The brewer's state as one word (Ready, Brewing, Offline, Not ready), the flags behind that word, and the reasons a brew cannot start. **Start brew**, enabled only when the brewer says it is ready, which asks before it sends. A sensor panel with everything the brewer reports, grouped for troubleshooting: the live phase, heater and pump, how long the coffee has been sitting, and the water temperature where a brewer reports one; lid, tank, carafe and baskets; brew and water totals; the descale tally with its Mark descaled button; the settings on the brewer itself; and its identity. Brews and water for today, this week and this month. The trace of the brew running now, or of the last one. |
 | Profiles | Every profile on the brewer with a one-line recipe summary. Create, edit, delete, share (a brew.link URL to copy), and import from a brew.link. The editor exposes every variable in its exact steps: ratio and temperature sliders in halves, bloom, and per-pulse temperatures that follow the pulse count. |
 | Schedules | Each schedule with its time in the brewer's local time, days, water, and profile; pause or resume with the switch, delete, or add one with the day chips and time picker. |
-| History | Brews and water by day, week, and month; average brew length and time between brews; the most used profile; every logged brew, with its trace on demand; the descale tally with its estimate and Mark descaled button, and when the brewer was descaled; and what the background reads are doing. |
+| History | Brews and water by day, week, and month; average brew length and time between brews; the most used profile; every logged brew, with its trace on demand; the record of past descales and cleaning cycles; and what the background reads are doing. |
 | Logs | The production log file, newest first, filterable by level and by request id (click any id); each row expands to the full record. The **Detail** control changes how much the running service writes, from warnings only to everything, until it restarts. |
 
 Failed calls show a toast with the server's error code, never a blank failure. The `?new=1` query on the
@@ -137,7 +137,7 @@ counters.
   was taken; putting it back does not restart the clock. It turns amber after `maintenance.coffeeFreshMinutes`.
 - **The descale tally.** Brews and litres since you pressed Mark descaled, a bar that turns amber at 80% and red at
   100% of `maintenance.descaleAfterLitres` or `descaleAfterBrews` (60 L and 60 brews to start, whichever comes
-  first), a standing tile on the dashboard that shows the count long before the banner appears, and an
+  first), a card on the dashboard beside the totals it counts from, visible long before the banner appears, and an
   estimate of the due date from the litres per day in the log, or since the last mark while the log is young. Until
   the first mark the tally counts from the brewer's lifetime totals. Marking writes only to `data/descale.json`.
 

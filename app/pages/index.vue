@@ -85,10 +85,10 @@ watch(() => device.data.value, (value) => {
 
         <ApiErrorAlert v-if="profiles.failure.value && !device.failure.value" :failure="profiles.failure.value" what="the profiles" :stale="profiles.stale.value" />
 
-        <SensorPanel v-if="device.data.value" :data="device.data.value" :profiles="profiles.data.value ?? []" :read-at="readAt" :coffee="history.data.value?.coffee ?? null" />
+        <SensorPanel v-if="device.data.value" :data="device.data.value" :profiles="profiles.data.value ?? []" :read-at="readAt" :coffee="history.data.value?.coffee ?? null" :descale="history.data.value?.descale ?? null" @marked="history.reload()" />
 
         <ApiErrorAlert v-if="history.failure.value && !device.failure.value" :failure="history.failure.value" what="the brew history" :stale="history.stale.value" />
-        <HistoryStrip v-if="history.data.value" :stats="history.data.value.stats" :descale="history.data.value.descale" />
+        <HistoryStrip v-if="history.data.value" :stats="history.data.value.stats" />
 
         <section v-if="trace && history.data.value" class="space-y-3">
           <div class="flex items-baseline justify-between gap-4">
