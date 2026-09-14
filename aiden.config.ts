@@ -96,8 +96,11 @@ export default defineAidenConfig({
     // and a cycle count cannot tell a 300 mL single serve from a 1.5 L carafe. Set a number above 0 to use it,
     // in which case whichever threshold is reached first decides.
     descaleAfterBrews: 0,
-    // The dashboard says how long the coffee has been sitting in the carafe, from the end of the brew until the
-    // carafe is lifted out. After this many minutes it stops calling it fresh.
+    // The dashboard counts the minutes since the brew finished. After this many it stops calling the coffee fresh.
     coffeeFreshMinutes: 30,
+    // ...and after this many it stops counting altogether, because by then the coffee is cold in the carafe. The
+    // count deliberately ignores whether the carafe is on its plate: the brewer stops reporting sensor changes
+    // while it sits idle, so a carafe taken to the counter can still read as present hours later.
+    coffeeHorizonMinutes: 120,
   },
 })

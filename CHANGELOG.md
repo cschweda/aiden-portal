@@ -7,6 +7,23 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-09-14
+
+### Changed
+
+- The coffee clock counts from the end of the brew and ignores the carafe. It used to wait for the brewer to report
+  the carafe leaving its plate, on the reasoning that lifting it out is the only sign the coffee was taken. The
+  brewer cannot be trusted for that: it stops reporting sensor changes while it sits idle, so a carafe taken to the
+  kitchen counter still reads as present. Two fresh reads three minutes apart came back identical in every field
+  with the carafe demonstrably gone.
+- The clock now stops at `maintenance.coffeeHorizonMinutes`, two hours by default, because by then the coffee is
+  cold whatever became of it. It was six hours and hard-coded.
+
+### Removed
+
+- The moment the carafe was last seen leaving, which the service tracked and wrote into `current.json`. Nothing
+  reads it now.
+
 ## [0.20.0] - 2026-09-14
 
 ### Added

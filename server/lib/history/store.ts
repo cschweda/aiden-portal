@@ -63,21 +63,19 @@ const SessionSchema = z.looseObject({
   at: z.number(),
   brew: CurrentBrewSchema.nullable().default(null),
   cleaning: CurrentCleaningSchema.nullable().default(null),
-  carafeRemovedAt: z.number().nullable().default(null),
 })
 const MarkerSchema = z.looseObject({ at: z.number(), brews: z.number().nullable().default(null), waterMl: z.number().nullable().default(null) })
 const DescaleSchema = z.looseObject({ current: MarkerSchema.nullable().default(null), history: z.array(MarkerSchema).default([]) })
 
 /**
  * What a running process is in the middle of, and would otherwise lose when it exits: a brew or cleaning cycle
- * whose samples are in no log yet, and the moment the carafe was last seen leaving.
+ * whose samples are in no log yet.
  */
 export interface SessionState {
   /** When this was written. */
   at: number
   brew: CurrentBrew | null
   cleaning: CurrentCleaning | null
-  carafeRemovedAt: number | null
 }
 
 export interface HistoryStoreOptions {

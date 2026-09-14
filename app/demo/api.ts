@@ -166,10 +166,9 @@ function historySnapshot(now: number) {
     storeError: null,
     coffee: {
       sittingSince: coffeeSittingSince({
-        carafePresent: state.device.carafePresent,
         brewing: state.current !== null,
         lastBrewEndedAt: state.brews[state.brews.length - 1]?.endedAt ?? null,
-        carafeRemovedAt: null,
+        horizonMinutes: aiden.maintenance.coffeeHorizonMinutes,
       }, now),
       freshMinutes: aiden.maintenance.coffeeFreshMinutes,
     },

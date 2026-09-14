@@ -27,9 +27,6 @@ export class HistoryService {
   private storeFailures = 0
   private readonly profiles = new Map<string, Profile>()
   private lastDevice: Device | null = null
-  /** When the carafe was last seen leaving, which is the only sign the coffee was taken. */
-  private carafeRemovedAt: number | null = null
-  private carafePresent: boolean | undefined
   /** What was last written to `current.json`, so an unchanged state is not rewritten every poll. */
   private sessionSignature: string | null = null
   private sessionFailed = false
@@ -59,7 +56,6 @@ export class HistoryService {
     const session = this.store.readSession()
     if (session) {
       this.tracker.restore({ brew: session.brew, cleaning: session.cleaning }, Date.now())
-      this.carafeRemovedAt = session.carafeRemovedAt
       const resumed = this.tracker.currentBrew ?? this.tracker.currentCleaningCycle
       if (resumed) logger.info({ id: resumed.id, samples: resumed.samples.length, startedAt: resumed.startedAt }, 'Resumed what the last run was watching')
     }
@@ -105,8 +101,6 @@ export class HistoryService {
   /** Feeds one device read to the tracker. Reads that resolved out of order (older than the last one) are ignored. */
   observe(device: Device, now: number): void {
     if (this.polling.lastPollAt !== null && now < this.polling.lastPollAt) return
-    if (this.carafePresent === true && device.carafePresent === false) this.carafeRemovedAt = now
-    if (typeof device.carafePresent === 'boolean') this.carafePresent = device.carafePresent
     this.lastDevice = device
     this.polling.lastPollAt = now
     const logger = useLogger()
@@ -136,11 +130,11 @@ export class HistoryService {
     if (this.store.loadError) return
     const brew = this.tracker.currentBrew
     const cleaning = this.tracker.currentCleaningCycle
-    const signature = `${brew?.id ?? ''}/${brew?.samples.length ?? 0}/${cleaning?.id ?? ''}/${cleaning?.samples.length ?? 0}/${this.carafeRemovedAt ?? ''}`
+    const signature = `${brew?.id ?? ''}/${brew?.samples.length ?? 0}/${cleaning?.id ?? ''}/${cleaning?.samples.length ?? 0}`
     if (signature === this.sessionSignature) return
     try {
-      if (!brew && !cleaning && this.carafeRemovedAt === null) this.store.clearSession()
-      else this.store.writeSession({ at: now, brew, cleaning, carafeRemovedAt: this.carafeRemovedAt })
+      if (!brew && !cleaning) this.store.clearSession()
+      else this.store.writeSession({ at: now, brew, cleaning })
       this.sessionSignature = signature
       this.sessionFailed = false
     }
@@ -204,10 +198,9 @@ export class HistoryService {
       storeError: this.store.loadError,
       coffee: {
         sittingSince: coffeeSittingSince({
-          carafePresent: device.carafePresent,
           brewing: this.tracker.currentBrew !== null,
           lastBrewEndedAt: this.store.lastBrew?.endedAt ?? null,
-          carafeRemovedAt: this.carafeRemovedAt,
+          horizonMinutes: this.config.maintenance.coffeeHorizonMinutes,
         }, now),
         freshMinutes: this.config.maintenance.coffeeFreshMinutes,
       },
