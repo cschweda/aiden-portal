@@ -164,6 +164,8 @@ function historySnapshot(now: number) {
     polling: { enabled: true, running: true, idlePollSeconds: aiden.history.idlePollSeconds, brewPollSeconds: DEMO_SAMPLE_SECONDS, lastPollAt: now, lastError: null, failures: 0 },
     skippedLines: 0,
     storeError: null,
+    // The mock brewer's senses only move when a demo brew runs, which is exactly what the real one does.
+    sensorsChangedAt: state.current ? now : state.brews[state.brews.length - 1]?.endedAt ?? null,
     coffee: {
       sittingSince: coffeeSittingSince({
         brewing: state.current !== null,

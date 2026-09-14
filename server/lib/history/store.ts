@@ -59,8 +59,10 @@ const CurrentCleaningSchema = z.looseObject({
   waterBefore: z.number().nullable().default(null),
   samples: z.array(CleaningSampleSchema).default([]),
 })
+const SensedSchema = z.looseObject({ at: z.number(), fingerprint: z.string() })
 const SessionSchema = z.looseObject({
   at: z.number(),
+  sensed: SensedSchema.nullable().default(null),
   brew: CurrentBrewSchema.nullable().default(null),
   cleaning: CurrentCleaningSchema.nullable().default(null),
 })
@@ -76,6 +78,8 @@ export interface SessionState {
   at: number
   brew: CurrentBrew | null
   cleaning: CurrentCleaning | null
+  /** The brewer's senses as one string, with when they last differed, so a restart does not reset the judgement. */
+  sensed: { at: number, fingerprint: string } | null
 }
 
 export interface HistoryStoreOptions {

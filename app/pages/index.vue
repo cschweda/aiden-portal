@@ -87,7 +87,7 @@ watch(() => device.data.value, (value) => {
 
         <ApiErrorAlert v-if="profiles.failure.value && !device.failure.value" :failure="profiles.failure.value" what="the profiles" :stale="profiles.stale.value" />
 
-        <SensorPanel v-if="device.data.value" :data="device.data.value" :profiles="profiles.data.value ?? []" :read-at="readAt" :coffee="history.data.value?.coffee ?? null" :descale="history.data.value?.descale ?? null" :stats="history.data.value?.stats ?? null" @marked="history.reload()" />
+        <SensorPanel v-if="device.data.value" :data="device.data.value" :profiles="profiles.data.value ?? []" :read-at="readAt" :coffee="history.data.value?.coffee ?? null" :descale="history.data.value?.descale ?? null" :stats="history.data.value?.stats ?? null" :sensors-changed-at="history.data.value?.sensorsChangedAt ?? null" @marked="history.reload()" />
 
         <ApiErrorAlert v-if="history.failure.value && !device.failure.value" :failure="history.failure.value" what="the brew history" :stale="history.stale.value" />
 

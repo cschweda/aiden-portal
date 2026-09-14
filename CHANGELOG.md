@@ -7,6 +7,17 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-09-14
+
+### Added
+
+- The sensor panel says when the brewer last reported a change, and warns once it has been quiet for twenty
+  minutes. The brewer stops reporting while it sits idle, so a reading fetched a second ago can describe the
+  machine as it was hours earlier, and "carafe in place" is the one that catches people out.
+- The judgement rests on what the brewer senses, never on its clock fields: `brewEndTime` drifts on its own while
+  the machine is idle and would make a sleeping brewer look wide awake. It is kept in `current.json`, so a restart
+  picks it back up instead of starting the reckoning over.
+
 ## [0.21.0] - 2026-09-14
 
 ### Changed

@@ -7,6 +7,20 @@ import { useFellowClient } from './fellow-client'
 import { useLogger } from './logger'
 
 /** After this long a brew is sampled at the idle rate: cold-brew steeps run for hours. */
+/**
+ * The fields that move when someone uses the brewer. Its clock fields are deliberately left out: `brewEndTime`
+ * drifts on its own while the machine is idle, and including it would make a sleeping brewer look wide awake.
+ */
+const SENSED_FIELDS = [
+  'isConnected', 'brewing', 'state', 'cleaning', 'rinsing', 'lidClosed', 'missingWater', 'carafePresent',
+  'showerHeadPresent', 'singleBrewBasketPresent', 'batchBrewBasketPresent', 'heaterOn', 'pumpOn',
+  'totalBrewingCycles', 'totalWaterVolumeL',
+] as const satisfies ReadonlyArray<keyof Device>
+
+function sensedFingerprint(device: Device): string {
+  return JSON.stringify(SENSED_FIELDS.map(key => device[key] ?? null))
+}
+
 const LONG_BREW_MS = 20 * 60_000
 const FIRST_POLL_DELAY_MS = 2_000
 const POKE_DELAY_MS = 2_000
@@ -27,6 +41,8 @@ export class HistoryService {
   private storeFailures = 0
   private readonly profiles = new Map<string, Profile>()
   private lastDevice: Device | null = null
+  /** The brewer's senses as one string, with when they last differed from the read before. */
+  private sensed: { at: number, fingerprint: string } | null = null
   /** What was last written to `current.json`, so an unchanged state is not rewritten every poll. */
   private sessionSignature: string | null = null
   private sessionFailed = false
@@ -56,6 +72,7 @@ export class HistoryService {
     const session = this.store.readSession()
     if (session) {
       this.tracker.restore({ brew: session.brew, cleaning: session.cleaning }, Date.now())
+      this.sensed = session.sensed
       const resumed = this.tracker.currentBrew ?? this.tracker.currentCleaningCycle
       if (resumed) logger.info({ id: resumed.id, samples: resumed.samples.length, startedAt: resumed.startedAt }, 'Resumed what the last run was watching')
     }
@@ -101,6 +118,9 @@ export class HistoryService {
   /** Feeds one device read to the tracker. Reads that resolved out of order (older than the last one) are ignored. */
   observe(device: Device, now: number): void {
     if (this.polling.lastPollAt !== null && now < this.polling.lastPollAt) return
+    // A brewer that has gone quiet still answers with its last known state; this is how the app can say so.
+    const fingerprint = sensedFingerprint(device)
+    if (this.sensed === null || this.sensed.fingerprint !== fingerprint) this.sensed = { at: now, fingerprint }
     this.lastDevice = device
     this.polling.lastPollAt = now
     const logger = useLogger()
@@ -130,11 +150,10 @@ export class HistoryService {
     if (this.store.loadError) return
     const brew = this.tracker.currentBrew
     const cleaning = this.tracker.currentCleaningCycle
-    const signature = `${brew?.id ?? ''}/${brew?.samples.length ?? 0}/${cleaning?.id ?? ''}/${cleaning?.samples.length ?? 0}`
+    const signature = `${brew?.id ?? ''}/${brew?.samples.length ?? 0}/${cleaning?.id ?? ''}/${cleaning?.samples.length ?? 0}/${this.sensed?.at ?? ''}`
     if (signature === this.sessionSignature) return
     try {
-      if (!brew && !cleaning) this.store.clearSession()
-      else this.store.writeSession({ at: now, brew, cleaning })
+      this.store.writeSession({ at: now, brew, cleaning, sensed: this.sensed })
       this.sessionSignature = signature
       this.sessionFailed = false
     }
@@ -196,6 +215,7 @@ export class HistoryService {
       polling: { ...this.polling },
       skippedLines: this.store.skippedLines,
       storeError: this.store.loadError,
+      sensorsChangedAt: this.sensed?.at ?? null,
       coffee: {
         sittingSince: coffeeSittingSince({
           brewing: this.tracker.currentBrew !== null,

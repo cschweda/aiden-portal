@@ -33,6 +33,11 @@ export interface HistorySnapshot {
   skippedLines: number
   /** Why the data directory cannot be used, or null. */
   storeError: string | null
+  /**
+   * When the brewer last reported a change to anything it senses. It stops reporting while it sits idle, so a
+   * reading fetched a second ago can describe the machine as it was hours earlier.
+   */
+  sensorsChangedAt: number | null
   coffee: {
     /** When the coffee now in the carafe was brewed, or null when there is none to time. */
     sittingSince: number | null

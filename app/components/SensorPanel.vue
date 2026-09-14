@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DeviceResponse, HistoryResponse, Profile } from '#shared/types/api'
 import { brewPhase } from '../../server/lib/fellow/device'
-import { formatAgo, formatDateTime, formatDuration, formatElevation, formatLitresFromMl, formatMillilitres, formatTemperature, formatTime } from '../utils/format'
+import { formatAgo, formatDateTime, formatDuration, formatElevation, formatHourMinute, formatLitresFromMl, formatMillilitres, formatTemperature, formatTime } from '../utils/format'
 
 const props = defineProps<{
   data: DeviceResponse
@@ -10,6 +10,8 @@ const props = defineProps<{
   coffee?: HistoryResponse['coffee'] | null
   descale?: HistoryResponse['descale'] | null
   stats?: HistoryResponse['stats'] | null
+  /** When the brewer last reported a change to anything it senses. */
+  sensorsChangedAt?: number | null
 }>()
 const emit = defineEmits<{ marked: [] }>()
 
@@ -20,6 +22,18 @@ onMounted(() => {
   clock = setInterval(() => (now.value = Date.now()), 20_000)
 })
 onBeforeUnmount(() => clearInterval(clock))
+
+/**
+ * The brewer stops reporting sensor changes while it sits idle, so readings fetched a second ago can describe the
+ * machine as it was hours earlier. Past this long without a change, the panel says so rather than letting a reader
+ * take "carafe in place" for a fact.
+ */
+const QUIET_AFTER_MS = 20 * 60_000
+const quiet = computed(() => {
+  const at = props.sensorsChangedAt
+  if (!at || now.value - at < QUIET_AFTER_MS) return null
+  return at
+})
 
 /** How long the coffee has been in the carafe, once there is coffee to time. */
 const sitting = computed(() => {
@@ -174,6 +188,12 @@ const groups = computed<Group[]>(() => {
         Read at {{ formatTime(readAt) }}
       </p>
     </div>
+
+    <p v-if="quiet" class="text-xs text-muted">
+      The brewer last reported a change at {{ formatHourMinute(quiet) }}, {{ formatAgo(quiet, now) }}. It stops
+      reporting while it sits idle, so the readings below describe the machine as it was then. The carafe is the one
+      that catches people out.
+    </p>
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       <template v-for="group in groups" :key="group.title">
         <div class="rounded-lg border border-default">

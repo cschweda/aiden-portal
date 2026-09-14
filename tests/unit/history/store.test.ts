@@ -9,6 +9,7 @@ const session = (overrides: Partial<SessionState> = {}): SessionState => ({
   at: 5_000,
   brew: { id: 'b1', startedAt: 1_000, startOrigin: 'device', profileId: 'plocal1', profileTitle: 'Medium Roast', target: null, cyclesBefore: 70, samples: [{ t: 1_000, phase: 'bloom' }] },
   cleaning: null,
+  sensed: { at: 4_000, fingerprint: '[true,false]' },
   ...overrides,
 })
 
@@ -124,7 +125,7 @@ describe('in-flight state', () => {
     expect(store.readSession()).toBeNull()
     store.writeSession(session())
     const reopened = new HistoryStore({ directory: dir }).readSession()
-    expect(reopened).toMatchObject({ brew: { id: 'b1', startedAt: 1_000, startOrigin: 'device', cyclesBefore: 70 } })
+    expect(reopened).toMatchObject({ brew: { id: 'b1', startedAt: 1_000, startOrigin: 'device', cyclesBefore: 70 }, sensed: { at: 4_000 } })
     expect(reopened?.brew?.samples).toEqual([{ t: 1_000, phase: 'bloom' }])
     expect(statSync(join(dir, SESSION_FILE)).mode & 0o777).toBe(0o600)
   })

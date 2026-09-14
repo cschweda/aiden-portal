@@ -149,6 +149,24 @@ describe('HistoryService across a restart', () => {
     expect(record).toMatchObject({ counted: true, startedAt: T + 5_000 })
   })
 
+  it('notices when the brewer stops reporting, and is not fooled by its drifting clock', () => {
+    const dir = join(mkdtempSync(join(tmpdir(), 'aiden-quiet-')), 'data')
+    const service = restart(dir, T)
+    service.observe(device(), T)
+    expect(service.snapshot(device(), T).sensorsChangedAt).toBe(T)
+
+    // The brewer's own end time moves while it sits idle; that is not the machine being used.
+    service.observe(device({ brewEndTime: String((T + 60_000) / 1000) }), T + 60_000)
+    expect(service.snapshot(device(), T + 60_000).sensorsChangedAt).toBe(T)
+
+    // Something it actually senses changes, and the stamp moves with it.
+    service.observe(device({ carafePresent: false }), T + 120_000)
+    expect(service.snapshot(device(), T + 120_000).sensorsChangedAt).toBe(T + 120_000)
+
+    // A new process over the same directory picks the judgement back up rather than starting it over.
+    const second = restart(dir, T + 200_000)
+    expect(second.snapshot(device(), T + 200_000).sensorsChangedAt).toBe(T + 120_000)
+  })
   it('keeps the coffee clock across a restart, and lets it expire on its own', () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'aiden-restart-')), 'data')
     const first = restart(dir, T)
