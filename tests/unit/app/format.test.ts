@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { describeCountdown } from '../../../app/utils/countdown'
-import { formatAgo, formatClock, formatDate, formatDateTime, formatDuration, formatElevation, formatWater, formatWaterFromLitres, formatHours, formatLitres, formatLitresFromMl, formatMillilitres, formatTemperature, formatTime, toDate } from '../../../app/utils/format'
+import { formatAgo, formatClock, formatDate, formatDateTime, formatDuration, formatElevation, formatHourMinute, formatWater, formatWaterFromLitres, formatHours, formatLitres, formatLitresFromMl, formatMillilitres, formatTemperature, formatTime, toDate } from '../../../app/utils/format'
 
 describe('format helpers', () => {
   it('formats temperatures with half degrees', () => {
@@ -72,6 +72,12 @@ describe('format helpers', () => {
     expect(formatWaterFromLitres(0)).toBe('0 mL')
     expect(formatWaterFromLitres(12.345)).toBe('12.35 L')
     expect(formatWaterFromLitres(null)).toBe('—')
+  })
+  it('gives a clock time to the minute, leaving seconds to the log lines', () => {
+    const at = new Date(2026, 8, 14, 6, 44, 27).getTime()
+    expect(formatHourMinute(at)).toBe('06:44')
+    expect(formatTime(at)).toBe('06:44:27')
+    expect(formatHourMinute(undefined)).toBe('—')
   })
   it('shows an elevation in metres and feet', () => {
     expect(formatElevation(233)).toBe('233 m (764 ft)')

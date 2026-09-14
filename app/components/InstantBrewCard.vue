@@ -1,8 +1,16 @@
 <script setup lang="ts">
-import type { DeviceResponse, Profile } from '#shared/types/api'
+import type { DeviceResponse, HistoryResponse, Profile } from '#shared/types/api'
+import { isBrewing } from '../../server/lib/fellow/device'
+import { formatClock } from '../utils/format'
 import { describeProfile } from '../utils/profile-form'
 
-const props = defineProps<{ data: DeviceResponse, profiles: Profile[] }>()
+const props = defineProps<{
+  data: DeviceResponse
+  profiles: Profile[]
+  /** The brew in progress, so the card can count rather than offer a button that would be refused. */
+  live?: HistoryResponse['current'] | null
+  now?: number
+}>()
 /** Emitted after every attempt, successful or not, so the parent re-reads the brewer. */
 const emit = defineEmits<{ done: [] }>()
 
@@ -14,6 +22,13 @@ const profile = computed(() => props.profiles.find(p => p.id === props.data.devi
 const confirming = ref(false)
 const starting = ref(false)
 const brewerName = computed(() => props.data.device.displayName ?? 'The brewer')
+const brewing = computed(() => isBrewing(props.data.device) === true)
+/** Seconds into the brew, for the card's own clock. Falls back to nothing until the tracker reports a start. */
+const elapsed = computed(() => {
+  const started = props.live?.startedAt
+  if (!started || props.now === undefined) return null
+  return Math.max(0, (props.now - started) / 1000)
+})
 
 function requestStart() {
   if (app.ui.confirmBrewStart) confirming.value = true
@@ -56,7 +71,19 @@ async function start() {
       </p>
     </div>
 
+    <!-- Mid-brew the button has nothing to offer, so the space carries the clock instead. -->
+    <div
+      v-if="brewing"
+      class="flex items-center justify-center gap-3 rounded-lg bg-success/10 px-4 py-3 text-success ring-1 ring-success/30"
+      role="status"
+    >
+      <UIcon name="i-lucide-coffee" class="size-5 shrink-0" />
+      <span class="font-medium">Brewing</span>
+      <span v-if="elapsed !== null" class="font-mono text-xl font-semibold tabular tracking-tight">{{ formatClock(elapsed) }}</span>
+    </div>
+
     <UButton
+      v-else
       size="xl"
       icon="i-lucide-coffee"
       :label="data.canStartBrew ? 'Start brew' : 'Brewer is not ready'"
@@ -67,7 +94,7 @@ async function start() {
     />
 
     <p class="text-xs text-muted">
-      Uses the profile selected on the brewer itself; Fellow does not allow choosing it remotely.
+      {{ brewing ? 'The brewer finishes on its own; the clock above counts from when this app first saw the brew.' : 'Uses the profile selected on the brewer itself; Fellow does not allow choosing it remotely.' }}
     </p>
 
     <ConfirmModal

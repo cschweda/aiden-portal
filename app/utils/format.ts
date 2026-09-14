@@ -14,6 +14,12 @@ export function formatTime(value: string | number | undefined): string {
   return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
 }
 
+/** Local clock time to the minute: "06:44". `formatTime` keeps seconds, which only log lines need. */
+export function formatHourMinute(value: string | number | undefined | null): string {
+  const date = toDate(value)
+  return date ? date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }) : '—'
+}
+
 /** Millilitres as the brewer reports them: "825 mL". */
 export function formatMillilitres(ml: number | undefined): string {
   return ml === undefined ? '—' : `${Math.round(ml)} mL`

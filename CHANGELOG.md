@@ -7,6 +7,30 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-09-14
+
+### Added
+
+- A row of four readings across the dashboard, set large in the mono face the app already uses for instrument
+  values: how long the coffee has been sitting, water since the last descale against its threshold, what has been
+  brewed today, and how long the last brew took. The coffee clock and the descale tally were already there, buried
+  as rows in a dense table where nobody would find them at a glance.
+- While a brew runs, the Instant Brew card counts it. The button gives way to a green panel reading "Brewing" with
+  the elapsed clock, since a start button has nothing to offer mid-brew.
+
+### Changed
+
+- The brewer readout changes shape with its state rather than only its colour. Brewing, the elapsed clock becomes
+  the headline, with the phase it is in, a bar running against the expected length, and how long is left. Idle, it
+  is the state in a word with the checks behind it.
+- Clock times in readings lose their seconds; `formatTime` keeps them for log lines, where they belong.
+
+### Removed
+
+- The period tiles under the dashboard. Today, this week, and this month now ride as one line under the brews
+  reading, and the History page still carries the full set.
+
+
 ## [0.19.2] - 2026-09-13
 
 ### Fixed
