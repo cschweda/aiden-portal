@@ -1,4 +1,5 @@
-import type { BrewRecord, CleaningRecord, DescaleMarker, TraceSample, TraceTarget } from '../../server/lib/history'
+import { targetOf } from '../../server/lib/history'
+import type { BrewRecord, CleaningRecord, DescaleMarker, TraceSample } from '../../server/lib/history'
 import type { Device, Profile, Schedule } from '../../server/lib/fellow/schemas'
 import type { LogRecord } from '../../server/utils/log-reader'
 
@@ -36,7 +37,7 @@ function recipe(over: Partial<Profile> = {}): Record<string, unknown> {
   }
 }
 
-/** Six recipes that look like a real library: two Fellow defaults, three of the owner's, one saved Drop. */
+/** Recipes that look like a real library: Fellow's three roasts, four of the owner's, one saved Drop. */
 export function demoProfiles(): Profile[] {
   return [
     { id: 'p1', title: 'Morning Batch', ...recipe({ ratio: 16.5, overallTemperature: 93, folder: 'Mine', instantBrew: true }) },
@@ -45,6 +46,8 @@ export function demoProfiles(): Profile[] {
     { id: 'p4', title: 'Cold Brew Concentrate', ...recipe({ ratio: 14, overallTemperature: 50, bloomEnabled: false, bloomTemperature: 50, ssPulsesEnabled: false, ssPulseTemperatures: [50, 50, 50], batchPulseTemperatures: [50, 50], duration: 43_200 }) },
     { id: 'plocal0', title: 'Light Roast', ...recipe({ ratio: 17, overallTemperature: 99, folder: 'Fellow', isDefaultProfile: true, bloomTemperature: 99, ssPulseTemperatures: [99, 99, 99], batchPulseTemperatures: [99, 99] }) },
     { id: 'plocal1', title: 'Medium Roast', ...recipe({ folder: 'Fellow', isDefaultProfile: true }) },
+    // Fellow's dark roast blooms hot and then brews cool, so it has no single overall temperature.
+    { id: 'plocal2', title: 'Dark Roast', ...recipe({ overallTemperature: null as unknown as number, folder: 'Fellow', isDefaultProfile: true, bloomTemperature: 99, ssPulseTemperatures: [85, 85, 85], batchPulseTemperatures: [85, 85] }) },
     { id: 'd188', title: 'Prodigal, Mulu Blend', ...recipe({ ratio: 17, overallTemperature: null as unknown as number, folder: 'drops', bloomEnabled: false, ssPulsesNumber: 2, ssPulseTemperatures: [96, 92], batchPulseTemperatures: [96, 92] }) },
   ] as unknown as Profile[]
 }
@@ -130,18 +133,22 @@ function traceSamples(startedAt: number): TraceSample[] {
   return samples
 }
 
-/** Three weeks of brews, mostly mornings, a few with a full trace so the History page has something to draw. */
-/** What each demo recipe asks for, so the trace can show the target beside the measurement. */
-const DEMO_TARGETS: Record<string, TraceTarget> = {
-  p1: { bloomC: 96, pulsesC: [95, 93], overallC: 93 },
-  p2: { bloomC: 96, pulsesC: [96, 96, 95, 94], overallC: 96 },
-  p3: { bloomC: 95, pulsesC: [94.5, 94.5, 94.5], overallC: 94.5 },
-}
+/**
+ * What gets dialled in on the machine, and how much. The sample history is Fellow's own roasts, mostly medium, because
+ * that is what a brewer's log looks like and a roast's name means something to a visitor where an invented title does
+ * not. The banner's simulated brews take the same three in turn.
+ */
+export const GUIDED_BREWS: ReadonlyArray<{ profileId: string, waterMl: number }> = [
+  { profileId: 'plocal0', waterMl: 900 },
+  { profileId: 'plocal1', waterMl: 950 },
+  { profileId: 'plocal2', waterMl: 825 },
+]
 
+/** Three weeks of brews, mostly mornings, a few with a full trace so the History page has something to draw. */
 export function demoBrews(now: number): BrewRecord[] {
   const brews: BrewRecord[] = []
-  const profiles = ['p1', 'p1', 'p2', 'p1', 'p3', 'p1', 'p2']
-  const titles: Record<string, string> = { p1: 'Morning Batch', p2: 'Weekend Pour-over', p3: 'Single Origin, Ethiopia' }
+  const profiles = ['plocal1', 'plocal1', 'plocal0', 'plocal1', 'plocal2', 'plocal1', 'plocal0']
+  const library = new Map(demoProfiles().map(profile => [profile.id, profile]))
   let cycles = 214 - 26
   for (let day = 20; day >= 0; day--) {
     const perDay = day % 7 === 0 ? 2 : day % 3 === 0 ? 0 : 1
@@ -157,13 +164,14 @@ export function demoBrews(now: number): BrewRecord[] {
         startedAt,
         endedAt: startedAt + durationS * 1000,
         durationS,
-        waterMl: profileId === 'p2' ? 600 : 950,
+        waterMl: GUIDED_BREWS.find(g => g.profileId === profileId)?.waterMl ?? 950,
         profileId,
-        profileTitle: titles[profileId] ?? null,
+        profileTitle: library.get(profileId)?.title ?? null,
         observed: true,
         counted: true,
         cyclesAfter: cycles,
-        target: DEMO_TARGETS[profileId],
+        // Worked out from the recipe, as the app does when a brew starts, so the two cannot drift apart.
+        target: targetOf(library.get(profileId), false) ?? undefined,
         samples: traced ? traceSamples(startedAt) : [],
       })
     }
@@ -206,7 +214,7 @@ const LOG_LINES: Array<[number, string, Record<string, unknown>]> = [
   [30, 'API request', { method: 'GET', path: '/api/device' }],
   [30, 'API request', { method: 'GET', path: '/api/history' }],
   [30, 'Fellow brewer reachable', { deviceId: 'demo-aiden-0001', displayName: 'Aiden' }],
-  [30, 'Brew logged', { observed: true, counted: true, durationS: 108, waterMl: 950, profileTitle: 'Morning Batch' }],
+  [30, 'Brew logged', { observed: true, counted: true, durationS: 108, waterMl: 950, profileTitle: 'Medium Roast' }],
   [30, 'Remote start requested', { action: 'brew.start', dryRun: false }],
   [40, 'History poll failed; backing off', { code: 'fellow_network_error', failures: 1 }],
   [30, 'History polling recovered', { failures: 1 }],

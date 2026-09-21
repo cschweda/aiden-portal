@@ -7,6 +7,7 @@ import type { LogRecord } from '../../server/utils/log-reader'
 import {
   DEMO_BREW_SECONDS,
   DEMO_SAMPLE_SECONDS,
+  GUIDED_BREWS,
   demoBrews,
   demoCleanings,
   demoDescaleMarker,
@@ -23,7 +24,7 @@ import {
  * Everything lives in memory, so a reload starts the sample world again.
  */
 
-interface DemoBrew { startedAt: number, profileId: string | null, samples: TraceSample[] }
+interface DemoBrew { startedAt: number, profileId: string | null, waterMl: number, samples: TraceSample[] }
 
 interface DemoState {
   device: Device
@@ -35,6 +36,8 @@ interface DemoState {
   logs: LogRecord[]
   logLevel: string
   current: DemoBrew | null
+  /** How many brews the banner has simulated, which decides the roast the next one dials in. */
+  simulated: number
   nextId: number
 }
 
@@ -60,6 +63,7 @@ function freshState(now = Date.now()): DemoState {
     logs: demoLogs(now),
     logLevel: 'info',
     current: null,
+    simulated: 0,
     nextId: 900,
   }
 }
@@ -85,13 +89,15 @@ function advance(now: number): void {
   if (elapsed < DEMO_BREW_SECONDS) {
     Object.assign(state.device, {
       brewing: true,
+      // What the real tracker reads to learn which profile a brew is running.
+      brewingProfileId: brew.profileId ?? undefined,
       state: { value: live.phase === 'bloom' ? 'b' : live.phase === 'drip finish' ? 'd' : `p${live.phase.slice(-1)}` },
       heaterOn: live.heaterOn,
       pumpOn: live.pumpOn,
     })
     return
   }
-  const waterMl = state.device.ibWaterQuantity ?? 950
+  const waterMl = brew.waterMl
   const cycles = (state.device.totalBrewingCycles ?? 0) + 1
   const profile = state.profiles.find(p => p.id === brew.profileId)
   state.brews.push({
@@ -110,6 +116,7 @@ function advance(now: number): void {
   })
   Object.assign(state.device, {
     brewing: false,
+    brewingProfileId: undefined,
     state: null,
     heaterOn: false,
     pumpOn: false,
@@ -148,7 +155,7 @@ function historySnapshot(now: number) {
         target: targetOf(state.profiles.find(p => p.id === state.current?.profileId), state.device.singleBrewBasketPresent === true),
         samples: state.current.samples,
         expected: expectBrewDuration(state.brews, state.current.profileId, state.profiles.find(p => p.id === state.current?.profileId), {
-          waterMl: state.device.ibWaterQuantity ?? null,
+          waterMl: state.current.waterMl,
           singleServe: state.device.singleBrewBasketPresent === true,
         }),
       }
@@ -262,10 +269,24 @@ function route(method: string, path: string, query: URLSearchParams, body: Recor
   if (head === 'brew' && rest[0] === 'start' && method === 'POST') {
     const blockers = brewStartBlockers(state.device)
     if (blockers.length > 0) throw new DemoError(409, { error: 'brewer_not_ready', blockers })
-    state.current = { startedAt: now, profileId: state.device.ibSelectedProfileId ?? null, samples: [] }
+    state.current = { startedAt: now, profileId: state.device.ibSelectedProfileId ?? null, waterMl: state.device.ibWaterQuantity ?? 950, samples: [] }
     advance(now)
     log('info', 'Remote start requested', { action: 'brew.start', dryRun: false })
     return { ok: true, result: { status: 'started', profileId: state.device.ibSelectedProfileId } }
+  }
+
+  // The one path with no counterpart in `server/api/`: the demo banner's "Simulate a brew". The app has no way to
+  // start a brew, because on a real brewer one is dialled in on the machine; this stands in for the person doing that.
+  if (head === 'demo' && rest[0] === 'brew' && method === 'POST') {
+    const blockers = brewStartBlockers(state.device)
+    if (blockers.length > 0) throw new DemoError(409, { error: 'brewer_not_ready', blockers })
+    const dialled = GUIDED_BREWS[state.simulated++ % GUIDED_BREWS.length]!
+    const profileTitle = state.profiles.find(p => p.id === dialled.profileId)?.title ?? null
+    state.current = { startedAt: now, ...dialled, samples: [] }
+    advance(now)
+    // As the real service logs a brew it notices on the machine: nothing was requested, it simply began.
+    log('info', 'Brew started', { profileId: dialled.profileId, profileTitle, startOrigin: 'transition' })
+    return { ok: true, ...dialled, profileTitle }
   }
 
   if (head === 'history') {

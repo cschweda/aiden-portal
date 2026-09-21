@@ -87,8 +87,10 @@ npx serve .output/public     # or: cd .output/public && python3 -m http.server 4
 ```
 
 It is not a stripped-down mock. The pages, the components and the brew statistics, descale tally, and phase
-decoding are the same code the real app runs; only the data underneath is invented. The demo has no way to start a
-brew, because the app has none: on a real brewer a brew appears when someone starts one on the machine.
+decoding are the same code the real app runs; only the data underneath is invented. The app has no Start button,
+because on a real brewer a brew is dialled in on the machine, so the demo's banner stands in for that person: press
+**Simulate a brew** and one of Fellow's roasts begins, the trace fills in over a hundred seconds, phase by phase,
+and the brew lands in the history.
 
 **On Netlify.** `netlify.toml` in the repo root sets the build command, the publish directory, `AIDEN_DEMO=1`,
 the single-page redirect, and the response headers; the Node version comes from `.nvmrc` and pnpm from the

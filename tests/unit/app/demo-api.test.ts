@@ -15,7 +15,7 @@ describe('the demo API', () => {
     expect(device.device.displayName).toBe('Aiden')
     expect(device.canStartBrew).toBe(true)
     expect(device.blockers).toEqual([])
-    expect(await demoFetch<unknown[]>('/api/profiles')).toHaveLength(7)
+    expect(await demoFetch<unknown[]>('/api/profiles')).toHaveLength(8)
     expect(await demoFetch<unknown[]>('/api/schedules')).toHaveLength(2)
     expect(await demoFetch<{ version: string }>('/api/status')).toMatchObject({ version: 'demo', dryRun: false })
     setDemoVersion('1.2.3')
@@ -25,12 +25,12 @@ describe('the demo API', () => {
   it('creates, edits, shares, and deletes a profile', async () => {
     const created = await demoFetch<{ id: string, title: string }>('/api/profiles', { method: 'POST', body: { title: 'Test Recipe', ratio: 16 } })
     expect(created.id).toMatch(/^p\d+$/)
-    expect((await demoFetch<unknown[]>('/api/profiles'))).toHaveLength(8)
+    expect((await demoFetch<unknown[]>('/api/profiles'))).toHaveLength(9)
     const edited = await demoFetch<{ title: string }>(`/api/profiles/${created.id}`, { method: 'PATCH', body: { title: 'Renamed' } })
     expect(edited.title).toBe('Renamed')
     expect(await demoFetch<{ link: string }>(`/api/profiles/${created.id}/share`, { method: 'POST' })).toMatchObject({ link: expect.stringContaining('brew.link') })
     await demoFetch(`/api/profiles/${created.id}`, { method: 'DELETE' })
-    expect((await demoFetch<unknown[]>('/api/profiles'))).toHaveLength(7)
+    expect((await demoFetch<unknown[]>('/api/profiles'))).toHaveLength(8)
   })
 
   it('refuses a brew.link import that is not a brew.link', async () => {
@@ -57,6 +57,49 @@ describe('the demo API', () => {
     expect(after.recent).toHaveLength(brewsBefore + 1)
     expect(after.recent[0]!.durationS).toBe(DEMO_BREW_SECONDS)
     expect((await demoFetch<{ device: { brewing: boolean } }>('/api/device')).device.brewing).toBe(false)
+  })
+
+  it('fills its sample history with the factory roasts, each with the recipe its profile really has', async () => {
+    const profiles = await demoFetch<Array<{ id: string, title: string, overallTemperature: number | null, batchPulseTemperatures: number[] }>>('/api/profiles')
+    const { recent } = await demoFetch<{ recent: Array<{ id: string, profileId: string, profileTitle: string }> }>('/api/history')
+    expect(recent.length).toBeGreaterThan(10)
+    expect([...new Set(recent.map(b => b.profileTitle))].sort()).toEqual(['Dark Roast', 'Light Roast', 'Medium Roast'])
+    for (const brew of recent) {
+      const profile = profiles.find(p => p.id === brew.profileId)
+      // The card's recipe line and the trace's target both hang off the profile, so a brew must point at a real one.
+      expect(profile?.title).toBe(brew.profileTitle)
+      const full = await demoFetch<{ target: { pulsesC: number[], overallC: number | null } }>(`/api/history/brews/${brew.id}`)
+      expect(full.target.pulsesC).toEqual(profile!.batchPulseTemperatures)
+      expect(full.target.overallC).toBe(profile!.overallTemperature ?? profile!.batchPulseTemperatures[0])
+    }
+  })
+
+  it('simulates a brew dialled in on the machine: a factory roast and a guided amount, not the Instant Brew preset', async () => {
+    const { device: before } = await demoFetch<{ device: { ibSelectedProfileId: string, ibWaterQuantity: number } }>('/api/device')
+    const started = await demoFetch<{ ok: boolean, profileId: string, profileTitle: string, waterMl: number }>('/api/demo/brew', { method: 'POST' })
+    expect(started).toEqual({ ok: true, profileId: 'plocal0', profileTitle: 'Light Roast', waterMl: 900 })
+    expect(started.profileId).not.toBe(before.ibSelectedProfileId)
+    expect(started.waterMl).not.toBe(before.ibWaterQuantity)
+
+    const live = await demoFetch<{ current: { profileId: string, profileTitle: string } | null }>('/api/history')
+    expect(live.current).toMatchObject({ profileId: 'plocal0', profileTitle: 'Light Roast' })
+    // The field the real tracker reads for a running brew, so the demo's brewer says what it is brewing too.
+    expect((await demoFetch<{ device: { brewing: boolean, brewingProfileId?: string } }>('/api/device')).device).toMatchObject({ brewing: true, brewingProfileId: 'plocal0' })
+    const logged = await demoFetch<{ records: Array<{ msg: string }> }>('/api/logs', { query: { lines: 1 } })
+    expect(logged.records[0]!.msg).toBe('Brew started')
+
+    await vi.advanceTimersByTimeAsync(DEMO_BREW_SECONDS * 1000 + 1_000)
+    const after = await demoFetch<{ current: unknown, recent: Array<{ profileTitle: string, waterMl: number }> }>('/api/history')
+    expect(after.current).toBeNull()
+    expect(after.recent[0]).toMatchObject({ profileTitle: 'Light Roast', waterMl: 900 })
+    expect((await demoFetch<{ device: { brewing: boolean, brewingProfileId?: string } }>('/api/device')).device.brewingProfileId).toBeUndefined()
+  })
+
+  it('refuses a second simulated brew while one runs, and dials in the next roast once it is over', async () => {
+    await demoFetch('/api/demo/brew', { method: 'POST' })
+    await expect(demoFetch('/api/demo/brew', { method: 'POST' })).rejects.toMatchObject({ status: 409, data: { error: 'brewer_not_ready', blockers: ['a brew is in progress'] } })
+    await vi.advanceTimersByTimeAsync(DEMO_BREW_SECONDS * 1000 + 1_000)
+    expect(await demoFetch('/api/demo/brew', { method: 'POST' })).toMatchObject({ profileTitle: 'Medium Roast', waterMl: 950 })
   })
 
   it('marks a descale, which resets the tally', async () => {

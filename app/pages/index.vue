@@ -68,7 +68,7 @@ watch(() => device.data.value, (value) => {
 
     <template #body>
       <div class="mx-auto w-full max-w-5xl space-y-8">
-        <DemoBanner v-if="demo" />
+        <DemoBanner v-if="demo" @brew="refreshNow" />
         <ApiErrorAlert v-if="device.failure.value" :failure="device.failure.value" what="the brewer" :stale="device.stale.value" />
         <DescaleBanner v-if="history.data.value" :descale="history.data.value.descale" :cleaning="history.data.value.cleanings.current" :last-cleaning-ended-at="history.data.value.cleanings.lastEndedAt" @marked="history.reload()" />
 

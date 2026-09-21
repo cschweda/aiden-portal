@@ -7,6 +7,26 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.22.4] - 2026-09-21
+
+### Added
+
+- **Simulate a brew**, in the demo's banner. The app has no way to start a brew, since on a real brewer one is
+  dialled in on the machine, so the control lives in the demo's own banner and the app's pages stay exactly what
+  the app shows. It stands in for the person at the machine: one of Fellow's roasts and a guided amount, taken in
+  turn, never the Instant Brew preset. The sample brewer reports `brewingProfileId` while it brews, which is what
+  the real tracker reads, and the log says "Brew started", as the service does for a brew it notices, not "Remote
+  start requested". A second press while one runs is refused with the brewer's own reason.
+
+### Changed
+
+- The demo's sample history is Fellow's own roasts, Light, Medium and Dark, mostly medium. Its brews had carried
+  invented titles, and the dashboard's last-brew card now leads with that title: "Morning Batch" tells a visitor
+  nothing where "Medium Roast" does. The invented recipes stay in the library as the owner's own profiles. Dark
+  Roast joins the library, blooming hot and brewing cool as Fellow's does, so it has no single overall temperature.
+- Each sample brew's target temperatures are worked out from its profile's recipe, as the app does when a brew
+  starts, instead of being written out by hand beside it, so the two cannot drift apart.
+
 ## [0.22.3] - 2026-09-21
 
 ### Changed
