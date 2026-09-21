@@ -60,8 +60,8 @@ describe('GET /api/history', () => {
     const now = Date.now()
     const base = { ...DEVICE_DETAIL, totalWaterVolumeL: 40_000 }
     history.observe({ ...base, brewing: false, state: null }, now - 400_000)
-    history.observe({ ...base, brewing: true, state: { value: 'b' }, brewingWaterTemperatureC: 94 }, now - 300_000)
-    history.observe({ ...base, brewing: true, state: { value: 'p1' }, brewingWaterTemperatureC: 93 }, now - 295_000)
+    history.observe({ ...base, brewing: true, brewingProfileId: 'p7', state: { value: 'b' }, brewingWaterTemperatureC: 94 }, now - 300_000)
+    history.observe({ ...base, brewing: true, brewingProfileId: 'p7', state: { value: 'p1' }, brewingWaterTemperatureC: 93 }, now - 295_000)
     const app = createTestApp()
     const live = await app.json('GET', '/api/history')
     expect(live.body.current).toMatchObject({ profileId: 'p7', samples: expect.any(Array) })

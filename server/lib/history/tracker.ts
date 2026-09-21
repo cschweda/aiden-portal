@@ -42,7 +42,7 @@ export interface TrackerOptions {
   baselineCycles?: number | null
   /** Inferred brews recorded from one counter jump; anything beyond is dropped. */
   maxInferredPerPoll?: number
-  /** With an empty log, record the last brew the brewer still reports (its end time, water, selected profile) on the first idle read. */
+  /** With an empty log, record the last brew the brewer still reports (its end time and water) on the first idle read. */
   seedLastBrew?: boolean
 }
 
@@ -66,6 +66,18 @@ export function targetOf(profile: TrackedProfile | undefined, singleServe: boole
   const overallC = profile.overallTemperature ?? pulses[0] ?? null
   if (bloomC === null && pulses.length === 0 && overallC === null) return null
   return { bloomC, pulsesC: [...pulses], overallC }
+}
+
+/**
+ * The profile the brewer says it is brewing, or null when it does not say. `ibSelectedProfileId` is deliberately not
+ * read: it is the Instant Brew preset, what a remote start would run, and it stays put while another profile is
+ * dialled in on the machine. Seen on a real brewer: the preset on Medium Roast with `ibWaterQuantity` 300 beside it,
+ * straight through a 900 mL Light Roast brew, which the log then called Medium Roast. UNVERIFIED on a real brew:
+ * the Home Assistant integration reads `brewingProfileId` as the running profile, but this brewer has only been
+ * checked while idle, where no string arrives: null or missing, which the lenient schema cannot tell apart.
+ */
+function brewingProfileOf(device: Device): string | null {
+  return device.brewingProfileId ?? null
 }
 
 /**
@@ -189,21 +201,23 @@ export class BrewTracker {
         this.sawIdle = false
       }
       if (!this.current) {
-        const profileId = device.ibSelectedProfileId ?? null
-        const profile = profileId ? profileOf?.(profileId) : undefined
         const deviceStart = plausibleEpoch(device.brewStartTime, now - START_WINDOW_MS, now)
         const startedAt = deviceStart ?? now
         this.current = {
           id: `b${startedAt}`,
           startedAt,
           startOrigin: deviceStart !== undefined ? 'device' : this.sawIdle ? 'transition' : 'first-read',
-          profileId,
-          profileTitle: profileId ? profile?.title ?? null : null,
-          target: targetOf(profile, device.singleBrewBasketPresent === true),
+          profileId: null,
+          profileTitle: null,
+          target: null,
           cyclesBefore: this.idleCycles ?? cycles ?? null,
           samples: [],
         }
+        this.learnProfile(this.current, device, profileOf)
         events.push({ type: 'started', brew: this.current })
+      }
+      else {
+        this.learnProfile(this.current, device, profileOf)
       }
       this.current.samples.push(sampleOf(device, now))
       if (this.current.samples.length > MAX_SAMPLES) this.current.samples = this.current.samples.filter((_, i) => i % 2 === 0)
@@ -217,7 +231,7 @@ export class BrewTracker {
       const startedAt = plausibleEpoch(device.brewStartTime, 0, now)
       if (startedAt !== undefined) {
         const endedAt = plausibleEpoch(device.brewEndTime, startedAt, Math.min(now, startedAt + UNWATCHED_END_WINDOW_MS)) ?? startedAt
-        const profileId = device.ibSelectedProfileId ?? null
+        const profileId = brewingProfileOf(device)
         events.push({
           type: 'inferred',
           record: {
@@ -248,7 +262,7 @@ export class BrewTracker {
       for (let i = 0; i < missing; i++) {
         const cyclesAfter = cycles - missing + i + 1
         const last = i === missing - 1
-        const profileId = device.ibSelectedProfileId ?? null
+        const profileId = brewingProfileOf(device)
         events.push({
           type: 'inferred',
           record: {
@@ -272,6 +286,20 @@ export class BrewTracker {
       this.pendingIncrement = false
     }
     return events
+  }
+
+  /**
+   * Asked on every read of a brew until one answers, since nothing says the first read already carries it: the
+   * brewer's `brewStartTime` is known to lag a running brew. The first answer stands, with the recipe copied then.
+   */
+  private learnProfile(brew: CurrentBrew, device: Device, profileOf?: ProfileLookup): void {
+    if (brew.profileId !== null) return
+    const profileId = brewingProfileOf(device)
+    if (profileId === null) return
+    const profile = profileOf?.(profileId)
+    brew.profileId = profileId
+    brew.profileTitle = profile?.title ?? null
+    brew.target = targetOf(profile, device.singleBrewBasketPresent === true)
   }
 
   private completeCleaning(cleaning: CurrentCleaning, device: Device, now: number): CleaningRecord {

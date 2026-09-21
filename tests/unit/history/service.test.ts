@@ -83,7 +83,7 @@ describe('HistoryService polling', () => {
     server.use(
       http.get(`${BASE}/devices/${DEVICE.id}`, () => {
         calls.deviceDetail++
-        return HttpResponse.json({ ...DEVICE_DETAIL, totalBrewingCycles: cycles, brewing, state: brewing ? { value: 'p1' } : null, brewingWaterTemperatureC: brewing ? 93 : null })
+        return HttpResponse.json({ ...DEVICE_DETAIL, totalBrewingCycles: cycles, brewing, brewingProfileId: brewing ? 'p7' : null, state: brewing ? { value: 'p1' } : null, brewingWaterTemperatureC: brewing ? 93 : null })
       }),
       ...happyHandlers(calls),
     )

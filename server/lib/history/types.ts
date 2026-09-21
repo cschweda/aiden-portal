@@ -27,7 +27,7 @@ export interface BrewRecord {
   /** Seconds. Null unless the poller watched the brew and the counter rose by exactly one. */
   durationS: number | null
   waterMl: number | null
-  /** The profile selected on the brewer when the brew was first seen; Fellow never says which one ran. */
+  /** The profile the brewer named while brewing (`brewingProfileId`), or null. Records from before 0.22.1 hold the Instant Brew preset instead. */
   profileId: string | null
   profileTitle: string | null
   /** Seen running by the poller, as opposed to inferred from the brew counter afterwards. */

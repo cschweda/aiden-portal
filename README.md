@@ -113,11 +113,13 @@ counters.
   counts too, and a brew started from the app is re-read two seconds later. `HISTORY_ENABLED=false` in `.env` turns the
   background reads off; the log then only grows while a page is open.
 - **What it logs.** One line per completed brew in `data/brews.jsonl`: start, end, duration, water, the profile
-  selected on the brewer, whether the brew was watched or inferred, and the trace samples (phase, water temperature,
+  the brewer named while brewing, whether the brew was watched or inferred, and the trace samples (phase, water temperature,
   heater, pump). Rules borrowed from the Home Assistant integration: a duration is trusted only when the brew was
   watched and the brew counter rose by exactly one; a counter that rose while nobody was watching (Mac asleep,
-  service down) becomes an inferred brew with the brewer's own timestamps and no duration. Fellow never says which
-  profile ran, so the log records the one that was selected on the brewer and the UI says so.
+  service down) becomes an inferred brew with the brewer's own timestamps and no duration. The profile is the one the
+  brewer reports as brewing (`brewingProfileId`); a brew it never names has none. The Instant Brew preset
+  (`ibSelectedProfileId`) is not used for this, because it stays put while another profile is dialled in on the
+  machine.
 - **The trace.** What the brewer reports through a brew: the phase it is in, and when the heater and pump run.
   Over that, dashed, the temperature the recipe asked for, captured when the brew started so it survives a later
   edit of the profile. A brewer that reports the water temperature it reaches gets a solid line for that too; this

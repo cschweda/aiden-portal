@@ -18,7 +18,7 @@ describe('BrewTracker', () => {
   it('records a brew it watched from start to finish, counted when the counter rose by one', () => {
     const tracker = new BrewTracker()
     expect(tracker.observe(idle(70), T0)).toEqual([])
-    const started = tracker.observe(brewing('b'), T0 + 60_000, titles)
+    const started = tracker.observe(brewing('b', { brewingProfileId: 'plocal1' }), T0 + 60_000, titles)
     expect(started.map(e => e.type)).toEqual(['started', 'sample'])
     tracker.observe(brewing('p1'), T0 + 65_000, titles)
     tracker.observe(brewing('d', { brewingWaterTemperatureC: undefined }), T0 + 70_000, titles)
@@ -122,7 +122,7 @@ describe('BrewTracker', () => {
     const events = tracker.observe(idle(72, { brewStartTime: String((T0 + 100_000) / 1000), brewEndTime: String((T0 + 400_000) / 1000) }), T0 + 500_000, titles)
     expect(events.map(e => e.type)).toEqual(['inferred', 'inferred'])
     const records = events.map(e => (e.type === 'inferred' ? e.record : null))
-    expect(records[0]).toMatchObject({ cyclesAfter: 71, waterMl: null, observed: false, counted: true, durationS: null, profileTitle: 'Medium Roast' })
+    expect(records[0]).toMatchObject({ cyclesAfter: 71, waterMl: null, observed: false, counted: true, durationS: null })
     expect(records[1]).toMatchObject({ cyclesAfter: 72, waterMl: 825, startedAt: T0 + 100_000, endedAt: T0 + 400_000, samples: [] })
     const drifted = new BrewTracker({ baselineCycles: 70 }).observe(idle(71, { brewStartTime: String((T0 - 6 * 3_600_000) / 1000), brewEndTime: String((T0 - 1000) / 1000) }), T0)
     expect(drifted[0]).toMatchObject({ type: 'inferred', record: { startedAt: T0 - 6 * 3_600_000, endedAt: T0 - 6 * 3_600_000 } })
@@ -146,7 +146,7 @@ describe('BrewTracker', () => {
     const tracker = new BrewTracker({ seedLastBrew: true })
     const events = tracker.observe(idle(70, { brewStartTime: String((T0 - 400_000) / 1000), brewEndTime: String((T0 - 60_000) / 1000) }), T0, titles)
     expect(events).toHaveLength(1)
-    expect(events[0]).toMatchObject({ type: 'inferred', record: { startedAt: T0 - 400_000, endedAt: T0 - 60_000, waterMl: 825, profileTitle: 'Medium Roast', observed: false, counted: true, cyclesAfter: 70, durationS: null } })
+    expect(events[0]).toMatchObject({ type: 'inferred', record: { startedAt: T0 - 400_000, endedAt: T0 - 60_000, waterMl: 825, observed: false, counted: true, cyclesAfter: 70, durationS: null } })
     const drifted = new BrewTracker({ seedLastBrew: true }).observe(idle(70, { brewStartTime: String((T0 - 5 * 3_600_000) / 1000), brewEndTime: String((T0 - 60_000) / 1000) }), T0)
     expect(drifted[0]).toMatchObject({ type: 'inferred', record: { startedAt: T0 - 5 * 3_600_000, endedAt: T0 - 5 * 3_600_000 } })
     expect(tracker.observe(idle(70, { brewEndTime: String((T0 - 60_000) / 1000) }), T0 + 60_000)).toEqual([])
@@ -208,6 +208,47 @@ describe('BrewTracker', () => {
     const count = tracker.currentBrew?.samples.length ?? 0
     expect(count).toBeLessThanOrEqual(MAX_SAMPLES)
     expect(count).toBeGreaterThan(MAX_SAMPLES / 2 - 1)
+  })
+})
+
+describe('BrewTracker profile attribution', () => {
+  // As read from a real brewer: the Instant Brew preset sat on Medium Roast while Light Roast was dialled in on the
+  // machine itself and brewed. The preset says what a remote start would run, never what is running.
+  const recipes = (id: string) => ({
+    plocal0: { title: 'Light Roast', bloomEnabled: true, bloomTemperature: 99, overallTemperature: 99, batchPulseTemperatures: [99] },
+    plocal1: { title: 'Medium Roast', bloomEnabled: true, bloomTemperature: 96, overallTemperature: 96, batchPulseTemperatures: [96] },
+  })[id]
+
+  it('records the profile the brewer says it is brewing, not the Instant Brew preset', () => {
+    const tracker = new BrewTracker()
+    tracker.observe(idle(70), T0)
+    tracker.observe(brewing('b', { brewingProfileId: 'plocal0' }), T0 + 60_000, recipes)
+    expect(tracker.currentBrew).toMatchObject({ profileId: 'plocal0', profileTitle: 'Light Roast', target: { bloomC: 99, pulsesC: [99], overallC: 99 } })
+    const [done] = tracker.observe(idle(71), T0 + 435_000, recipes)
+    expect(done).toMatchObject({ type: 'completed', record: { profileId: 'plocal0', profileTitle: 'Light Roast', target: { bloomC: 99, pulsesC: [99], overallC: 99 } } })
+  })
+  it('takes the brewing profile from a later read when the first one came without it', () => {
+    const tracker = new BrewTracker()
+    tracker.observe(idle(70), T0)
+    tracker.observe(brewing('b'), T0 + 60_000, recipes)
+    expect(tracker.currentBrew).toMatchObject({ profileId: null, profileTitle: null, target: null })
+    tracker.observe(brewing('b', { brewingProfileId: 'plocal0' }), T0 + 65_000, recipes)
+    expect(tracker.currentBrew).toMatchObject({ profileId: 'plocal0', profileTitle: 'Light Roast', target: { bloomC: 99, pulsesC: [99], overallC: 99 } })
+  })
+  it('leaves the profile unknown when the brewer never says what it is brewing', () => {
+    const tracker = new BrewTracker()
+    tracker.observe(idle(70), T0)
+    tracker.observe(brewing('b'), T0 + 60_000, recipes)
+    tracker.observe(brewing('d'), T0 + 65_000, recipes)
+    const [done] = tracker.observe(idle(71), T0 + 400_000, recipes)
+    expect(done).toMatchObject({ type: 'completed', record: { profileId: null, profileTitle: null } })
+    expect(done && 'record' in done ? (done.record as { target?: unknown }).target : 'no event').toBeUndefined()
+  })
+  it('puts no profile on a brew nobody watched, whether inferred from the counter or seeded into an empty log', () => {
+    const inferred = new BrewTracker({ baselineCycles: 70 }).observe(idle(71), T0, recipes)
+    expect(inferred[0]).toMatchObject({ type: 'inferred', record: { profileId: null, profileTitle: null } })
+    const seeded = new BrewTracker({ seedLastBrew: true }).observe(idle(70, { brewStartTime: String((T0 - 400_000) / 1000) }), T0, recipes)
+    expect(seeded[0]).toMatchObject({ type: 'inferred', record: { profileId: null, profileTitle: null } })
   })
 })
 
@@ -283,7 +324,7 @@ describe('BrewTracker targets', () => {
   it('copies the recipe onto the brew when it starts, for the basket that is in', () => {
     const tracker = new BrewTracker()
     tracker.observe(idle(70), T0)
-    tracker.observe(brewing('b', { singleBrewBasketPresent: false, batchBrewBasketPresent: true }), T0 + 1_000, titles)
+    tracker.observe(brewing('b', { brewingProfileId: 'plocal1', singleBrewBasketPresent: false, batchBrewBasketPresent: true }), T0 + 1_000, titles)
     expect(tracker.currentBrew?.target).toEqual({ bloomC: 96, pulsesC: [93, 92], overallC: 94 })
     const [done] = tracker.observe(idle(71), T0 + 300_000, titles)
     expect(done).toMatchObject({ type: 'completed', record: { target: { pulsesC: [93, 92] } } })

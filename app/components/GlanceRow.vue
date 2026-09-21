@@ -109,7 +109,7 @@ const last = computed<Tile>(() => {
     label: 'Last brew took',
     value: brew.durationS === null ? '—' : formatClock(brew.durationS),
     unit: brew.durationS === null ? 'not timed' : 'min',
-    sub: `${brew.profileTitle ?? 'selected profile'}, at ${formatHourMinute(brew.startedAt)}`,
+    sub: `${brew.profileTitle ?? 'profile not reported'}, at ${formatHourMinute(brew.startedAt)}`,
     tone: 'default',
   }
 })

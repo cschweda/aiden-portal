@@ -7,6 +7,28 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.22.1] - 2026-09-21
+
+### Fixed
+
+- A brew is filed under the profile the brewer says it is brewing, no longer under the Instant Brew preset. The
+  log took `ibSelectedProfileId` for "the profile selected on the brewer", and it is not: it is what a remote start
+  would run, and it stays put while another profile is dialled in on the machine. A Light Roast brew chosen on the
+  Aiden's own screen showed as Medium Roast while it ran and in the history afterwards, with Medium Roast's 96 °C
+  drawn as the target over a 99 °C recipe. The brew itself gave it away: 375 s against the 360 s of the two earlier
+  900 mL brews, which is Light Roast's 45 s bloom against Medium's 30 s, to the second. Every record before this
+  one carries the preset of the day.
+- The profile now comes from `brewingProfileId`, asked on every read of a brew until one answers, since nothing
+  says the first read already carries it. A brew the brewer never names, or one the app did not watch, has no
+  profile and reads "profile not reported", rather than one the app never knew.
+
+### Known unknowns
+
+- Whether this brewer fills `brewingProfileId` during a brew is unverified. The Home Assistant integration reads
+  it as the running profile; here it has only been seen absent, while idle. The next watched brew settles it: a
+  record with a profile means it does, a record without one means Fellow offers nothing for a factory profile,
+  whose `lastUsedTime` stays null even minutes after it brewed.
+
 ## [0.22.0] - 2026-09-14
 
 ### Added

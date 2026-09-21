@@ -117,7 +117,7 @@ const pollingLine = computed(() => {
                 Brewing now
               </h3>
               <p class="text-sm text-muted">
-                {{ live.profileTitle ?? live.profileId ?? 'selected profile' }} · started {{ formatTime(live.startedAt) }}<template v-if="countdown"> · {{ countdown }}</template>
+                {{ live.profileTitle ?? live.profileId ?? 'profile not reported' }} · started {{ formatTime(live.startedAt) }}<template v-if="countdown"> · {{ countdown }}</template>
               </p>
             </div>
             <BrewTraceChart :samples="live.samples" :started-at="live.startedAt" :interval-s="history.data.value.polling.brewPollSeconds" :idle-poll-s="history.data.value.polling.idlePollSeconds" :expected-s="live.expected?.seconds ?? null" :target="live.target ?? null" />
@@ -129,7 +129,7 @@ const pollingLine = computed(() => {
                 {{ selected ? 'Brew trace' : 'Last brew' }}
               </h3>
               <p class="truncate text-sm text-muted">
-                {{ traced.profileTitle ?? traced.profileId ?? 'selected profile' }} · {{ formatDateTime(traced.startedAt) }} · {{ formatDuration(traced.durationS) }} · {{ formatMillilitres(traced.waterMl ?? undefined) }}
+                {{ traced.profileTitle ?? traced.profileId ?? 'profile not reported' }} · {{ formatDateTime(traced.startedAt) }} · {{ formatDuration(traced.durationS) }} · {{ formatMillilitres(traced.waterMl ?? undefined) }}
               </p>
             </div>
             <BrewTraceChart :samples="traced.samples" :started-at="traced.startedAt" :interval-s="history.data.value.polling.brewPollSeconds" :idle-poll-s="history.data.value.polling.idlePollSeconds" :target="traced.target ?? null" />
@@ -145,7 +145,7 @@ const pollingLine = computed(() => {
             <ul v-else class="divide-y divide-default rounded-lg border border-default">
               <li v-for="brew in history.data.value.recent" :key="brew.id" class="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm">
                 <span class="tabular w-36 shrink-0">{{ formatDateTime(brew.startedAt) }}</span>
-                <span class="min-w-0 flex-1 truncate">{{ brew.profileTitle ?? brew.profileId ?? 'selected profile unknown' }}</span>
+                <span class="min-w-0 flex-1 truncate">{{ brew.profileTitle ?? brew.profileId ?? 'profile not reported' }}</span>
                 <span class="tabular w-24 text-muted">{{ formatDuration(brew.durationS) }}</span>
                 <span class="tabular w-20 text-muted">{{ formatMillilitres(brew.waterMl ?? undefined) }}</span>
                 <UBadge :label="kind(brew).label" :color="kind(brew).color" variant="subtle" size="sm" />
@@ -153,7 +153,8 @@ const pollingLine = computed(() => {
               </li>
             </ul>
             <p class="text-xs text-muted">
-              The profile is the one selected on the brewer when the brew was seen; Fellow does not report which profile ran.
+              The profile is the one the brewer named while it brewed; a brew it did not name, or one the app did not watch, has none.
+              Brews logged before 0.22.1 carry the Instant Brew preset of the day instead, which is not necessarily what was brewed.
               <template v-if="history.data.value.skippedLines">
                 {{ history.data.value.skippedLines }} unreadable line{{ history.data.value.skippedLines === 1 ? '' : 's' }} in the log were skipped.
               </template>

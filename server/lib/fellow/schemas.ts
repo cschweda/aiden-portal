@@ -111,7 +111,9 @@ export const DeviceSchema = z.looseObject({
   missingWater: lenientBoolean,
   singleBrewBasketPresent: lenientBoolean,
   batchBrewBasketPresent: lenientBoolean,
+  /** The Instant Brew preset: what a remote start would run. It does not follow the profile dialled in on the machine. */
   ibSelectedProfileId: lenientString,
+  /** The profile being brewed, per the Home Assistant integration. Absent while idle; UNVERIFIED during a brew. */
   brewingProfileId: lenientString,
   brewStartTime: lenientEpoch,
   /** Advances on its own while the brewer is idle (seen moving four hours with no brew), so it is never shown and only believed within three hours of `brewStartTime`. */
