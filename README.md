@@ -1,7 +1,8 @@
 # aiden-portal
 
 A personal web app for controlling a [Fellow Aiden](https://fellowproducts.com/products/aiden) coffee brewer:
-brew profiles, schedules, brew.link import, share links, and remote Instant Brew, from a browser on your own machine.
+brew profiles, schedules, brew.link import and share links, with a live view of the brewer and a log of every brew,
+from a browser on your own machine.
 
 > **Status:** Phase 1.5 complete. The app runs as a service on a Mac (launchd) or on Ubuntu 24.04 or newer
 > (systemd), listens on loopback only, and is reachable from your own computers and phones over
@@ -36,7 +37,7 @@ sideways is the log table, inside its own frame.
 
 | Page | What it does |
 |---|---|
-| Dashboard | Top to bottom: a descale banner, with its **Mark descaled** button, when descaling is due or close. The brewer's state as one word (Ready, Brewing, Offline, Not ready), the flags behind that word, and the reasons a brew cannot start. **Start brew**, enabled only when the brewer says it is ready, which asks before it sends. A sensor panel with everything the brewer reports, grouped for troubleshooting: the live phase, heater and pump, how long the coffee has been sitting, and the water temperature where a brewer reports one; lid, tank, carafe and baskets; brew and water totals; the descale tally with its Mark descaled button; the settings on the brewer itself; and its identity. Brews and water for today, this week and this month. The trace of the brew running now, or of the last one. |
+| Dashboard | Top to bottom: a descale banner, with its **Mark descaled** button, when descaling is due or close. The brewer's state as one word (Ready, Brewing, Offline, Not ready), the flags behind that word, and the reasons a brew cannot start. Beside it, the last brew: its profile and water, when it started, how long it took, and that profile's recipe; while a brew runs, that brew and a clock instead. There is no Start button: brews are dialled in on the machine, and a remote start runs the brewer's separate Instant Brew preset, which is easily mistaken for the profile in use (`POST /api/brew/start` remains for those who want it). A sensor panel with everything the brewer reports, grouped for troubleshooting: the live phase, heater and pump, how long the coffee has been sitting, and the water temperature where a brewer reports one; lid, tank, carafe and baskets; brew and water totals; the descale tally with its Mark descaled button; the settings on the brewer itself; and its identity. Brews and water for today, this week and this month. The trace of the brew running now, or of the last one. |
 | Profiles | Every profile on the brewer with a one-line recipe summary. Create, edit, delete, share (a brew.link URL to copy), and import from a brew.link. The editor exposes every variable in its exact steps: ratio and temperature sliders in halves, bloom, and per-pulse temperatures that follow the pulse count. |
 | Schedules | Each schedule with its time in the brewer's local time, days, water, and profile; pause or resume with the switch, delete, or add one with the day chips and time picker. |
 | History | Brews and water by day, week, and month; average brew length and time between brews; the most used profile; every logged brew, with its trace on demand; the record of past descales and cleaning cycles; and what the background reads are doing. |
@@ -86,8 +87,8 @@ npx serve .output/public     # or: cd .output/public && python3 -m http.server 4
 ```
 
 It is not a stripped-down mock. The pages, the components and the brew statistics, descale tally, and phase
-decoding are the same code the real app runs; only the data underneath is invented. Press **Start brew** in the
-demo and the trace fills in over a hundred seconds, phase by phase, and the brew lands in the history.
+decoding are the same code the real app runs; only the data underneath is invented. The demo has no way to start a
+brew, because the app has none: on a real brewer a brew appears when someone starts one on the machine.
 
 **On Netlify.** `netlify.toml` in the repo root sets the build command, the publish directory, `AIDEN_DEMO=1`,
 the single-page redirect, and the response headers; the Node version comes from `.nvmrc` and pnpm from the
@@ -455,7 +456,7 @@ this site: the browser proves it with `Sec-Fetch-Site: same-origin`; a script or
 | `POST /api/profiles/import` | body `{ link }`; imports a brew.link profile |
 | `GET /api/schedules?fresh=1`, `POST /api/schedules` | list, create |
 | `PATCH /api/schedules/:id`, `DELETE /api/schedules/:id` | update (for example `{ "enabled": false }`), delete |
-| `POST /api/brew/start` | starts the configured Instant Brew, or 409 with the reasons it cannot |
+| `POST /api/brew/start` | starts the brewer's Instant Brew preset, or 409 with the reasons it cannot; no page calls it since 0.22.3 |
 | `GET /api/logs` | the tail of the production log; `lines`, `level` and `requestId` narrow it |
 | `PATCH /api/logs/level` | body `{ level }`; switches the log level until the service restarts |
 | `GET /api/history` | stats, the descale tally, the brew running now with its samples, the last traced brew, recent brews, the poller's state |

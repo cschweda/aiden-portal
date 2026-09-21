@@ -7,6 +7,35 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.22.3] - 2026-09-21
+
+### Changed
+
+- The dashboard's top card shows the last brew: "Light Roast · 900 mL", when it started and how long it took, and
+  that profile's recipe. While a brew runs it shows that brew and a clock instead. The owner dials every brew in on
+  the machine, under Guided Brew, and has never used Instant Brew; the logs agree, with one remote start in ten
+  days, refused, and all ten brews started on the machine. The card had been built around the feature nobody used.
+
+### Removed
+
+- The Start button, and with it the Instant Brew preset on the dashboard. A remote start runs the brewer's own
+  Instant Brew preset, a profile and a quantity kept apart from whatever is dialled in for a brew, and showing it in
+  the dashboard's most prominent card passed it off as the profile in use. `POST /api/brew/start` remains, the
+  sensor panel still lists the preset among the brewer's settings, and `ui.confirmBrewStart` is kept, unread, so an
+  existing config still validates. It was also the one control in the app that could make the machine do something.
+- The demo's simulated brew, which that button started. The demo shows what the app shows, and on a real brewer a
+  brew appears when someone starts one on the machine.
+
+### Retracted
+
+- 0.22.2 recorded, as observed, that an Instant Brew preset changed on the machine had not reached Fellow minutes
+  later. It was not observed and very likely did not happen. The Aiden keeps two selections: Guided Brew, which
+  showed Light Roast because that is what had been brewed, and Instant Brew, a separate preset. The Light Roast seen
+  on the machine was the Guided Brew selection. Fellow read Medium Roast, 300 mL, on every read that morning, more
+  than a dozen, and Medium Roast at every brew since the log began; nothing suggests the preset was ever touched. The claim
+  rested on a one-word answer to a question, written down as a reading. The wording it put into the card and the
+  confirmation is gone, and ARCHITECTURE.md is corrected.
+
 ## [0.22.2] - 2026-09-21
 
 ### Changed
@@ -27,6 +56,8 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ### Observed
 
+- **Retracted in 0.22.3: this was not observed.** The Light Roast seen on the machine was its Guided Brew selection,
+  not the Instant Brew preset. The original note follows, as written.
 - A preset changed on the machine while it sat idle had not reached Fellow several minutes later: the card went on
   showing Medium Roast with the brewer itself on Light Roast. So the card can lag the machine, and what a remote
   start runs is the machine's own setting. The brewer is already known to stop reporting sensor changes while idle.

@@ -1,6 +1,6 @@
 {
   "name": "aiden-portal",
-  "version": "0.22.2",
+  "version": "0.22.3",
   "description": "Personal web app for controlling a Fellow Aiden coffee brewer",
   "type": "module",
   "private": true,

@@ -65,7 +65,8 @@ export default defineAidenConfig({
   ui: {
     // Default appearance: 'dark', 'light', or 'system'. The user can still toggle it in the app.
     colorMode: 'dark',
-    // Ask for confirmation before a remote Instant Brew start.
+    // Ask for confirmation before a remote Instant Brew start. No page offers one since 0.22.3 (the dashboard's
+    // Start button was removed), so nothing reads this today; it is kept so an existing config still validates.
     confirmBrewStart: true,
   },
 

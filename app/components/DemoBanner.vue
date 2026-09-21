@@ -11,7 +11,7 @@ const wide = useWideScreen()
     variant="subtle"
     icon="i-lucide-flask-conical"
     title="Demo — sample data, no brewer attached"
-    description="Every number here is invented and lives in your browser. Edit profiles, start a brew and watch the trace fill in, mark a descale: nothing leaves this page, and a reload starts over."
+    description="Every number here is invented and lives in your browser. Edit profiles, change a schedule, mark a descale: nothing leaves this page, and a reload starts over."
     :orientation="wide ? 'horizontal' : 'vertical'"
     :actions="[
       { label: 'Source on GitHub', icon: 'i-lucide-github', color: 'neutral', variant: 'outline', to: 'https://github.com/cschweda/aiden-portal', target: '_blank' },

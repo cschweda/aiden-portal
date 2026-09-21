@@ -52,7 +52,7 @@ export const AidenConfigSchema = z.strictObject({
   }),
   ui: z.strictObject({
     colorMode: z.enum(['dark', 'light', 'system']),
-    /** Ask before sending a remote Instant Brew start. */
+    /** Ask before sending a remote Instant Brew start. Unread since 0.22.3, when the dashboard's Start button went; kept so existing configs validate. */
     confirmBrewStart: z.boolean(),
   }),
   history: z.strictObject({
