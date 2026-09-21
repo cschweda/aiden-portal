@@ -80,7 +80,7 @@ watch(() => device.data.value, (value) => {
 
         <div v-else-if="device.data.value" class="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
           <BrewerReadout :data="device.data.value" :live="history.data.value?.current ?? null" :now="now" />
-          <InstantBrewCard :data="device.data.value" :profiles="profiles.data.value ?? []" :live="history.data.value?.current ?? null" :now="now" @done="refreshNow" />
+          <InstantBrewCard :data="device.data.value" :profiles="profiles.data.value ?? []" :live="history.data.value?.current ?? null" :last-brew="history.data.value?.recent[0] ?? null" :reported-at="history.data.value?.sensorsChangedAt ?? null" :now="now" @done="refreshNow" />
         </div>
 
         <GlanceRow v-if="device.data.value && history.data.value" :device="device.data.value" :history="history.data.value" :now="now" />

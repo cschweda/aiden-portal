@@ -7,6 +7,30 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.22.2] - 2026-09-21
+
+### Changed
+
+- The Instant Brew card says what it shows: the brewer's Instant Brew preset, with the water it would draw, as in
+  "Medium Roast · 300 mL". A remote start sends neither a profile nor a quantity; the brewer runs that pair, which
+  has nothing to do with the brew last dialled in on the machine. The water was missing from the card, and it is
+  the part most likely to surprise: 300 mL from a brewer that had just made 900.
+- A "Last brewed" line sits under the button, "Light Roast · today 06:41", because the preset and the last brew are
+  easily taken for one another. A brew the brewer never named reads "profile not reported".
+- The confirmation before a remote start promises only the preset, and only as last reported, with the time.
+
+### Fixed
+
+- The card's footnote said it "uses the profile selected on the brewer itself", the same false premise that 0.22.1
+  took out of the brew log. It now says the preset is set on the brewer, separately from the profile dialled in for
+  a brew, and that it is shown as the brewer last reported it.
+
+### Observed
+
+- A preset changed on the machine while it sat idle had not reached Fellow several minutes later: the card went on
+  showing Medium Roast with the brewer itself on Light Roast. So the card can lag the machine, and what a remote
+  start runs is the machine's own setting. The brewer is already known to stop reporting sensor changes while idle.
+
 ## [0.22.1] - 2026-09-21
 
 ### Fixed
