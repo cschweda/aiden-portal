@@ -4,6 +4,23 @@ import aiden from './aiden.config'
 // `pnpm build:demo` sets this. A demo build has no server at all: it is a static single-page app whose /api calls
 // are answered in the browser from sample data (app/demo/), so it can be hosted anywhere and shows nobody's brewer.
 const demo = process.env.AIDEN_DEMO === '1' || process.env.AIDEN_DEMO === 'true'
+// The public demo's address. Only a demo build is ever shared as a link, so only it carries the social card, whose
+// image URL must be absolute; the real app lives on loopback and a tailnet, where nothing unfurls it.
+const DEMO_URL = 'https://aiden-portal.netlify.app'
+const DESCRIPTION = 'A dashboard for a Fellow Aiden coffee brewer: a live trace of every brew, profiles and schedules, a brew log and a descale tally. It runs on your own machine and is reachable only over Tailscale.'
+const socialMeta = demo
+  ? [
+      { property: 'og:type', content: 'website' },
+      { property: 'og:title', content: 'aiden-portal · a dashboard for the Fellow Aiden' },
+      { property: 'og:description', content: `${DESCRIPTION} This demo runs on invented data.` },
+      { property: 'og:url', content: `${DEMO_URL}/` },
+      { property: 'og:image', content: `${DEMO_URL}/og-image.png` },
+      { property: 'og:image:width', content: '1200' },
+      { property: 'og:image:height', content: '630' },
+      { property: 'og:image:alt', content: 'aiden-portal in amber on a dark background, beside a brewer status card reading Brewing with a live brew trace' },
+      { name: 'twitter:card', content: 'summary_large_image' },
+    ]
+  : []
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
@@ -44,7 +61,11 @@ export default defineNuxtConfig({
         { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon.png' },
         { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
       ],
-      meta: [{ name: 'theme-color', content: '#1c1917' }],
+      meta: [
+        { name: 'theme-color', content: '#1c1917' },
+        { name: 'description', content: DESCRIPTION },
+        ...socialMeta,
+      ],
     },
   },
   colorMode: {

@@ -7,6 +7,14 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.22.5] - 2026-11-08
+
+### Added
+
+- **A social card for the demo.** `public/og-image.png` (1200 × 630, dark, the app's amber), with `og:` and
+  `twitter:` tags pointing at it from the demo build only: the demo is the one thing ever shared as a link, and the
+  image URL has to be absolute. Every build gains a `description` meta tag.
+
 ## [0.22.4] - 2026-09-21
 
 ### Added
