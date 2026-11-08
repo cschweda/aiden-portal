@@ -1,5 +1,7 @@
 # aiden-portal
 
+[![aiden-portal: a dashboard for the Fellow Aiden, reachable only over Tailscale](public/og-image.png)](https://aiden-portal.netlify.app)
+
 A personal web app for controlling a [Fellow Aiden](https://fellowproducts.com/products/aiden) coffee brewer:
 brew profiles, schedules, brew.link import and share links, with a live view of the brewer and a log of every brew,
 from a browser on your own machine.
