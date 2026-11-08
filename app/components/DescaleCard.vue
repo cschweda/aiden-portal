@@ -79,7 +79,7 @@ const estimate = computed(() => {
     <ConfirmModal
       v-model:open="confirming"
       title="Mark the brewer as descaled?"
-      description="The tally restarts from the brewer's current totals. Only aiden-studio's own record changes; nothing is sent to Fellow."
+      description="The tally restarts from the brewer's current totals. Only aiden-portal's own record changes; nothing is sent to Fellow."
       confirm-label="Mark descaled"
       :loading="marking"
       @confirm="mark"

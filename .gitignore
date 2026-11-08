@@ -9,9 +9,10 @@ dist
 # Node dependencies
 node_modules
 
-# Runtime state
-data
-logs
+# Runtime state, written beside the checkout (or the installed copy). Anchored to the root: a bare `logs`
+# also matched server/api/logs/, the log viewer's routes, and kept them out of the repository.
+/data/
+/logs/
 *.log
 
 # Misc

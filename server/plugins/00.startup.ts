@@ -14,12 +14,12 @@ export default defineNitroPlugin(() => {
     config = getConfig()
   }
   catch (error) {
-    console.error(`aiden-studio cannot start: ${error instanceof Error ? error.message : String(error)}`)
+    console.error(`aiden-portal cannot start: ${error instanceof Error ? error.message : String(error)}`)
     process.exit(1)
   }
   const problems = checkStartupSafety(config)
   if (problems.length > 0) {
-    console.error(`aiden-studio refused to start:\n${problems.map(p => `  - ${p}`).join('\n')}`)
+    console.error(`aiden-portal refused to start:\n${problems.map(p => `  - ${p}`).join('\n')}`)
     process.exit(1)
   }
 
@@ -40,7 +40,7 @@ export default defineNitroPlugin(() => {
     allowedHosts: config.allowedHosts,
     logLevel: config.logging.level,
     cacheTtlMs: config.fellow.cacheTtlMs,
-  }, 'aiden-studio starting')
+  }, 'aiden-portal starting')
   console.log(`${config.app.name} on http://${config.host}:${config.port} | dry run: ${config.fellow.dryRun} | logs: ${config.isProduction ? currentLogFile(config) : 'stdout'}`)
 
   if (fellowTarget.protocol !== 'https:') {

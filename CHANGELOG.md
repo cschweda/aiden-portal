@@ -7,6 +7,21 @@ bumped and an entry is added here at the end of every checkpoint and every relea
 
 ## [Unreleased]
 
+## [0.22.6] - 2026-11-08
+
+### Changed
+
+- **The app is called aiden-portal**, like its repository: the page title, the sidebar, the startup log line and the
+  descale dialog. The macOS launchd label and folders (`com.cschweda.aiden-studio`, `~/Library/Application
+  Support/aiden-studio`, `~/Library/Logs/aiden-studio`) keep the old name on purpose, so an installed service and
+  its brew history are not orphaned.
+
+### Fixed
+
+- **`.gitignore` anchors `data/` and `logs/` to the root.** The bare `logs` pattern matched any directory of that
+  name, so `server/api/logs/` (the log viewer's routes) never reached the repository, and a fresh clone could not
+  load the route tests.
+
 ## [0.22.5] - 2026-11-08
 
 ### Added

@@ -84,7 +84,7 @@ if grep -q 'not-a-real-password\|smoke@example.com' /tmp/aiden-smoke.body; then 
 
 echo "Logs"
 if [ -L "$SMOKE_LOGS/logs/current.log" ]; then pass "logs/current.log symlink exists"; else fail "no logs/current.log symlink"; fi
-if grep -q '"msg":"aiden-studio starting"' "$SMOKE_LOGS/logs/current.log" 2>/dev/null; then pass "startup record logged"; else fail "startup record missing"; fi
+if grep -q '"msg":"aiden-portal starting"' "$SMOKE_LOGS/logs/current.log" 2>/dev/null; then pass "startup record logged"; else fail "startup record missing"; fi
 if grep -qi 'not-a-real-password' "$SMOKE_LOGS/logs/current.log" 2>/dev/null; then fail "password found in the log"; else pass "password absent from the log"; fi
 if [ "$(stat -f '%Lp' "$SMOKE_LOGS/logs" 2>/dev/null || stat -c '%a' "$SMOKE_LOGS/logs")" = "700" ]; then pass "logs directory is owner-only"; else fail "logs directory permissions: $(stat -f '%Lp' "$SMOKE_LOGS/logs" 2>/dev/null)"; fi
 

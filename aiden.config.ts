@@ -1,7 +1,7 @@
 import { defineAidenConfig } from './server/utils/aiden-config'
 
 /**
- * aiden-studio configuration: the single source of truth for every setting that is not a secret.
+ * aiden-portal configuration: the single source of truth for every setting that is not a secret.
  *
  * Edit this file, then build. It is compiled into each `pnpm dev` / `pnpm build`, so a change needs a
  * restart or a rebuild to take effect. Secrets (your Fellow email and password) never belong here; they
@@ -11,7 +11,7 @@ import { defineAidenConfig } from './server/utils/aiden-config'
 export default defineAidenConfig({
   app: {
     // Shown in the page title and the startup line.
-    name: 'aiden-studio',
+    name: 'aiden-portal',
   },
 
   server: {

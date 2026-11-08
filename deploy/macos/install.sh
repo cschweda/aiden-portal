@@ -55,7 +55,7 @@ render_plist "$NODE" "$APP_HOME" "$LAUNCHD_LOG" > "$tmp"
 plutil -lint "$tmp" > /dev/null || { rm -f "$tmp"; fail "the rendered plist did not lint; nothing was loaded"; }
 mv "$tmp" "$PLIST"
 launchctl bootstrap "$DOMAIN" "$PLIST" \
-  || fail "launchctl bootstrap failed; run this installer again, and if aiden-studio is switched off in System Settings > General > Login Items & Extensions, switch it on first"
+  || fail "launchctl bootstrap failed; run this installer again, and if aiden-studio (the launchd item keeps the old name) is switched off in System Settings > General > Login Items & Extensions, switch it on first"
 echo "install: loaded $PLIST (node: $NODE)"
 
 for _ in $(seq 1 40); do
